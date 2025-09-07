@@ -30,6 +30,7 @@
   "scripts": {
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
+    "vercel-build": "npm install --legacy-peer-deps && npm run build"
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "server": "node server/server.js",
     "client": "react-scripts start",
