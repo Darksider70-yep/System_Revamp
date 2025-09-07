@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/System-Revamp/static/css/main.e6c13ad2.css",
+    "main.js": "/System-Revamp/static/js/main.c7b3ca50.js",
+    "index.html": "/System-Revamp/index.html",
+    "main.e6c13ad2.css.map": "/System-Revamp/static/css/main.e6c13ad2.css.map",
+    "main.c7b3ca50.js.map": "/System-Revamp/static/js/main.c7b3ca50.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.c7b3ca50.js"
+  ]
+}
