@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, Typography, CircularProgress, Box, Chip } from "@mui/material";
+import { Card, Typography, Box, Chip } from "@mui/material";
 
 const hoverGlow = {
   transition: "box-shadow 0.3s ease, transform 0.3s ease",

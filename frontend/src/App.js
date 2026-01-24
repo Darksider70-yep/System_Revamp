@@ -54,7 +54,16 @@ function App() {
     setRefreshing(false);
   };
 
-  
+
+  const normalizedApps = apps.map(app => ({
+    ...app,
+    updateRequired: app.status?.includes("Update Available"),
+  }));
+
+  const riskData = [
+    { name: "Critical", risk: missingDrivers.length * 3 },
+    { name: "Moderate", risk: normalizedApps.filter(app => app.updateRequired).length },
+  ];
 
   // Fetch drivers (missing + installed)
   const fetchDrivers = async () => {
@@ -127,10 +136,6 @@ function App() {
       });
   };
 
-  const riskData = [
-    { name: "Critical", risk: missingDrivers.length * 3 },
-    { name: "Moderate", risk: apps.filter((app) => app.updateRequired).length },
-  ];
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "rgba(0,0,0,0.85)", backdropFilter: "blur(10px)", color: "#fff" }}>
@@ -231,7 +236,7 @@ function App() {
               )}
 
               {/* Installed Apps */}
-              {selectedMenu === "installed" && <InstalledAppsTable data={apps} />}
+              {selectedMenu === "installed" && <InstalledAppsTable data={normalizedApps} />}
 
               {/* Missing Drivers */}
               {selectedMenu === "drivers" && (

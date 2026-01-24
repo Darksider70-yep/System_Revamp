@@ -232,7 +232,7 @@ def check_latest_versions(installed_apps: dict) -> list:
             "current": current_version,
             "latest": latest,
             "status": status,
-            "risk": risk
+            "riskLevel": risk.split()[0]
         })
 
     return results
