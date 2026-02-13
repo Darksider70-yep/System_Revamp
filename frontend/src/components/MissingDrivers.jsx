@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, Typography, Box, Chip } from "@mui/material";
+import { Card, Typography, Box, Chip, Button } from "@mui/material";
 
 const panelStyle = {
   background: "linear-gradient(145deg, rgba(5, 13, 34, 0.9), rgba(8, 23, 52, 0.82))",
@@ -26,7 +26,13 @@ const impactColors = {
   Low: "#0ea5e9",
 };
 
-const MissingDrivers = ({ missing = [], installed = [], riskSummary = {} }) => {
+const MissingDrivers = ({
+  missing = [],
+  installed = [],
+  riskSummary = {},
+  onDownloadDrivers = null,
+  downloadingDrivers = false,
+}) => {
   const statusColors = { Missing: "#dc2626", Installed: "#15803d" };
 
   const renderDriverCard = (driver, key) => (
@@ -112,7 +118,22 @@ const MissingDrivers = ({ missing = [], installed = [], riskSummary = {} }) => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2, p: 2 }}>
       <Card sx={{ ...panelStyle }}>
-        <Typography sx={{ color: "#e0e7ff", fontWeight: 800, mb: 1.5 }}>Driver Risk Intelligence</Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+          <Typography sx={{ color: "#e0e7ff", fontWeight: 800 }}>Driver Risk Intelligence</Typography>
+          <Button
+            variant="contained"
+            onClick={onDownloadDrivers}
+            disabled={downloadingDrivers || missing.length === 0 || !onDownloadDrivers}
+            sx={{
+              background: "linear-gradient(120deg, #16a34a, #0891b2)",
+              fontWeight: 700,
+              borderRadius: 2,
+              "&:hover": { background: "linear-gradient(120deg, #15803d, #0e7490)" },
+            }}
+          >
+            {downloadingDrivers ? "Downloading..." : "Download Missing Drivers"}
+          </Button>
+        </Box>
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           <Chip label={`Critical: ${riskSummary.critical || 0}`} sx={{ backgroundColor: "#dc2626", color: "#fff", fontWeight: 700 }} />
           <Chip label={`High: ${riskSummary.high || 0}`} sx={{ backgroundColor: "#ea580c", color: "#fff", fontWeight: 700 }} />

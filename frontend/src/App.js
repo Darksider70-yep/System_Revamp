@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import InstalledAppsTable from "./components/InstalledAppsTable";
 import MissingDrivers from "./components/MissingDrivers";
+import ProtectionCenter from "./components/ProtectionCenter";
 import {
   Box,
   Typography,
@@ -15,7 +16,7 @@ import {
   ListItemButton,
   ListItemText,
 } from "@mui/material";
-import { CloudDownload, Refresh, Computer, Dashboard, Storage, Build } from "@mui/icons-material";
+import { CloudDownload, Refresh, Computer, Dashboard, Storage, Build, Security } from "@mui/icons-material";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const panelHover = {
@@ -35,19 +36,36 @@ const glassCard = {
 };
 
 function App() {
+  const PROTECTION_SCAN_ENDPOINTS = [
+    "http://127.0.0.1:8003/protection/scan",
+    "http://127.0.0.1:8013/protection/scan",
+  ];
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [downloadLabel, setDownloadLabel] = useState("ZIP package");
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [scriptDownloading, setScriptDownloading] = useState(false);
+  const [driversDownloading, setDriversDownloading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const [missingDrivers, setMissingDrivers] = useState([]);
   const [installedDrivers, setInstalledDrivers] = useState([]);
   const [driverRiskSummary, setDriverRiskSummary] = useState({ critical: 0, high: 0, medium: 0, low: 0 });
+  const [protectionResults, setProtectionResults] = useState([]);
+  const [protectionSummary, setProtectionSummary] = useState({ malicious: 0, suspicious: 0, clean: 0, unknown: 0, error: 0 });
+  const [protectionScanning, setProtectionScanning] = useState(false);
+  const [lastProtectionScan, setLastProtectionScan] = useState(null);
   const [selectedMenu, setSelectedMenu] = useState("overview");
   const [lastScanTime, setLastScanTime] = useState(null);
+
+  const toFriendlyFetchError = (err, serviceName, endpoint) => {
+    const msg = err?.message || "";
+    if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
+      return `${serviceName} is unreachable at ${endpoint}. Start the service and try again.`;
+    }
+    return msg || `Request to ${serviceName} failed.`;
+  };
 
   // Fetch installed apps
   const fetchApps = async () => {
@@ -218,6 +236,85 @@ function App() {
     }
   };
 
+  const handleDownloadDrivers = async () => {
+    try {
+      setDriversDownloading(true);
+      const res = await fetch("http://127.0.0.1:8001/drivers/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          drivers: missingDrivers.map((driver) => driver["Driver Name"]),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `Driver download failed with status ${res.status}`);
+      }
+
+      const failed = Array.isArray(data.steps)
+        ? data.steps.filter((step) => step.returnCode !== 0)
+        : [];
+
+      if (failed.length === 0) {
+        alert("Driver download/install triggered successfully. Windows may continue in background.");
+      } else {
+        alert("Driver update started, but some steps reported issues. Try running app as Administrator.");
+      }
+
+      fetchDrivers();
+    } catch (err) {
+      alert(toFriendlyFetchError(err, "Drivers service", "http://127.0.0.1:8001"));
+    } finally {
+      setDriversDownloading(false);
+    }
+  };
+
+  const handleProtectionScan = async () => {
+    try {
+      setProtectionScanning(true);
+      const payload = {
+        apps: normalizedApps.map((app) => ({ name: app.name, version: app.current })),
+        maxApps: 20,
+      };
+
+      let data = null;
+      let lastError = null;
+      for (const endpoint of PROTECTION_SCAN_ENDPOINTS) {
+        try {
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const parsed = await res.json();
+          if (!res.ok) {
+            lastError = new Error(parsed?.error || `Protection scan failed at ${endpoint} with status ${res.status}`);
+            continue;
+          }
+          data = parsed;
+          break;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      if (!data) {
+        throw lastError || new Error("Protection scan failed on all endpoints.");
+      }
+
+      setProtectionResults(Array.isArray(data.results) ? data.results : []);
+      setProtectionSummary(data.summary || { malicious: 0, suspicious: 0, clean: 0, unknown: 0, error: 0 });
+      setLastProtectionScan(new Date().toLocaleString());
+    } catch (err) {
+      alert(toFriendlyFetchError(err, "Protection service", "http://127.0.0.1:8003"));
+      setProtectionResults([]);
+      setProtectionSummary({ malicious: 0, suspicious: 0, clean: 0, unknown: 0, error: 0 });
+    } finally {
+      setProtectionScanning(false);
+    }
+  };
+
 
   return (
     <Box
@@ -250,6 +347,7 @@ function App() {
             { id: "overview", label: "Overview", icon: <Dashboard /> },
             { id: "installed", label: "Installed Apps", icon: <Storage /> },
             { id: "drivers", label: "Drivers", icon: <Build /> },
+            { id: "protection", label: "Software Protection", icon: <Security /> },
           ].map((item) => (
             <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
               <ListItemButton
@@ -462,7 +560,24 @@ function App() {
 
               {/* Drivers */}
               {selectedMenu === "drivers" && (
-                <MissingDrivers missing={missingDrivers} installed={installedDrivers} riskSummary={driverRiskSummary} />
+                <MissingDrivers
+                  missing={missingDrivers}
+                  installed={installedDrivers}
+                  riskSummary={driverRiskSummary}
+                  onDownloadDrivers={handleDownloadDrivers}
+                  downloadingDrivers={driversDownloading}
+                />
+              )}
+
+              {/* Software Protection */}
+              {selectedMenu === "protection" && (
+                <ProtectionCenter
+                  results={protectionResults}
+                  summary={protectionSummary}
+                  onScan={handleProtectionScan}
+                  scanning={protectionScanning}
+                  lastScanTime={lastProtectionScan}
+                />
               )}
             </Box>
           </Fade>

@@ -152,3 +152,59 @@ def get_drivers():
         "installedDrivers": installed_drivers,
         "riskSummary": summary,
     }
+
+
+@app.post("/drivers/download")
+def download_missing_drivers(payload: dict = None):
+    requested = []
+    if isinstance(payload, dict):
+        raw = payload.get("drivers", [])
+        if isinstance(raw, list):
+            requested = [str(item).strip() for item in raw if str(item).strip()]
+
+    steps = [
+        ("Start driver scan", "UsoClient StartScan"),
+        ("Download driver updates", "UsoClient StartDownload"),
+        ("Install downloaded updates", "UsoClient StartInstall"),
+        ("Rescan devices", "pnputil /scan-devices"),
+    ]
+
+    log = []
+    for step_name, command in steps:
+        try:
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", command],
+                capture_output=True,
+                text=True,
+                timeout=90,
+                check=False,
+            )
+            log.append(
+                {
+                    "step": step_name,
+                    "command": command,
+                    "returnCode": result.returncode,
+                    "stdout": (result.stdout or "").strip(),
+                    "stderr": (result.stderr or "").strip(),
+                }
+            )
+        except Exception as e:
+            log.append(
+                {
+                    "step": step_name,
+                    "command": command,
+                    "returnCode": -1,
+                    "stdout": "",
+                    "stderr": str(e),
+                }
+            )
+
+    all_ok = all(item.get("returnCode", 1) == 0 for item in log)
+    return {
+        "requestedDrivers": requested,
+        "steps": log,
+        "success": all_ok,
+        "message": (
+            "Driver update flow executed. Windows may continue installs in background; restart might be required."
+        ),
+    }
