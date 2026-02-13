@@ -19,7 +19,14 @@ const hoverCard = {
   },
 };
 
-const MissingDrivers = ({ missing = [], installed = [] }) => {
+const impactColors = {
+  Critical: "#dc2626",
+  High: "#ea580c",
+  Medium: "#d97706",
+  Low: "#0ea5e9",
+};
+
+const MissingDrivers = ({ missing = [], installed = [], riskSummary = {} }) => {
   const statusColors = { Missing: "#dc2626", Installed: "#15803d" };
 
   const renderDriverCard = (driver, key) => (
@@ -48,15 +55,32 @@ const MissingDrivers = ({ missing = [], installed = [] }) => {
           {driver["Driver Name"]}.sys
         </Typography>
         <Typography sx={{ fontSize: 13, color: "#94a3b8" }}>Device: {driver.Device}</Typography>
+        {driver.Status === "Missing" && (
+          <Typography sx={{ fontSize: 12, color: "#94a3b8", mt: 0.5 }}>
+            Impact: {driver.Impact || "Low"} | Risk Score: {driver.RiskScore ?? 0}
+          </Typography>
+        )}
       </Box>
-      <Chip
-        label={driver.Status}
-        sx={{
-          fontWeight: 700,
-          color: "#ffffff",
-          backgroundColor: statusColors[driver.Status],
-        }}
-      />
+      <Box sx={{ display: "flex", gap: 1 }}>
+        {driver.Status === "Missing" && driver.Impact && (
+          <Chip
+            label={driver.Impact}
+            sx={{
+              fontWeight: 700,
+              color: "#ffffff",
+              backgroundColor: impactColors[driver.Impact] || "#475569",
+            }}
+          />
+        )}
+        <Chip
+          label={driver.Status}
+          sx={{
+            fontWeight: 700,
+            color: "#ffffff",
+            backgroundColor: statusColors[driver.Status],
+          }}
+        />
+      </Box>
     </Card>
   );
 
@@ -86,9 +110,20 @@ const MissingDrivers = ({ missing = [], installed = [] }) => {
   );
 
   return (
-    <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 4, p: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, p: 2 }}>
+      <Card sx={{ ...panelStyle }}>
+        <Typography sx={{ color: "#e0e7ff", fontWeight: 800, mb: 1.5 }}>Driver Risk Intelligence</Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Chip label={`Critical: ${riskSummary.critical || 0}`} sx={{ backgroundColor: "#dc2626", color: "#fff", fontWeight: 700 }} />
+          <Chip label={`High: ${riskSummary.high || 0}`} sx={{ backgroundColor: "#ea580c", color: "#fff", fontWeight: 700 }} />
+          <Chip label={`Medium: ${riskSummary.medium || 0}`} sx={{ backgroundColor: "#d97706", color: "#fff", fontWeight: 700 }} />
+          <Chip label={`Low: ${riskSummary.low || 0}`} sx={{ backgroundColor: "#0ea5e9", color: "#fff", fontWeight: 700 }} />
+        </Box>
+      </Card>
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 4 }}>
       {renderPanel("Missing Drivers", missing, "All drivers are installed")}
       {renderPanel("Installed Drivers", installed, "No installed drivers found")}
+      </Box>
     </Box>
   );
 };

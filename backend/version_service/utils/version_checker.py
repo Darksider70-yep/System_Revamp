@@ -72,11 +72,19 @@ def check_pypi(package_name):
 def _check_winget(app_id):
     try:
         result = subprocess.run(
-            ["winget", "show", app_id],
+            [
+                "winget",
+                "show",
+                "--id",
+                app_id,
+                "--exact",
+                "--accept-source-agreements",
+                "--disable-interactivity",
+            ],
             capture_output=True,
             text=True,
             stderr=subprocess.DEVNULL,
-            timeout=1,
+            timeout=8,
             check=False,
         )
         if result.returncode != 0:
@@ -135,17 +143,21 @@ def _resolve_from_local_db(app_name):
 
 
 def _resolve_latest_version(app_name):
+    normalized = app_name.lower()
+    # For common runtimes, prefer live lookup first, then fallback to local DB.
+    if "python" in normalized:
+        live = check_winget("Python.Python.3")
+        return live if live != "Unknown" else _resolve_from_local_db(app_name)
+    if "node.js" in normalized or normalized.startswith("node"):
+        live = check_winget("OpenJS.NodeJS")
+        return live if live != "Unknown" else _resolve_from_local_db(app_name)
+    if "java" in normalized:
+        live = check_winget("Oracle.JDK.21")
+        return live if live != "Unknown" else _resolve_from_local_db(app_name)
+
     latest = _resolve_from_local_db(app_name)
     if latest != "Unknown":
         return latest
-
-    normalized = app_name.lower()
-    if "python" in normalized:
-        return check_winget("Python.Python.3")
-    if "node.js" in normalized or normalized.startswith("node"):
-        return check_winget("OpenJS.NodeJS")
-    if "java" in normalized:
-        return check_winget("Oracle.JDK.21")
 
     return "Unknown"
 
@@ -163,9 +175,10 @@ def check_latest_versions(installed_apps: dict):
         elif latest_parsed and current_parsed:
             status = "Update Available"
         else:
-            status = "Unknown"
+            status = "Unverified"
+            latest = current_version if str(current_version).strip().lower() != "unknown" else "N/A"
 
-        risk = assess_risk(current_version, latest)
+        risk = "Unknown" if status == "Unverified" else assess_risk(current_version, latest)
 
         results.append(
             {

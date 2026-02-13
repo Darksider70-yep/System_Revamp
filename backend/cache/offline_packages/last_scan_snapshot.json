@@ -1,0 +1,461 @@
+{
+  "generatedAt": "2026-02-13 15:26:31",
+  "apps": [
+    {
+      "name": "AutoCAD Open in Desktop",
+      "version": "1.0.27.0"
+    },
+    {
+      "name": "Autodesk Access",
+      "version": "2.13.2.57"
+    },
+    {
+      "name": "Autodesk App Manager",
+      "version": "3.4.1"
+    },
+    {
+      "name": "Autodesk Featured Apps",
+      "version": "3.4.1"
+    },
+    {
+      "name": "Autodesk Genuine Service",
+      "version": "7.5.0.226"
+    },
+    {
+      "name": "Autodesk Identity Manager",
+      "version": "1.14.0.3"
+    },
+    {
+      "name": "Autodesk Save to Web and Mobile",
+      "version": "3.0.31"
+    },
+    {
+      "name": "AWS Command Line Interface v2",
+      "version": "2.33.18.0"
+    },
+    {
+      "name": "DBeaver 25.0.2 (current user)",
+      "version": "25.0.2"
+    },
+    {
+      "name": "Dropbox",
+      "version": "241.4.4853"
+    },
+    {
+      "name": "Dropbox Update Helper",
+      "version": "1.3.983.1"
+    },
+    {
+      "name": "ELDEN RING",
+      "version": "Unknown"
+    },
+    {
+      "name": "Epic Games Launcher",
+      "version": "1.3.23.0"
+    },
+    {
+      "name": "Epic Games Launcher Prerequisites (x64)",
+      "version": "1.0.0.0"
+    },
+    {
+      "name": "Epic Online Services",
+      "version": "2.0.33.0"
+    },
+    {
+      "name": "Fast Node Manager",
+      "version": "1.38.1"
+    },
+    {
+      "name": "Git",
+      "version": "2.46.0"
+    },
+    {
+      "name": "GitHub Desktop",
+      "version": "3.4.6"
+    },
+    {
+      "name": "Go Programming Language amd64 go1.25.2",
+      "version": "1.25.2"
+    },
+    {
+      "name": "Google Chrome",
+      "version": "145.0.7632.68"
+    },
+    {
+      "name": "HoYoPlay",
+      "version": "1.1.4.133"
+    },
+    {
+      "name": "Intel(R) Extreme Tuning Utility SDK",
+      "version": "7.12.0.29"
+    },
+    {
+      "name": "Java(TM) SE Development Kit 21.0.6 (64-bit)",
+      "version": "21.0.6.0"
+    },
+    {
+      "name": "Launcher Prerequisites (x64)",
+      "version": "1.0.0.0"
+    },
+    {
+      "name": "Legion Arena",
+      "version": "1.10.0.10"
+    },
+    {
+      "name": "Lenovo Now",
+      "version": "4.5.0.24"
+    },
+    {
+      "name": "Lenovo Vantage Service",
+      "version": "4.2601.20.0"
+    },
+    {
+      "name": "Microsoft .NET Host - 6.0.8 (x64)",
+      "version": "48.35.45462"
+    },
+    {
+      "name": "Microsoft .NET Host - 8.0.0 (x64)",
+      "version": "64.0.4211"
+    },
+    {
+      "name": "Microsoft .NET Host FX Resolver - 6.0.8 (x64)",
+      "version": "48.35.45462"
+    },
+    {
+      "name": "Microsoft .NET Host FX Resolver - 8.0.0 (x64)",
+      "version": "64.0.4211"
+    },
+    {
+      "name": "Microsoft .NET Runtime - 6.0.8 (x64)",
+      "version": "48.35.45462"
+    },
+    {
+      "name": "Microsoft .NET Runtime - 8.0.0 (x64)",
+      "version": "64.0.4211"
+    },
+    {
+      "name": "Microsoft ASP.NET Core 6.0.8 - Shared Framework (x64)",
+      "version": "6.0.8.22363"
+    },
+    {
+      "name": "Microsoft ASP.NET Core 6.0.8 Shared Framework (x64)",
+      "version": "6.0.8.22363"
+    },
+    {
+      "name": "Microsoft ASP.NET Core 8.0.0 - Shared Framework (x64)",
+      "version": "8.0.0.23531"
+    },
+    {
+      "name": "Microsoft ASP.NET Core 8.0.0 Shared Framework (x64)",
+      "version": "8.0.0.23531"
+    },
+    {
+      "name": "Microsoft Edge",
+      "version": "144.0.3719.115"
+    },
+    {
+      "name": "Microsoft Edge WebView2 Runtime",
+      "version": "144.0.3719.115"
+    },
+    {
+      "name": "Microsoft GameInput",
+      "version": "10.1.26100.6879"
+    },
+    {
+      "name": "Microsoft Office Home and Student 2021 - en-us",
+      "version": "16.0.19628.20166"
+    },
+    {
+      "name": "Microsoft OneDrive",
+      "version": "26.007.0112.0002"
+    },
+    {
+      "name": "Microsoft OneNote - en-us",
+      "version": "16.0.19628.20166"
+    },
+    {
+      "name": "Microsoft Teams Meeting Add-in for Microsoft Office",
+      "version": "1.24.19202"
+    },
+    {
+      "name": "Microsoft Update Health Tools",
+      "version": "5.72.0.0"
+    },
+    {
+      "name": "Microsoft Visual C++ 2012 Redistributable (x64) - 11.0.61030",
+      "version": "11.0.61030.0"
+    },
+    {
+      "name": "Microsoft Visual C++ 2012 Redistributable (x86) - 11.0.61030",
+      "version": "11.0.61030.0"
+    },
+    {
+      "name": "Microsoft Visual C++ 2012 x64 Additional Runtime - 11.0.61030",
+      "version": "11.0.61030"
+    },
+    {
+      "name": "Microsoft Visual C++ 2012 x64 Minimum Runtime - 11.0.61030",
+      "version": "11.0.61030"
+    },
+    {
+      "name": "Microsoft Visual C++ 2012 x86 Additional Runtime - 11.0.61030",
+      "version": "11.0.61030"
+    },
+    {
+      "name": "Microsoft Visual C++ 2012 x86 Minimum Runtime - 11.0.61030",
+      "version": "11.0.61030"
+    },
+    {
+      "name": "Microsoft Visual C++ 2015-2022 Redistributable (x64) - 14.44.35211",
+      "version": "14.44.35211.0"
+    },
+    {
+      "name": "Microsoft Visual C++ 2015-2022 Redistributable (x86) - 14.44.35211",
+      "version": "14.44.35211.0"
+    },
+    {
+      "name": "Microsoft Visual C++ 2019 X64 Debug Runtime - 14.29.30157",
+      "version": "14.29.30157"
+    },
+    {
+      "name": "Microsoft Visual C++ 2019 X86 Debug Runtime - 14.29.30157",
+      "version": "14.29.30157"
+    },
+    {
+      "name": "Microsoft Visual C++ 2022 X64 Additional Runtime - 14.44.35211",
+      "version": "14.44.35211"
+    },
+    {
+      "name": "Microsoft Visual C++ 2022 X64 Minimum Runtime - 14.44.35211",
+      "version": "14.44.35211"
+    },
+    {
+      "name": "Microsoft Visual C++ 2022 X86 Additional Runtime - 14.44.35211",
+      "version": "14.44.35211"
+    },
+    {
+      "name": "Microsoft Visual C++ 2022 X86 Minimum Runtime - 14.44.35211",
+      "version": "14.44.35211"
+    },
+    {
+      "name": "Microsoft Visual Studio Code (User)",
+      "version": "1.109.3"
+    },
+    {
+      "name": "Microsoft Visual Studio Installer",
+      "version": "3.13.2069.59209"
+    },
+    {
+      "name": "Microsoft Visual Studio Setup Configuration",
+      "version": "3.7.2182.35401"
+    },
+    {
+      "name": "Microsoft Visual Studio Setup WMI Provider",
+      "version": "3.7.2182.35401"
+    },
+    {
+      "name": "Microsoft Windows Desktop Runtime - 6.0.8 (x64)",
+      "version": "48.35.45540"
+    },
+    {
+      "name": "Microsoft Windows Desktop Runtime - 6.0.8 (x64)",
+      "version": "6.0.8.31518"
+    },
+    {
+      "name": "Microsoft Windows Desktop Runtime - 8.0.0 (x64)",
+      "version": "64.0.5329"
+    },
+    {
+      "name": "Microsoft Windows Desktop Runtime - 8.0.0 (x64)",
+      "version": "8.0.0.33101"
+    },
+    {
+      "name": "Node.js",
+      "version": "22.14.0"
+    },
+    {
+      "name": "Notepad++ (32-bit x86)",
+      "version": "8.7.5"
+    },
+    {
+      "name": "NvCpl",
+      "version": "1.0"
+    },
+    {
+      "name": "NVIDIA AIUser Container",
+      "version": "1.44"
+    },
+    {
+      "name": "NVIDIA App 11.0.5.245",
+      "version": "11.0.5.245"
+    },
+    {
+      "name": "NVIDIA Backend",
+      "version": "11.0.5.245"
+    },
+    {
+      "name": "NVIDIA Container",
+      "version": "1.44"
+    },
+    {
+      "name": "NVIDIA FrameView SDK 1.5.11504.36206172",
+      "version": "1.5.11504.36206172"
+    },
+    {
+      "name": "NVIDIA Graphics Driver 581.86",
+      "version": "581.86"
+    },
+    {
+      "name": "NVIDIA HD Audio Driver 1.4.5.0",
+      "version": "1.4.5.0"
+    },
+    {
+      "name": "NVIDIA Install Application",
+      "version": "2.1002.438.0"
+    },
+    {
+      "name": "NVIDIA LocalSystem Container",
+      "version": "1.44"
+    },
+    {
+      "name": "NVIDIA MessageBus 3 for NvApp",
+      "version": "3.16"
+    },
+    {
+      "name": "NVIDIA NvDLISR",
+      "version": "1.0"
+    },
+    {
+      "name": "NVIDIA PhysX System Software 9.23.1019",
+      "version": "9.23.1019"
+    },
+    {
+      "name": "NVIDIA Platform Controllers and Framework",
+      "version": "580.79"
+    },
+    {
+      "name": "NVIDIA Session Container",
+      "version": "1.44"
+    },
+    {
+      "name": "NVIDIA ShadowPlay 11.0.5.0",
+      "version": "11.0.5.0"
+    },
+    {
+      "name": "NVIDIA Telemetry Client",
+      "version": "19.4.29.0"
+    },
+    {
+      "name": "NVIDIA USBC Driver 1.52.831.832",
+      "version": "1.52.831.832"
+    },
+    {
+      "name": "NVIDIA User Container",
+      "version": "1.44"
+    },
+    {
+      "name": "NVIDIA Virtual Audio 4.65.0.3",
+      "version": "4.65.0.3"
+    },
+    {
+      "name": "NVIDIA Watchdog Plugin for NvContainer",
+      "version": "1.44"
+    },
+    {
+      "name": "Office 16 Click-to-Run Extensibility Component",
+      "version": "16.0.19426.20170"
+    },
+    {
+      "name": "Office 16 Click-to-Run Licensing Component",
+      "version": "16.0.19029.20208"
+    },
+    {
+      "name": "Pokemon: Sword/Shield",
+      "version": "Unknown"
+    },
+    {
+      "name": "Python 3.13.3 (64-bit)",
+      "version": "3.13.3150.0"
+    },
+    {
+      "name": "Python 3.13.3 Core Interpreter (64-bit)",
+      "version": "3.13.3150.0"
+    },
+    {
+      "name": "Python 3.13.3 Development Libraries (64-bit)",
+      "version": "3.13.3150.0"
+    },
+    {
+      "name": "Python 3.13.3 Documentation (64-bit)",
+      "version": "3.13.3150.0"
+    },
+    {
+      "name": "Python 3.13.3 Executables (64-bit)",
+      "version": "3.13.3150.0"
+    },
+    {
+      "name": "Python 3.13.3 pip Bootstrap (64-bit)",
+      "version": "3.13.3150.0"
+    },
+    {
+      "name": "Python 3.13.3 Standard Library (64-bit)",
+      "version": "3.13.3150.0"
+    },
+    {
+      "name": "Python 3.13.3 Tcl/Tk Support (64-bit)",
+      "version": "3.13.3150.0"
+    },
+    {
+      "name": "Python 3.13.3 Test Suite (64-bit)",
+      "version": "3.13.3150.0"
+    },
+    {
+      "name": "qBittorrent",
+      "version": "4.6.7"
+    },
+    {
+      "name": "Red Dead Redemption",
+      "version": "Unknown"
+    },
+    {
+      "name": "SoundWire Server version 2.5",
+      "version": "2.5"
+    },
+    {
+      "name": "SQLiteStudio",
+      "version": "3.4.17"
+    },
+    {
+      "name": "Steam",
+      "version": "2.10.91.91"
+    },
+    {
+      "name": "Universal CRT Redistributable",
+      "version": "10.0.26624"
+    },
+    {
+      "name": "Unstop SmartHire 2.0.0",
+      "version": "2.0.0"
+    },
+    {
+      "name": "vcpp_crt.redist.clickonce",
+      "version": "14.29.30157"
+    },
+    {
+      "name": "Visual Studio Build Tools 2019",
+      "version": "16.11.46"
+    },
+    {
+      "name": "VLC media player",
+      "version": "3.0.21"
+    },
+    {
+      "name": "vs_FileTracker_Singleton",
+      "version": "16.11.34827"
+    },
+    {
+      "name": "WebAdvisor by McAfee",
+      "version": "4.1.1.1086"
+    }
+  ]
+}

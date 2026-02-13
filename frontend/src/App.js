@@ -38,11 +38,14 @@ function App() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [downloadLabel, setDownloadLabel] = useState("ZIP package");
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [scriptDownloading, setScriptDownloading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const [missingDrivers, setMissingDrivers] = useState([]);
   const [installedDrivers, setInstalledDrivers] = useState([]);
+  const [driverRiskSummary, setDriverRiskSummary] = useState({ critical: 0, high: 0, medium: 0, low: 0 });
   const [selectedMenu, setSelectedMenu] = useState("overview");
   const [lastScanTime, setLastScanTime] = useState(null);
 
@@ -104,9 +107,11 @@ function App() {
       const data = await res.json();
       setMissingDrivers(Array.isArray(data.missingDrivers) ? data.missingDrivers : []);
       setInstalledDrivers(Array.isArray(data.installedDrivers) ? data.installedDrivers : []);
+      setDriverRiskSummary(data.riskSummary || { critical: 0, high: 0, medium: 0, low: 0 });
     } catch {
       setMissingDrivers([]);
       setInstalledDrivers([]);
+      setDriverRiskSummary({ critical: 0, high: 0, medium: 0, low: 0 });
     }
   };
 
@@ -121,8 +126,9 @@ function App() {
     fetchDrivers();
   };
 
-  const handleDownloadZip = () => {
+  const handleDownloadZip = (mode = "full") => {
     setDownloading(true);
+    setDownloadLabel(mode === "delta" ? "delta package" : "ZIP package");
     setDownloadProgress(0);
     let targetProgress = 0;
     let interval = setInterval(() => {
@@ -131,11 +137,18 @@ function App() {
       );
     }, 50);
 
-    fetch("http://127.0.0.1:8000/generate-offline-package")
+    fetch(`http://127.0.0.1:8000/generate-offline-package?mode=${mode}`)
       .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Offline package request failed with status ${response.status}`);
+        }
+
         const contentLength = response.headers.get("Content-Length");
         const total = contentLength ? parseInt(contentLength, 10) : 0;
         let loaded = 0;
+        if (!response.body) {
+          throw new Error("Response body is empty");
+        }
         const reader = response.body.getReader();
         const chunks = [];
         while (true) {
@@ -152,20 +165,57 @@ function App() {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", "offline_update_package.zip");
+        link.setAttribute("download", mode === "delta" ? "offline_delta_package.zip" : "offline_update_package.zip");
         document.body.appendChild(link);
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
       })
-      .catch(() => alert("Failed to download ZIP package"))
+      .catch((err) => alert(err?.message || "Failed to download ZIP package"))
       .finally(() => {
         clearInterval(interval);
         setTimeout(() => {
           setDownloading(false);
+          setDownloadLabel("ZIP package");
           setDownloadProgress(0);
         }, 500);
       });
+  };
+
+  const handleExportRemediationScript = async () => {
+    try {
+      setScriptDownloading(true);
+      const targetApps = normalizedApps.filter((app) => app.status === "Update Available");
+      const payload = {
+        apps: targetApps.map((app) => app.name),
+        drivers: missingDrivers.map((driver) => driver["Driver Name"]),
+      };
+
+      const res = await fetch("http://127.0.0.1:8000/generate-remediation-script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Script export failed with status ${res.status}`);
+      }
+
+      const scriptText = await res.text();
+      const blob = new Blob([scriptText], { type: "text/plain;charset=utf-8" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "system_revamp_remediation.ps1");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err?.message || "Failed to export remediation script");
+    } finally {
+      setScriptDownloading(false);
+    }
   };
 
 
@@ -199,7 +249,7 @@ function App() {
           {[
             { id: "overview", label: "Overview", icon: <Dashboard /> },
             { id: "installed", label: "Installed Apps", icon: <Storage /> },
-            { id: "drivers", label: "Missing Drivers", icon: <Build /> },
+            { id: "drivers", label: "Drivers", icon: <Build /> },
           ].map((item) => (
             <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
               <ListItemButton
@@ -327,7 +377,7 @@ function App() {
                     {downloading ? (
                       <Box>
                         <Typography sx={{ color: "#bae6fd", mb: 1, fontWeight: 600 }}>
-                          Downloading ZIP package... {Math.round(downloadProgress)}%
+                          Downloading {downloadLabel}... {Math.round(downloadProgress)}%
                         </Typography>
                         <LinearProgress
                           variant="determinate"
@@ -343,25 +393,65 @@ function App() {
                         />
                       </Box>
                     ) : (
-                      <Button
-                        variant="contained"
-                        startIcon={<CloudDownload />}
-                        onClick={handleDownloadZip}
-                        sx={{
-                          background: "linear-gradient(120deg, #4f46e5, #0284c7)",
-                          px: 3.2,
-                          py: 1.1,
-                          fontWeight: 700,
-                          borderRadius: 6,
-                          boxShadow: "0 12px 26px rgba(37, 99, 235, 0.4)",
-                          "&:hover": {
-                            background: "linear-gradient(120deg, #4338ca, #0369a1)",
-                            boxShadow: "0 16px 30px rgba(30, 64, 175, 0.5)",
-                          },
-                        }}
-                      >
-                        Download ZIP Package
-                      </Button>
+                      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+                        <Button
+                          variant="contained"
+                          startIcon={<CloudDownload />}
+                          onClick={() => handleDownloadZip("full")}
+                          sx={{
+                            background: "linear-gradient(120deg, #4f46e5, #0284c7)",
+                            px: 3.2,
+                            py: 1.1,
+                            fontWeight: 700,
+                            borderRadius: 6,
+                            boxShadow: "0 12px 26px rgba(37, 99, 235, 0.4)",
+                            "&:hover": {
+                              background: "linear-gradient(120deg, #4338ca, #0369a1)",
+                              boxShadow: "0 16px 30px rgba(30, 64, 175, 0.5)",
+                            },
+                          }}
+                        >
+                          Download Full Package
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          startIcon={<CloudDownload />}
+                          onClick={() => handleDownloadZip("delta")}
+                          sx={{
+                            color: "#bae6fd",
+                            borderColor: "rgba(56, 189, 248, 0.55)",
+                            px: 3.2,
+                            py: 1.1,
+                            fontWeight: 700,
+                            borderRadius: 6,
+                            "&:hover": {
+                              borderColor: "#67e8f9",
+                              backgroundColor: "rgba(8, 47, 73, 0.5)",
+                            },
+                          }}
+                        >
+                          Download Delta Pack
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={handleExportRemediationScript}
+                          disabled={scriptDownloading}
+                          sx={{
+                            color: "#bfdbfe",
+                            borderColor: "rgba(148, 163, 184, 0.5)",
+                            px: 3.2,
+                            py: 1.1,
+                            fontWeight: 700,
+                            borderRadius: 6,
+                            "&:hover": {
+                              borderColor: "#cbd5e1",
+                              backgroundColor: "rgba(30, 41, 59, 0.45)",
+                            },
+                          }}
+                        >
+                          {scriptDownloading ? "Exporting Script..." : "Export Remediation Script"}
+                        </Button>
+                      </Box>
                     )}
                   </Card>
                 </>
@@ -370,9 +460,9 @@ function App() {
               {/* Installed Apps */}
               {selectedMenu === "installed" && <InstalledAppsTable data={normalizedApps} />}
 
-              {/* Missing Drivers */}
+              {/* Drivers */}
               {selectedMenu === "drivers" && (
-                <MissingDrivers missing={missingDrivers} installed={installedDrivers} />
+                <MissingDrivers missing={missingDrivers} installed={installedDrivers} riskSummary={driverRiskSummary} />
               )}
             </Box>
           </Fade>

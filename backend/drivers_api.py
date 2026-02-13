@@ -37,40 +37,118 @@ EXPECTED_DRIVERS = [
     {"Driver Name": "iaahcic", "Device": "Intel AHCI Controller"},
 ]
 
+
+def _classify_impact(device_name: str) -> str:
+    name = str(device_name).lower()
+    if any(token in name for token in ["storage", "disk", "ahci", "cpu"]):
+        return "Critical"
+    if any(token in name for token in ["nic", "wireless", "wi-fi", "ethernet", "bluetooth"]):
+        return "High"
+    if any(token in name for token in ["gpu", "audio", "usb"]):
+        return "Medium"
+    return "Low"
+
+
+def _impact_score(impact: str) -> int:
+    return {
+        "Critical": 95,
+        "High": 75,
+        "Medium": 50,
+        "Low": 25,
+    }.get(impact, 20)
+
+
 def scan_installed_drivers():
     """
-    Uses WMIC to get installed drivers on Windows.
+    Uses WMIC/PowerShell to get installed driver INF names on Windows.
     Returns a list of driver names.
     """
-    installed = []
+    installed = set()
+
+    # Prefer WMIC CSV output when available (older Windows versions).
     try:
         result = subprocess.run(
-            ["wmic", "path", "win32_pnpsigneddriver", "get", "infname"],
+            ["wmic", "path", "win32_pnpsigneddriver", "get", "infname", "/format:csv"],
             capture_output=True,
             text=True,
+            check=False,
         )
-        lines = result.stdout.strip().splitlines()[1:]  # skip header
-        for line in lines:
-            parts = line.split()
-            if len(parts) >= 2:
-                inf_name = parts[-1]  # usually the .inf file
-                driver_name = os.path.splitext(inf_name)[0]
-                installed.append(driver_name.lower())
+        if result.returncode == 0 and result.stdout:
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                if not line or line.lower().startswith("node,"):
+                    continue
+                parts = line.split(",")
+                if not parts:
+                    continue
+                inf_name = parts[-1].strip().strip('"')
+                if inf_name and inf_name.lower() != "infname":
+                    driver_name = os.path.splitext(inf_name)[0].lower()
+                    installed.add(driver_name)
     except Exception as e:
-        print(f"Error scanning drivers: {e}")
-    return installed
+        print(f"WMIC scan error: {e}")
+
+    # Fallback for newer Windows where WMIC is unavailable/disabled.
+    if not installed:
+        try:
+            ps_cmd = (
+                "Get-CimInstance Win32_PnPSignedDriver | "
+                "Select-Object -ExpandProperty InfName"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode == 0 and result.stdout:
+                for line in result.stdout.splitlines():
+                    inf_name = line.strip().strip('"')
+                    if inf_name:
+                        driver_name = os.path.splitext(inf_name)[0].lower()
+                        installed.add(driver_name)
+        except Exception as e:
+            print(f"PowerShell scan error: {e}")
+
+    return sorted(installed)
 
 @app.get("/drivers")
 def get_drivers():
     installed_driver_names = scan_installed_drivers()
-    installed_drivers = [{"Driver Name": name, "Device": "Unknown", "Status": "Installed"} for name in installed_driver_names]
+    installed_lookup = set(installed_driver_names)
+    installed_drivers = [
+        {
+            "Driver Name": name,
+            "Device": "Unknown",
+            "Impact": "Low",
+            "RiskScore": 0,
+            "Status": "Installed",
+        }
+        for name in installed_driver_names
+    ]
 
     missing_drivers = []
     for driver in EXPECTED_DRIVERS:
-        if driver["Driver Name"].lower() not in installed_driver_names:
-            missing_drivers.append({**driver, "Status": "Missing"})
+        if driver["Driver Name"].lower() not in installed_lookup:
+            impact = _classify_impact(driver.get("Device", ""))
+            missing_drivers.append(
+                {
+                    **driver,
+                    "Impact": impact,
+                    "RiskScore": _impact_score(impact),
+                    "Status": "Missing",
+                }
+            )
+
+    missing_drivers.sort(key=lambda item: item.get("RiskScore", 0), reverse=True)
+    summary = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    for item in missing_drivers:
+        impact = str(item.get("Impact", "")).lower()
+        if impact in summary:
+            summary[impact] += 1
 
     return {
         "missingDrivers": missing_drivers,
-        "installedDrivers": installed_drivers
+        "installedDrivers": installed_drivers,
+        "riskSummary": summary,
     }
