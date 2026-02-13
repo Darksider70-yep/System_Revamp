@@ -45,7 +45,7 @@ def scan_installed_drivers():
     installed = []
     try:
         result = subprocess.run(
-            ["wmic", "path", "win32_pnpsigneddriver", "get", "devicename,infname"],
+            ["wmic", "path", "win32_pnpsigneddriver", "get", "infname"],
             capture_output=True,
             text=True,
         )

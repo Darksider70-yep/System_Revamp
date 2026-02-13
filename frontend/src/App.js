@@ -12,17 +12,26 @@ import {
   Divider,
   List,
   ListItem,
+  ListItemButton,
   ListItemText,
 } from "@mui/material";
 import { CloudDownload, Refresh, Computer, Dashboard, Storage, Build } from "@mui/icons-material";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
-const hoverGlow = {
-  transition: "box-shadow 0.3s ease, transform 0.3s ease",
+const panelHover = {
+  transition: "box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease",
   "&:hover": {
-    boxShadow: "0 0 25px rgba(0, 255, 255, 0.8)",
-    transform: "translateY(-3px)",
+    boxShadow: "0 22px 44px rgba(5, 10, 28, 0.52)",
+    transform: "translateY(-2px)",
+    borderColor: "rgba(56, 189, 248, 0.52)",
   },
+};
+
+const glassCard = {
+  background: "linear-gradient(140deg, rgba(12, 20, 45, 0.86), rgba(15, 30, 66, 0.76))",
+  border: "1px solid rgba(99, 102, 241, 0.34)",
+  borderRadius: 3,
+  backdropFilter: "blur(8px)",
 };
 
 function App() {
@@ -41,19 +50,42 @@ function App() {
   const fetchApps = async () => {
     setRefreshing(true);
     setLoading(true);
+
     try {
-      const res = await fetch("http://127.0.0.1:8000/scan");
-      const data = await res.json();
-      const appsData = Array.isArray(data) ? data : Array.isArray(data.apps) ? data.apps : [];
-      setApps(appsData);
+      // Call scanner service (8000)
+      const scanRes = await fetch("http://127.0.0.1:8000/scan");
+      const scanData = await scanRes.json();
+
+      if (!scanData.apps) throw new Error("Scan failed");
+
+      // Convert array to dictionary
+      const installedDict = {};
+      scanData.apps.forEach(app => {
+        installedDict[app.name] = app.version;
+      });
+
+      // Call version service (8002)
+      const versionRes = await fetch("http://127.0.0.1:8002/check-versions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(installedDict)
+      });
+
+      const versionData = await versionRes.json();
+
+      if (!versionData.apps) throw new Error("Version check failed");
+
+      setApps(versionData.apps);
       setLastScanTime(new Date().toLocaleString());
-    } catch {
+
+    } catch (err) {
+      console.error(err);
       setApps([]);
     }
+
     setLoading(false);
     setRefreshing(false);
   };
-
 
   const normalizedApps = apps.map(app => ({
     ...app,
@@ -138,50 +170,100 @@ function App() {
 
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "rgba(0,0,0,0.85)", backdropFilter: "blur(10px)", color: "#fff" }}>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        background:
+          "radial-gradient(circle at 10% 0%, rgba(30, 64, 175, 0.42), rgba(2, 6, 23, 1) 35%), radial-gradient(circle at 90% 20%, rgba(14, 116, 144, 0.24), rgba(2, 6, 23, 0.8) 45%), linear-gradient(140deg, #020617 0%, #020b2a 55%, #03143a 100%)",
+        color: "#e2e8f0",
+      }}
+    >
       {/* Sidebar */}
-      <Box sx={{ width: 240, borderRight: "1px solid rgba(0,255,255,0.3)", backgroundColor: "rgba(0,0,0,0.6)", py: 4, px: 2 }}>
-        <Typography variant="h5" sx={{ color: "#00ffff", fontWeight: "bold", mb: 3, textAlign: "center" }}>Dashboard</Typography>
-        <Divider sx={{ borderColor: "rgba(0,255,255,0.3)", mb: 2 }} />
+      <Box
+        sx={{
+          width: 260,
+          borderRight: "1px solid rgba(59, 130, 246, 0.28)",
+          background: "linear-gradient(180deg, rgba(4, 9, 30, 0.9), rgba(4, 12, 34, 0.92))",
+          py: 4,
+          px: 2,
+          backdropFilter: "blur(10px)",
+          boxShadow: "14px 0 30px rgba(2, 6, 23, 0.5)",
+        }}
+      >
+        <Typography variant="h5" sx={{ color: "#dbeafe", fontWeight: 800, mb: 3, textAlign: "center", letterSpacing: 0.6 }}>
+          Dashboard
+        </Typography>
+        <Divider sx={{ borderColor: "rgba(56, 189, 248, 0.28)", mb: 2 }} />
         <List>
           {[
             { id: "overview", label: "Overview", icon: <Dashboard /> },
             { id: "installed", label: "Installed Apps", icon: <Storage /> },
             { id: "drivers", label: "Missing Drivers", icon: <Build /> },
           ].map((item) => (
-            <ListItem key={item.id} button onClick={() => setSelectedMenu(item.id)}
-              sx={{
-                borderRadius: "10px",
-                mb: 1,
-                px: 2,
-                py: 1,
-                backgroundColor: selectedMenu === item.id ? "rgba(0,255,255,0.2)" : "transparent",
-                "&:hover": { backgroundColor: "rgba(0,255,255,0.15)" }
-              }}>
-              {React.cloneElement(item.icon, { sx: { color: "#00ffff", mr: 2 } })}
-              <ListItemText primary={item.label} sx={{ color: "#fff" }} />
+            <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                onClick={() => setSelectedMenu(item.id)}
+                sx={{
+                  borderRadius: 2.5,
+                  px: 2,
+                  py: 1,
+                  background:
+                    selectedMenu === item.id
+                      ? "linear-gradient(120deg, rgba(67, 56, 202, 0.38), rgba(14, 165, 233, 0.25))"
+                      : "transparent",
+                  border: "1px solid",
+                  borderColor: selectedMenu === item.id ? "rgba(56, 189, 248, 0.48)" : "transparent",
+                  "&:hover": {
+                    backgroundColor: "rgba(30, 64, 175, 0.3)",
+                    borderColor: "rgba(56, 189, 248, 0.3)",
+                  },
+                }}
+              >
+                {React.cloneElement(item.icon, { sx: { color: "#7dd3fc", mr: 2 } })}
+                <ListItemText
+                  primary={item.label}
+                  sx={{ color: "#cbd5e1", "& .MuiTypography-root": { fontWeight: selectedMenu === item.id ? 700 : 500 } }}
+                />
+              </ListItemButton>
             </ListItem>
           ))}
         </List>
 
         {/* Sidebar Stats */}
         <Box sx={{ mt: 4 }}>
-          <Card sx={{ backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid #00ffff", borderRadius: 2, p: 2, mb: 2, ...hoverGlow }}>
-            <Typography sx={{ color: "#00ffff", fontWeight: "bold" }}>Total Apps</Typography>
-            <Typography sx={{ color: "#ccc", fontSize: 18 }}>{apps.length}</Typography>
+          <Card sx={{ ...glassCard, p: 2, mb: 2, ...panelHover }}>
+            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Total Apps</Typography>
+            <Typography sx={{ color: "#f8fafc", fontSize: 24, fontWeight: 700 }}>{apps.length}</Typography>
           </Card>
-          <Card sx={{ backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid #00ffff", borderRadius: 2, p: 2, mb: 2, ...hoverGlow }}>
-            <Typography sx={{ color: "#00ffff", fontWeight: "bold" }}>Missing Drivers</Typography>
-            <Typography sx={{ color: "#ccc", fontSize: 18 }}>{missingDrivers.length}</Typography>
+          <Card sx={{ ...glassCard, p: 2, mb: 2, ...panelHover }}>
+            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Missing Drivers</Typography>
+            <Typography sx={{ color: "#f8fafc", fontSize: 24, fontWeight: 700 }}>{missingDrivers.length}</Typography>
           </Card>
-          <Card sx={{ backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid #00ffff", borderRadius: 2, p: 2, ...hoverGlow }}>
-            <Typography sx={{ color: "#00ffff", fontWeight: "bold" }}>Last Scan</Typography>
-            <Typography sx={{ color: "#ccc", fontSize: 14 }}>{lastScanTime || "N/A"}</Typography>
+          <Card sx={{ ...glassCard, p: 2, ...panelHover }}>
+            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Last Scan</Typography>
+            <Typography sx={{ color: "#94a3b8", fontSize: 13, fontWeight: 500 }}>{lastScanTime || "N/A"}</Typography>
           </Card>
         </Box>
 
         <Box sx={{ mt: 4, textAlign: "center" }}>
-          <Button startIcon={<Refresh />} onClick={handleRefresh} sx={{ color: "#00ffff", borderColor: "#00ffff", borderRadius: "20px", px: 3, fontWeight: "bold", "&:hover": { backgroundColor: "rgba(0,255,255,0.2)" } }} disabled={refreshing}>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={handleRefresh}
+            sx={{
+              color: "#bfdbfe",
+              borderColor: "rgba(56, 189, 248, 0.55)",
+              borderRadius: 20,
+              px: 3,
+              fontWeight: 700,
+              "&:hover": {
+                borderColor: "#67e8f9",
+                backgroundColor: "rgba(8, 47, 73, 0.5)",
+              },
+            }}
+            disabled={refreshing}
+          >
             {refreshing ? "Refreshing..." : "Refresh"}
           </Button>
         </Box>
@@ -190,14 +272,18 @@ function App() {
       {/* Main Content */}
       <Box sx={{ flex: 1, p: 4 }}>
         <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
-          <Computer sx={{ fontSize: 50, color: "#00ffff", mr: 1, filter: "drop-shadow(0 0 5px #00ffff)" }} />
-          <Typography variant="h3" sx={{ color: "#00ffff", fontWeight: "bold", letterSpacing: "1px" }}>System Revamp</Typography>
+          <Computer sx={{ fontSize: 48, color: "#7dd3fc", mr: 1.2, filter: "drop-shadow(0 4px 12px rgba(56, 189, 248, 0.38))" }} />
+          <Typography variant="h3" sx={{ color: "#e2e8f0", fontWeight: 800, letterSpacing: 0.5 }}>
+            System Revamp
+          </Typography>
         </Box>
 
         {loading ? (
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "70vh", color: "#00ffff" }}>
-            <CircularProgress sx={{ color: "#00ffff", mb: 2 }} />
-            <Typography sx={{ animation: "pulse 1.5s infinite", "@keyframes pulse": { "0%": { opacity: 0.5 }, "50%": { opacity: 1 }, "100%": { opacity: 0.5 } } }}>Scanning system for installed apps...</Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "70vh", color: "#bae6fd" }}>
+            <CircularProgress sx={{ color: "#38bdf8", mb: 2 }} />
+            <Typography sx={{ animation: "pulse 1.5s infinite", "@keyframes pulse": { "0%": { opacity: 0.5 }, "50%": { opacity: 1 }, "100%": { opacity: 0.5 } }, fontWeight: 600 }}>
+              Scanning system for installed apps...
+            </Typography>
           </Box>
         ) : (
           <Fade in timeout={500}>
@@ -205,31 +291,77 @@ function App() {
               {/* Overview */}
               {selectedMenu === "overview" && (
                 <>
-                  <Card sx={{ backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid #00ffff", borderRadius: 2, p: 3, mb: 4, ...hoverGlow }}>
-                    <Typography variant="h5" sx={{ color: "#00ffff", mb: 3, fontWeight: "bold" }}>Security Risk Overview</Typography>
-                    <Typography sx={{ color: "#ccc", mb: 3 }}>Total risk based on missing drivers and updates required:</Typography>
+                  <Card sx={{ ...glassCard, p: 3, mb: 4, ...panelHover }}>
+                    <Typography variant="h5" sx={{ color: "#e0e7ff", mb: 1, fontWeight: 800 }}>
+                      Security Risk Overview
+                    </Typography>
+                    <Typography sx={{ color: "#94a3b8", mb: 3, fontWeight: 500 }}>
+                      Total risk based on missing drivers and updates required.
+                    </Typography>
                     <Box sx={{ width: "100%", height: 300 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={riskData}>
-                          <XAxis dataKey="name" stroke="#00ffff" />
-                          <YAxis stroke="#00ffff" />
-                          <Tooltip contentStyle={{ backgroundColor: "rgba(0,0,0,0.7)", border: "none", color: "#fff" }} />
-                          <Bar dataKey="risk" fill="#00ffff" barSize={40} />
+                          <XAxis dataKey="name" stroke="#93c5fd" />
+                          <YAxis stroke="#93c5fd" />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "#020617",
+                              border: "1px solid rgba(56, 189, 248, 0.36)",
+                              borderRadius: 8,
+                              color: "#dbeafe",
+                            }}
+                          />
+                          <Bar dataKey="risk" fill="#38bdf8" barSize={40} radius={[8, 8, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </Box>
                   </Card>
 
-                  <Card sx={{ backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid #00ffff", borderRadius: 2, p: 3, ...hoverGlow }}>
-                    <Typography variant="h5" sx={{ color: "#00ffff", mb: 2, fontWeight: "bold" }}>Offline Environment Sync</Typography>
-                    <Typography sx={{ color: "#ccc", mb: 2 }}>Download the offline update ZIP package for secure or air-gapped environments.</Typography>
+                  <Card sx={{ ...glassCard, p: 3, ...panelHover }}>
+                    <Typography variant="h5" sx={{ color: "#e0e7ff", mb: 1.2, fontWeight: 800 }}>
+                      Offline Environment Sync
+                    </Typography>
+                    <Typography sx={{ color: "#94a3b8", mb: 2.2, fontWeight: 500 }}>
+                      Download the offline update ZIP package for secure or air-gapped environments.
+                    </Typography>
                     {downloading ? (
                       <Box>
-                        <Typography sx={{ color: "#00ffff", mb: 1 }}>Downloading ZIP package... {Math.round(downloadProgress)}%</Typography>
-                        <LinearProgress variant="determinate" value={downloadProgress} sx={{ height: 8, borderRadius: 5, backgroundColor: "#111", "& .MuiLinearProgress-bar": { backgroundColor: "#00ffff" } }} />
+                        <Typography sx={{ color: "#bae6fd", mb: 1, fontWeight: 600 }}>
+                          Downloading ZIP package... {Math.round(downloadProgress)}%
+                        </Typography>
+                        <LinearProgress
+                          variant="determinate"
+                          value={downloadProgress}
+                          sx={{
+                            height: 10,
+                            borderRadius: 6,
+                            backgroundColor: "rgba(15, 23, 42, 0.85)",
+                            "& .MuiLinearProgress-bar": {
+                              background: "linear-gradient(90deg, #4f46e5, #22d3ee)",
+                            },
+                          }}
+                        />
                       </Box>
                     ) : (
-                      <Button startIcon={<CloudDownload />} onClick={handleDownloadZip} sx={{ backgroundColor: "#00ffff", px: 3, py: 1, fontWeight: "bold", borderRadius: 5, boxShadow: "0 0 15px rgba(0,255,255,0.7)", "&:hover": { backgroundColor: "#00bcd4", boxShadow: "0 0 25px rgba(0,255,255,1)" } }}>Download ZIP Package</Button>
+                      <Button
+                        variant="contained"
+                        startIcon={<CloudDownload />}
+                        onClick={handleDownloadZip}
+                        sx={{
+                          background: "linear-gradient(120deg, #4f46e5, #0284c7)",
+                          px: 3.2,
+                          py: 1.1,
+                          fontWeight: 700,
+                          borderRadius: 6,
+                          boxShadow: "0 12px 26px rgba(37, 99, 235, 0.4)",
+                          "&:hover": {
+                            background: "linear-gradient(120deg, #4338ca, #0369a1)",
+                            boxShadow: "0 16px 30px rgba(30, 64, 175, 0.5)",
+                          },
+                        }}
+                      >
+                        Download ZIP Package
+                      </Button>
                     )}
                   </Card>
                 </>

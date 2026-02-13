@@ -1,62 +1,59 @@
 import React from "react";
 import { Card, Typography, Box, Chip } from "@mui/material";
 
-const hoverGlow = {
-  transition: "box-shadow 0.3s ease, transform 0.3s ease",
+const panelStyle = {
+  background: "linear-gradient(145deg, rgba(5, 13, 34, 0.9), rgba(8, 23, 52, 0.82))",
+  borderRadius: 4,
+  padding: 3,
+  border: "1px solid rgba(56, 189, 248, 0.24)",
+  boxShadow: "0 18px 36px rgba(2, 6, 23, 0.52)",
+  backdropFilter: "blur(8px)",
+};
+
+const hoverCard = {
+  transition: "box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease",
   "&:hover": {
-    boxShadow: "0 0 25px rgba(0,255,255,0.8)",
+    boxShadow: "0 14px 30px rgba(2, 6, 23, 0.58)",
     transform: "translateY(-2px)",
+    borderColor: "rgba(56, 189, 248, 0.38)",
   },
 };
 
 const MissingDrivers = ({ missing = [], installed = [] }) => {
-  const statusColors = { Missing: "#ff4d4d", Installed: "#4dff88" };
-  const gradientColors = [
-    "#ff4d4d",
-    "#ff8c00",
-    "#ffff4d",
-    "#4dff88",
-    "#00ffff",
-    "#4d88ff",
-    "#ff4dff",
-  ];
-
-  const getGradient = (idx) => gradientColors[idx % gradientColors.length];
+  const statusColors = { Missing: "#dc2626", Installed: "#15803d" };
 
   const renderDriverCard = (driver, key) => (
     <Card
       key={key}
       sx={{
         p: 2,
-        backdropFilter: "blur(6px)",
-        backgroundColor: "rgba(0,0,0,0.85)",
+        backgroundColor: "rgba(15, 23, 42, 0.78)",
         borderRadius: 3,
-        color: "#fff",
+        color: "#e2e8f0",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        border: `1px solid ${getGradient(key)}`,
-        ...hoverGlow,
+        border: "1px solid rgba(56, 189, 248, 0.2)",
+        ...hoverCard,
       }}
     >
       <Box>
         <Typography
           sx={{
-            fontWeight: "bold",
+            fontWeight: 700,
             fontSize: 16,
-            color: "#fff",
-            textShadow: `0 0 6px ${getGradient(key)}`,
+            color: "#bae6fd",
           }}
         >
           {driver["Driver Name"]}.sys
         </Typography>
-        <Typography sx={{ fontSize: 13, color: "#ddd" }}>Device: {driver.Device}</Typography>
+        <Typography sx={{ fontSize: 13, color: "#94a3b8" }}>Device: {driver.Device}</Typography>
       </Box>
       <Chip
         label={driver.Status}
         sx={{
-          fontWeight: "bold",
-          color: "#000",
+          fontWeight: 700,
+          color: "#ffffff",
           backgroundColor: statusColors[driver.Status],
         }}
       />
@@ -64,36 +61,24 @@ const MissingDrivers = ({ missing = [], installed = [] }) => {
   );
 
   const renderPanel = (title, drivers, emptyMessage) => (
-    <Card
-      sx={{
-        flex: 1,
-        background: "#0a0a0a",
-        borderRadius: 4,
-        padding: 3,
-        border: "2px solid #00ffff",
-        boxShadow: "0 0 50px rgba(0,255,255,0.5)",
-      }}
-    >
+    <Card sx={{ flex: 1, ...panelStyle }}>
       <Typography
         variant="h5"
         sx={{
-          fontWeight: "bold",
+          fontWeight: 800,
           mb: 3,
           textAlign: "center",
-          color: "#00ffff",
+          color: "#e0e7ff",
           fontSize: 22,
-          textShadow: "0 0 8px #00ffff",
         }}
       >
         {title}
       </Typography>
 
       {drivers.length > 0 ? (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {drivers.map(renderDriverCard)}
-        </Box>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>{drivers.map(renderDriverCard)}</Box>
       ) : (
-        <Typography variant="body2" sx={{ color: "#aaa", textAlign: "center", fontStyle: "italic", py: 3 }}>
+        <Typography variant="body2" sx={{ color: "#94a3b8", textAlign: "center", fontStyle: "italic", py: 3 }}>
           {emptyMessage}
         </Typography>
       )}
