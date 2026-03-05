@@ -8,7 +8,7 @@ The goal of System Revamp is to give users a centralized hub for system visibili
 
 ## Docker
 
-This repository includes Docker support for the frontend and core backend APIs.
+This repository includes a single-container Docker setup that runs the frontend and all core backend APIs together.
 
 ### Start everything
 
@@ -18,6 +18,7 @@ docker compose up --build
 
 ### Services
 
+- One container: `system-revamp`
 - Frontend: http://localhost:3000
 - Scanner API: http://localhost:8000
 - Drivers API: http://localhost:8001
