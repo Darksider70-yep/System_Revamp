@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { CloudDownload, Refresh, Computer, Dashboard, Storage, Build } from "@mui/icons-material";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { API_ENDPOINTS } from "./apiConfig";
 
 const panelHover = {
   transition: "box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease",
@@ -63,7 +64,7 @@ function App() {
     setLoading(true);
 
     try {
-      const scanRes = await fetch("http://127.0.0.1:8000/scan");
+      const scanRes = await fetch(`${API_ENDPOINTS.scanner}/scan`);
       if (!scanRes.ok) {
         throw new Error(`Scanner API failed (${scanRes.status})`);
       }
@@ -80,7 +81,7 @@ function App() {
         }
       });
 
-      const versionRes = await fetch("http://127.0.0.1:8002/check-versions", {
+      const versionRes = await fetch(`${API_ENDPOINTS.version}/check-versions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(installedDict),
@@ -125,7 +126,7 @@ function App() {
 
   const fetchDrivers = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8001/drivers");
+      const res = await fetch(`${API_ENDPOINTS.drivers}/drivers`);
       if (!res.ok) {
         throw new Error(`Drivers API failed (${res.status})`);
       }
@@ -167,7 +168,7 @@ function App() {
       setDownloadProgress((prev) => (prev < targetProgress ? prev + Math.min(1.5, targetProgress - prev) : prev));
     }, 50);
 
-    fetch(`http://127.0.0.1:8000/generate-offline-package?mode=${mode}`)
+    fetch(`${API_ENDPOINTS.scanner}/generate-offline-package?mode=${mode}`)
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`Offline package request failed with status ${response.status}`);
@@ -221,7 +222,7 @@ function App() {
         drivers: missingDrivers.map((driver) => driver["Driver Name"]),
       };
 
-      const res = await fetch("http://127.0.0.1:8000/generate-remediation-script", {
+      const res = await fetch(`${API_ENDPOINTS.scanner}/generate-remediation-script`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -251,7 +252,7 @@ function App() {
   const handleDownloadDrivers = async () => {
     try {
       setDriversDownloading(true);
-      const res = await fetch("http://127.0.0.1:8001/drivers/download", {
+      const res = await fetch(`${API_ENDPOINTS.drivers}/drivers/download`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -274,7 +275,7 @@ function App() {
 
       fetchDrivers();
     } catch (err) {
-      alert(toFriendlyFetchError(err, "Drivers service", "http://127.0.0.1:8001"));
+      alert(toFriendlyFetchError(err, "Drivers service", `${API_ENDPOINTS.drivers}`));
     } finally {
       setDriversDownloading(false);
     }

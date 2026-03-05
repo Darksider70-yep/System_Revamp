@@ -21,6 +21,7 @@ import {
 import { useTable, usePagination, useGlobalFilter, useSortBy } from "react-table";
 import columnsData from "./InstalledAppsTableColumns";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { API_ENDPOINTS } from "../apiConfig";
 
 const COLORS = ["#38bdf8", "#f59e0b"];
 
@@ -73,7 +74,7 @@ const InstalledAppsTable = ({ data }) => {
     setAttackResult(null);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/simulate-attack", {
+      const response = await fetch(`${API_ENDPOINTS.scanner}/simulate-attack`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
