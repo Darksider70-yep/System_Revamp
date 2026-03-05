@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import InstalledAppsTable from "./components/InstalledAppsTable";
 import MissingDrivers from "./components/MissingDrivers";
-import ProtectionCenter from "./components/ProtectionCenter";
 import {
   Box,
   Typography,
@@ -16,7 +15,7 @@ import {
   ListItemButton,
   ListItemText,
 } from "@mui/material";
-import { CloudDownload, Refresh, Computer, Dashboard, Storage, Build, Security } from "@mui/icons-material";
+import { CloudDownload, Refresh, Computer, Dashboard, Storage, Build } from "@mui/icons-material";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const panelHover = {
@@ -36,10 +35,6 @@ const glassCard = {
 };
 
 function App() {
-  const PROTECTION_SCAN_ENDPOINTS = [
-    "http://127.0.0.1:8003/protection/scan",
-    "http://127.0.0.1:8013/protection/scan",
-  ];
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
@@ -52,10 +47,6 @@ function App() {
   const [missingDrivers, setMissingDrivers] = useState([]);
   const [installedDrivers, setInstalledDrivers] = useState([]);
   const [driverRiskSummary, setDriverRiskSummary] = useState({ critical: 0, high: 0, medium: 0, low: 0 });
-  const [protectionResults, setProtectionResults] = useState([]);
-  const [protectionSummary, setProtectionSummary] = useState({ malicious: 0, suspicious: 0, clean: 0, unknown: 0, error: 0 });
-  const [protectionScanning, setProtectionScanning] = useState(false);
-  const [lastProtectionScan, setLastProtectionScan] = useState(null);
   const [selectedMenu, setSelectedMenu] = useState("overview");
   const [lastScanTime, setLastScanTime] = useState(null);
 
@@ -67,38 +58,44 @@ function App() {
     return msg || `Request to ${serviceName} failed.`;
   };
 
-  // Fetch installed apps
   const fetchApps = async () => {
     setRefreshing(true);
     setLoading(true);
 
     try {
-      // Call scanner service (8000)
       const scanRes = await fetch("http://127.0.0.1:8000/scan");
+      if (!scanRes.ok) {
+        throw new Error(`Scanner API failed (${scanRes.status})`);
+      }
       const scanData = await scanRes.json();
 
-      if (!scanData.apps) throw new Error("Scan failed");
+      if (!Array.isArray(scanData.apps)) {
+        throw new Error("Scan response is malformed");
+      }
 
-      // Convert array to dictionary
       const installedDict = {};
-      scanData.apps.forEach(app => {
-        installedDict[app.name] = app.version;
+      scanData.apps.forEach((app) => {
+        if (app?.name && app?.version) {
+          installedDict[app.name] = app.version;
+        }
       });
 
-      // Call version service (8002)
       const versionRes = await fetch("http://127.0.0.1:8002/check-versions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(installedDict)
+        body: JSON.stringify(installedDict),
       });
+      if (!versionRes.ok) {
+        throw new Error(`Version API failed (${versionRes.status})`);
+      }
 
       const versionData = await versionRes.json();
-
-      if (!versionData.apps) throw new Error("Version check failed");
+      if (!Array.isArray(versionData.apps)) {
+        throw new Error("Version response is malformed");
+      }
 
       setApps(versionData.apps);
       setLastScanTime(new Date().toLocaleString());
-
     } catch (err) {
       console.error(err);
       setApps([]);
@@ -108,24 +105,42 @@ function App() {
     setRefreshing(false);
   };
 
-  const normalizedApps = apps.map(app => ({
-    ...app,
-    updateRequired: app.status?.includes("Update Available"),
-  }));
+  const normalizedApps = useMemo(
+    () =>
+      apps.map((app) => ({
+        ...app,
+        updateRequired: app.status?.includes("Update Available"),
+      })),
+    [apps]
+  );
 
-  const riskData = [
-    { name: "Critical", risk: missingDrivers.length * 3 },
-    { name: "Moderate", risk: normalizedApps.filter(app => app.updateRequired).length },
-  ];
+  const riskData = useMemo(
+    () => [
+      { name: "High", risk: normalizedApps.filter((app) => app.riskLevel === "High").length + (driverRiskSummary.critical || 0) },
+      { name: "Medium", risk: normalizedApps.filter((app) => app.riskLevel === "Medium").length + (driverRiskSummary.high || 0) },
+      { name: "Low", risk: normalizedApps.filter((app) => app.riskLevel === "Low").length },
+    ],
+    [normalizedApps, driverRiskSummary]
+  );
 
-  // Fetch drivers (missing + installed)
   const fetchDrivers = async () => {
     try {
       const res = await fetch("http://127.0.0.1:8001/drivers");
+      if (!res.ok) {
+        throw new Error(`Drivers API failed (${res.status})`);
+      }
       const data = await res.json();
       setMissingDrivers(Array.isArray(data.missingDrivers) ? data.missingDrivers : []);
       setInstalledDrivers(Array.isArray(data.installedDrivers) ? data.installedDrivers : []);
-      setDriverRiskSummary(data.riskSummary || { critical: 0, high: 0, medium: 0, low: 0 });
+
+      const summary = { critical: 0, high: 0, medium: 0, low: 0 };
+      (Array.isArray(data.missingDrivers) ? data.missingDrivers : []).forEach((driver) => {
+        const impact = String(driver?.Impact || "").toLowerCase();
+        if (impact in summary) {
+          summary[impact] += 1;
+        }
+      });
+      setDriverRiskSummary(data.riskSummary || summary);
     } catch {
       setMissingDrivers([]);
       setInstalledDrivers([]);
@@ -133,7 +148,6 @@ function App() {
     }
   };
 
-  // Initial fetch
   useEffect(() => {
     fetchApps();
     fetchDrivers();
@@ -150,9 +164,7 @@ function App() {
     setDownloadProgress(0);
     let targetProgress = 0;
     let interval = setInterval(() => {
-      setDownloadProgress((prev) =>
-        prev < targetProgress ? prev + Math.min(1.5, targetProgress - prev) : prev
-      );
+      setDownloadProgress((prev) => (prev < targetProgress ? prev + Math.min(1.5, targetProgress - prev) : prev));
     }, 50);
 
     fetch(`http://127.0.0.1:8000/generate-offline-package?mode=${mode}`)
@@ -252,9 +264,7 @@ function App() {
         throw new Error(data?.error || `Driver download failed with status ${res.status}`);
       }
 
-      const failed = Array.isArray(data.steps)
-        ? data.steps.filter((step) => step.returnCode !== 0)
-        : [];
+      const failed = Array.isArray(data.steps) ? data.steps.filter((step) => step.returnCode !== 0) : [];
 
       if (failed.length === 0) {
         alert("Driver download/install triggered successfully. Windows may continue in background.");
@@ -270,51 +280,7 @@ function App() {
     }
   };
 
-  const handleProtectionScan = async () => {
-    try {
-      setProtectionScanning(true);
-      const payload = {
-        apps: normalizedApps.map((app) => ({ name: app.name, version: app.current })),
-        maxApps: 20,
-      };
-
-      let data = null;
-      let lastError = null;
-      for (const endpoint of PROTECTION_SCAN_ENDPOINTS) {
-        try {
-          const res = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const parsed = await res.json();
-          if (!res.ok) {
-            lastError = new Error(parsed?.error || `Protection scan failed at ${endpoint} with status ${res.status}`);
-            continue;
-          }
-          data = parsed;
-          break;
-        } catch (err) {
-          lastError = err;
-        }
-      }
-
-      if (!data) {
-        throw lastError || new Error("Protection scan failed on all endpoints.");
-      }
-
-      setProtectionResults(Array.isArray(data.results) ? data.results : []);
-      setProtectionSummary(data.summary || { malicious: 0, suspicious: 0, clean: 0, unknown: 0, error: 0 });
-      setLastProtectionScan(new Date().toLocaleString());
-    } catch (err) {
-      alert(toFriendlyFetchError(err, "Protection service", "http://127.0.0.1:8003"));
-      setProtectionResults([]);
-      setProtectionSummary({ malicious: 0, suspicious: 0, clean: 0, unknown: 0, error: 0 });
-    } finally {
-      setProtectionScanning(false);
-    }
-  };
-
+  const totalUpdates = normalizedApps.filter((app) => app.updateRequired).length;
 
   return (
     <Box
@@ -326,7 +292,6 @@ function App() {
         color: "#e2e8f0",
       }}
     >
-      {/* Sidebar */}
       <Box
         sx={{
           width: 260,
@@ -346,8 +311,7 @@ function App() {
           {[
             { id: "overview", label: "Overview", icon: <Dashboard /> },
             { id: "installed", label: "Installed Apps", icon: <Storage /> },
-            { id: "drivers", label: "Drivers", icon: <Build /> },
-            { id: "protection", label: "Software Protection", icon: <Security /> },
+            { id: "drivers", label: "Missing Drivers", icon: <Build /> },
           ].map((item) => (
             <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
               <ListItemButton
@@ -378,11 +342,14 @@ function App() {
           ))}
         </List>
 
-        {/* Sidebar Stats */}
         <Box sx={{ mt: 4 }}>
           <Card sx={{ ...glassCard, p: 2, mb: 2, ...panelHover }}>
             <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Total Apps</Typography>
             <Typography sx={{ color: "#f8fafc", fontSize: 24, fontWeight: 700 }}>{apps.length}</Typography>
+          </Card>
+          <Card sx={{ ...glassCard, p: 2, mb: 2, ...panelHover }}>
+            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Updates Needed</Typography>
+            <Typography sx={{ color: "#f8fafc", fontSize: 24, fontWeight: 700 }}>{totalUpdates}</Typography>
           </Card>
           <Card sx={{ ...glassCard, p: 2, mb: 2, ...panelHover }}>
             <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Missing Drivers</Typography>
@@ -417,7 +384,6 @@ function App() {
         </Box>
       </Box>
 
-      {/* Main Content */}
       <Box sx={{ flex: 1, p: 4 }}>
         <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
           <Computer sx={{ fontSize: 48, color: "#7dd3fc", mr: 1.2, filter: "drop-shadow(0 4px 12px rgba(56, 189, 248, 0.38))" }} />
@@ -436,7 +402,6 @@ function App() {
         ) : (
           <Fade in timeout={500}>
             <Box className="space-y-6">
-              {/* Overview */}
               {selectedMenu === "overview" && (
                 <>
                   <Card sx={{ ...glassCard, p: 3, mb: 4, ...panelHover }}>
@@ -444,7 +409,7 @@ function App() {
                       Security Risk Overview
                     </Typography>
                     <Typography sx={{ color: "#94a3b8", mb: 3, fontWeight: 500 }}>
-                      Total risk based on missing drivers and updates required.
+                      Risk distribution from software versions and critical drivers.
                     </Typography>
                     <Box sx={{ width: "100%", height: 300 }}>
                       <ResponsiveContainer width="100%" height="100%">
@@ -467,10 +432,10 @@ function App() {
 
                   <Card sx={{ ...glassCard, p: 3, ...panelHover }}>
                     <Typography variant="h5" sx={{ color: "#e0e7ff", mb: 1.2, fontWeight: 800 }}>
-                      Offline Environment Sync
+                      Offline Patch Package
                     </Typography>
                     <Typography sx={{ color: "#94a3b8", mb: 2.2, fontWeight: 500 }}>
-                      Download the offline update ZIP package for secure or air-gapped environments.
+                      Export security update metadata for air-gapped environments.
                     </Typography>
                     {downloading ? (
                       <Box>
@@ -555,10 +520,8 @@ function App() {
                 </>
               )}
 
-              {/* Installed Apps */}
               {selectedMenu === "installed" && <InstalledAppsTable data={normalizedApps} />}
 
-              {/* Drivers */}
               {selectedMenu === "drivers" && (
                 <MissingDrivers
                   missing={missingDrivers}
@@ -566,17 +529,6 @@ function App() {
                   riskSummary={driverRiskSummary}
                   onDownloadDrivers={handleDownloadDrivers}
                   downloadingDrivers={driversDownloading}
-                />
-              )}
-
-              {/* Software Protection */}
-              {selectedMenu === "protection" && (
-                <ProtectionCenter
-                  results={protectionResults}
-                  summary={protectionSummary}
-                  onScan={handleProtectionScan}
-                  scanning={protectionScanning}
-                  lastScanTime={lastProtectionScan}
                 />
               )}
             </Box>

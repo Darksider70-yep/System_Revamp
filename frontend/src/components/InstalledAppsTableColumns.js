@@ -75,7 +75,7 @@ const columns = [
       return (
         <button
           className="attack-btn"
-          onClick={() => row.original.handleAttack(row.original.name)}
+          onClick={() => row.original.handleAttack(row.original)}
           style={{
             background: "linear-gradient(120deg, #4f46e5, #0284c7)",
             color: "#e2e8f0",

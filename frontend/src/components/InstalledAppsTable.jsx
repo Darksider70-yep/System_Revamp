@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -9,10 +9,14 @@ import {
   Paper,
   TablePagination,
   TextField,
-  Button,
   Box,
   Typography,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from "@mui/material";
 import { useTable, usePagination, useGlobalFilter, useSortBy } from "react-table";
 import columnsData from "./InstalledAppsTableColumns";
@@ -43,11 +47,10 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const InstalledAppsTable = ({ data }) => {
-  const [attackLogs, setAttackLogs] = useState([]);
-  const [attackingApp, setAttackingApp] = useState(null);
-  const [isAttacking, setIsAttacking] = useState(false);
-  const eventSourceRef = useRef(null);
-  const logsEndRef = useRef(null);
+  const [attackLoading, setAttackLoading] = useState(false);
+  const [attackError, setAttackError] = useState(null);
+  const [attackResult, setAttackResult] = useState(null);
+  const [attackDialogOpen, setAttackDialogOpen] = useState(false);
 
   const columns = useMemo(() => columnsData, []);
 
@@ -62,38 +65,35 @@ const InstalledAppsTable = ({ data }) => {
     [data]
   );
 
-  useEffect(() => {
-    if (logsEndRef.current) logsEndRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [attackLogs]);
+  const handleAttack = useCallback(async (appRow) => {
+    const software = appRow?.name || "Unknown Software";
+    setAttackDialogOpen(true);
+    setAttackLoading(true);
+    setAttackError(null);
+    setAttackResult(null);
 
-  useEffect(() => {
-    return () => {
-      if (eventSourceRef.current) eventSourceRef.current.close();
-    };
-  }, []);
+    try {
+      const response = await fetch("http://127.0.0.1:8000/simulate-attack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          software,
+          current: appRow?.current,
+          latest: appRow?.latest,
+          riskLevel: appRow?.riskLevel,
+        }),
+      });
 
-  const handleAttack = useCallback((appName) => {
-    if (eventSourceRef.current) eventSourceRef.current.close();
-    setAttackingApp(appName);
-    setAttackLogs(["Initializing attack simulation..."]);
-    setIsAttacking(true);
-
-    const es = new EventSource(`http://localhost:8000/simulate-attack/${encodeURIComponent(appName)}`);
-    eventSourceRef.current = es;
-
-    es.onmessage = (event) => {
-      setAttackLogs((prev) => [...prev, event.data]);
-      if (event.data.includes("Attack simulation complete!")) {
-        setIsAttacking(false);
-        es.close();
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.detail || payload?.error || `Simulation failed (${response.status})`);
       }
-    };
-
-    es.onerror = () => {
-      setAttackLogs((prev) => [...prev, "Error: connection lost"]);
-      setIsAttacking(false);
-      es.close();
-    };
+      setAttackResult(payload);
+    } catch (error) {
+      setAttackError(error?.message || "Attack simulation failed");
+    } finally {
+      setAttackLoading(false);
+    }
   }, []);
 
   const tableData = useMemo(() => data.map((row) => ({ ...row, handleAttack })), [data, handleAttack]);
@@ -104,7 +104,6 @@ const InstalledAppsTable = ({ data }) => {
     headerGroups,
     prepareRow,
     page,
-    pageOptions,
     state,
     setGlobalFilter,
     gotoPage,
@@ -233,7 +232,7 @@ const InstalledAppsTable = ({ data }) => {
                   {...row.getRowProps()}
                   key={row.id}
                   sx={{
-                    backgroundColor: attackingApp === row.original.name ? "rgba(37, 99, 235, 0.22)" : "rgba(2, 6, 23, 0.34)",
+                    backgroundColor: "rgba(2, 6, 23, 0.34)",
                     "&:hover": {
                       backgroundColor: "rgba(30, 64, 175, 0.28)",
                     },
@@ -258,7 +257,7 @@ const InstalledAppsTable = ({ data }) => {
 
       <TablePagination
         component="div"
-        count={pageOptions.length * pageSize}
+        count={tableData.length}
         page={pageIndex}
         onPageChange={(e, newPage) => gotoPage(newPage)}
         rowsPerPage={pageSize}
@@ -271,46 +270,54 @@ const InstalledAppsTable = ({ data }) => {
         }}
       />
 
-      {attackingApp && (
-        <Paper
-          sx={{
-            mt: 3,
-            p: 2,
-            backgroundColor: "#020617",
-            color: "#93c5fd",
-            fontFamily: "monospace",
-            border: "1px solid rgba(56, 189, 248, 0.45)",
-            boxShadow: "0 14px 30px rgba(2, 6, 23, 0.6)",
-            borderRadius: 2.5,
-          }}
-        >
-          <Typography variant="h6" sx={{ color: "#bfdbfe", mb: 1, fontWeight: 700 }}>
-            Attack Simulation: {attackingApp}
-          </Typography>
-          <Box sx={{ maxHeight: 300, overflowY: "auto", mb: 1 }}>
-            {attackLogs.map((log, idx) => (
-              <div key={idx}>{log}</div>
-            ))}
-            <div ref={logsEndRef} />
-          </Box>
-          {isAttacking && <CircularProgress size={24} sx={{ color: "#60a5fa" }} />}
+      <Dialog
+        open={attackDialogOpen}
+        onClose={() => setAttackDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            background: "linear-gradient(145deg, rgba(5, 13, 34, 0.96), rgba(8, 23, 52, 0.94))",
+            border: "1px solid rgba(56, 189, 248, 0.3)",
+            color: "#e2e8f0",
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: "#dbeafe", fontWeight: 800 }}>Attack Simulation Result</DialogTitle>
+        <DialogContent dividers sx={{ borderColor: "rgba(56, 189, 248, 0.2)" }}>
+          {attackLoading ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, py: 2 }}>
+              <CircularProgress size={22} sx={{ color: "#38bdf8" }} />
+              <Typography sx={{ color: "#bae6fd" }}>Running educational simulation...</Typography>
+            </Box>
+          ) : attackError ? (
+            <Typography sx={{ color: "#fda4af" }}>{attackError}</Typography>
+          ) : attackResult ? (
+            <Box sx={{ display: "grid", gap: 1.2 }}>
+              <Typography><strong>Software:</strong> {attackResult.software}</Typography>
+              <Typography><strong>Vulnerability:</strong> {attackResult.vulnerability}</Typography>
+              <Typography><strong>Risk Level:</strong> {attackResult.riskLevel}</Typography>
+              <Typography><strong>Possible Attack:</strong> {attackResult.possibleAttack}</Typography>
+              <Typography><strong>Recommendation:</strong> {attackResult.recommendation}</Typography>
+            </Box>
+          ) : (
+            <Typography sx={{ color: "#94a3b8" }}>No simulation output.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
           <Button
             variant="contained"
-            onClick={() => {
-              setAttackingApp(null);
-              setAttackLogs([]);
-              if (eventSourceRef.current) eventSourceRef.current.close();
-            }}
+            onClick={() => setAttackDialogOpen(false)}
             sx={{
-              mt: 2,
-              backgroundColor: "#4338ca",
-              "&:hover": { backgroundColor: "#3730a3" },
+              background: "linear-gradient(120deg, #4f46e5, #0284c7)",
+              "&:hover": { background: "linear-gradient(120deg, #4338ca, #0369a1)" },
             }}
           >
             Close
           </Button>
-        </Paper>
-      )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
