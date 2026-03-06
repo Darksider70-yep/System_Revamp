@@ -1,248 +1,282 @@
-import React, { useState, useEffect, useMemo } from "react";
-import InstalledAppsTable from "./components/InstalledAppsTable";
-import MissingDrivers from "./components/MissingDrivers";
-import LiveSystemMonitor from "./components/LiveSystemMonitor";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
+  AppBar,
   Box,
-  Typography,
-  CircularProgress,
-  Fade,
-  Card,
   Button,
-  LinearProgress,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
   Divider,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
+  Grid,
+  LinearProgress,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Toolbar,
+  Tooltip,
+  Typography,
 } from "@mui/material";
-import { CloudDownload, Refresh, Computer, Dashboard, Storage, Build } from "@mui/icons-material";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { API_ENDPOINTS, WS_ENDPOINTS } from "./apiConfig";
+import {
+  Bolt,
+  Computer,
+  Devices,
+  Logout,
+  NotificationsActive,
+  Refresh,
+  Security,
+  TrendingUp,
+  Wifi,
+} from "@mui/icons-material";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip as RechartTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
-const panelHover = {
-  transition: "box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease",
-  "&:hover": {
-    boxShadow: "0 22px 44px rgba(5, 10, 28, 0.52)",
-    transform: "translateY(-2px)",
-    borderColor: "rgba(56, 189, 248, 0.52)",
-  },
-};
+import { CLOUD_API_ENDPOINTS, CLOUD_WS_ENDPOINTS } from "./apiConfig";
 
-const glassCard = {
-  background: "linear-gradient(140deg, rgba(12, 20, 45, 0.86), rgba(15, 30, 66, 0.76))",
-  border: "1px solid rgba(99, 102, 241, 0.34)",
+const CARD_STYLE = {
   borderRadius: 3,
-  backdropFilter: "blur(8px)",
+  border: "1px solid rgba(148, 163, 184, 0.22)",
+  background: "linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.82))",
+  boxShadow: "0 14px 36px rgba(2, 6, 23, 0.35)",
 };
+
+const AUTH_TOKEN_KEY = "cloud_admin_token";
+
+const formatTimestamp = (value) => {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return date.toLocaleString();
+};
+
+const riskColor = (value) => {
+  const lowered = String(value || "").trim().toLowerCase();
+  if (lowered === "high") return "#ef4444";
+  if (lowered === "medium") return "#f59e0b";
+  if (lowered === "low") return "#22c55e";
+  return "#94a3b8";
+};
+
+const headersWithToken = (token) => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token}`,
+});
 
 function App() {
-  const [apps, setApps] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadLabel, setDownloadLabel] = useState("ZIP package");
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [scriptDownloading, setScriptDownloading] = useState(false);
-  const [driversDownloading, setDriversDownloading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [token, setToken] = useState(() => localStorage.getItem(AUTH_TOKEN_KEY) || "");
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("admin123");
+  const [authError, setAuthError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const [missingDrivers, setMissingDrivers] = useState([]);
-  const [installedDrivers, setInstalledDrivers] = useState([]);
-  const [driverRiskSummary, setDriverRiskSummary] = useState({ critical: 0, high: 0, medium: 0, low: 0 });
-  const [selectedMenu, setSelectedMenu] = useState("overview");
-  const [lastScanTime, setLastScanTime] = useState(null);
-  const [liveMetrics, setLiveMetrics] = useState({
-    cpu_usage: 0,
-    ram_usage: 0,
-    disk_usage: 0,
-    network_activity: "low",
-  });
-  const [liveRiskScore, setLiveRiskScore] = useState(0);
-  const [securityAlerts, setSecurityAlerts] = useState([]);
-  const [systemInfo, setSystemInfo] = useState({});
+  const [overview, setOverview] = useState(null);
+  const [machines, setMachines] = useState([]);
+  const [selectedMachineId, setSelectedMachineId] = useState(null);
+  const [machineDetail, setMachineDetail] = useState(null);
 
-  const toFriendlyFetchError = (err, serviceName, endpoint) => {
-    const msg = err?.message || "";
-    if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
-      return `${serviceName} is unreachable at ${endpoint}. Start the service and try again.`;
-    }
-    return msg || `Request to ${serviceName} failed.`;
-  };
+  const [dashboardError, setDashboardError] = useState("");
+  const [loadingOverview, setLoadingOverview] = useState(false);
+  const [loadingMachines, setLoadingMachines] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchApps = async () => {
-    setRefreshing(true);
-    setLoading(true);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [lastLiveEvent, setLastLiveEvent] = useState(null);
 
-    try {
-      const scanRes = await fetch(`${API_ENDPOINTS.scanner}/scan`);
-      if (!scanRes.ok) {
-        throw new Error(`Scanner API failed (${scanRes.status})`);
-      }
-      const scanData = await scanRes.json();
+  const refreshTimerRef = useRef(null);
 
-      if (!Array.isArray(scanData.apps)) {
-        throw new Error("Scan response is malformed");
-      }
-
-      const installedDict = {};
-      scanData.apps.forEach((app) => {
-        if (app?.name && app?.version) {
-          installedDict[app.name] = app.version;
-        }
-      });
-
-      const versionRes = await fetch(`${API_ENDPOINTS.version}/check-versions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(installedDict),
-      });
-      if (!versionRes.ok) {
-        throw new Error(`Version API failed (${versionRes.status})`);
-      }
-
-      const versionData = await versionRes.json();
-      if (!Array.isArray(versionData.apps)) {
-        throw new Error("Version response is malformed");
-      }
-
-      setApps(versionData.apps);
-      setLastScanTime(new Date().toLocaleString());
-    } catch (err) {
-      console.error(err);
-      setApps([]);
-    }
-
-    setLoading(false);
-    setRefreshing(false);
-  };
-
-  const normalizedApps = useMemo(
-    () =>
-      apps.map((app) => ({
-        ...app,
-        updateRequired: app.status?.includes("Update Available"),
-      })),
-    [apps]
-  );
-
-  const riskData = useMemo(
-    () => [
-      { name: "High", risk: normalizedApps.filter((app) => app.riskLevel === "High").length + (driverRiskSummary.critical || 0) },
-      { name: "Medium", risk: normalizedApps.filter((app) => app.riskLevel === "Medium").length + (driverRiskSummary.high || 0) },
-      { name: "Low", risk: normalizedApps.filter((app) => app.riskLevel === "Low").length },
-    ],
-    [normalizedApps, driverRiskSummary]
-  );
-
-  const fetchDrivers = async () => {
-    try {
-      const res = await fetch(`${API_ENDPOINTS.drivers}/drivers`);
-      if (!res.ok) {
-        throw new Error(`Drivers API failed (${res.status})`);
-      }
-      const data = await res.json();
-      setMissingDrivers(Array.isArray(data.missingDrivers) ? data.missingDrivers : []);
-      setInstalledDrivers(Array.isArray(data.installedDrivers) ? data.installedDrivers : []);
-
-      const summary = { critical: 0, high: 0, medium: 0, low: 0 };
-      (Array.isArray(data.missingDrivers) ? data.missingDrivers : []).forEach((driver) => {
-        const impact = String(driver?.Impact || "").toLowerCase();
-        if (impact in summary) {
-          summary[impact] += 1;
-        }
-      });
-      setDriverRiskSummary(data.riskSummary || summary);
-    } catch {
-      setMissingDrivers([]);
-      setInstalledDrivers([]);
-      setDriverRiskSummary({ critical: 0, high: 0, medium: 0, low: 0 });
-    }
-  };
-
-  const fetchSystemInfo = async () => {
-    try {
-      const res = await fetch(`${API_ENDPOINTS.monitor}/system-info`);
-      if (!res.ok) {
-        throw new Error(`System monitor info failed (${res.status})`);
-      }
-      const data = await res.json();
-      setSystemInfo(data || {});
-    } catch {
-      setSystemInfo({});
-    }
-  };
-
-  const fetchMonitorSnapshot = async () => {
-    try {
-      const [metricsRes, eventsRes] = await Promise.all([
-        fetch(`${API_ENDPOINTS.monitor}/system-metrics`),
-        fetch(`${API_ENDPOINTS.monitor}/security-events?limit=5`),
-      ]);
-      if (metricsRes.ok) {
-        const metrics = await metricsRes.json();
-        setLiveMetrics({
-          cpu_usage: Number(metrics?.cpu_usage || 0),
-          ram_usage: Number(metrics?.ram_usage || 0),
-          disk_usage: Number(metrics?.disk_usage || 0),
-          network_activity: metrics?.network_activity || "low",
-        });
-      }
-      if (eventsRes.ok) {
-        const payload = await eventsRes.json();
-        setSecurityAlerts(Array.isArray(payload?.events) ? payload.events : []);
-        setLiveRiskScore(Number(payload?.riskScore || 0));
-      }
-    } catch {
-      setSecurityAlerts([]);
-      setLiveRiskScore(0);
-    }
-  };
-
-  useEffect(() => {
-    fetchApps();
-    fetchDrivers();
-    fetchSystemInfo();
-    fetchMonitorSnapshot();
+  const handleUnauthorized = useCallback(() => {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    setToken("");
+    setOverview(null);
+    setMachines([]);
+    setMachineDetail(null);
+    setSelectedMachineId(null);
+    setDashboardError("Session expired. Login again.");
   }, []);
 
+  const fetchOverview = useCallback(async () => {
+    if (!token) return;
+    setLoadingOverview(true);
+    try {
+      const response = await fetch(CLOUD_API_ENDPOINTS.overview, {
+        headers: headersWithToken(token),
+      });
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Overview request failed (${response.status})`);
+      }
+      const data = await response.json();
+      setOverview(data);
+      setDashboardError("");
+    } catch (error) {
+      setDashboardError(error?.message || "Unable to load overview.");
+    } finally {
+      setLoadingOverview(false);
+    }
+  }, [handleUnauthorized, token]);
+
+  const fetchMachines = useCallback(async () => {
+    if (!token) return;
+    setLoadingMachines(true);
+    try {
+      const response = await fetch(`${CLOUD_API_ENDPOINTS.machines}?limit=200&offset=0`, {
+        headers: headersWithToken(token),
+      });
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Machine list request failed (${response.status})`);
+      }
+      const payload = await response.json();
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      setMachines(items);
+
+      if (items.length === 0) {
+        setSelectedMachineId(null);
+        setMachineDetail(null);
+        return;
+      }
+
+      if (!selectedMachineId || !items.some((item) => item.id === selectedMachineId)) {
+        setSelectedMachineId(items[0].id);
+      }
+      setDashboardError("");
+    } catch (error) {
+      setDashboardError(error?.message || "Unable to load machine list.");
+    } finally {
+      setLoadingMachines(false);
+    }
+  }, [handleUnauthorized, selectedMachineId, token]);
+
+  const fetchMachineDetail = useCallback(
+    async (machineId) => {
+      if (!token || !machineId) return;
+      setLoadingDetail(true);
+      try {
+        const response = await fetch(`${CLOUD_API_ENDPOINTS.machineDetails}/${machineId}`, {
+          headers: headersWithToken(token),
+        });
+        if (response.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(`Machine detail request failed (${response.status})`);
+        }
+        const data = await response.json();
+        setMachineDetail(data);
+        setDashboardError("");
+      } catch (error) {
+        setDashboardError(error?.message || "Unable to load machine detail.");
+      } finally {
+        setLoadingDetail(false);
+      }
+    },
+    [handleUnauthorized, token]
+  );
+
+  const refreshAll = useCallback(async () => {
+    if (!token) return;
+    setIsRefreshing(true);
+    await Promise.all([fetchOverview(), fetchMachines()]);
+    if (selectedMachineId) {
+      await fetchMachineDetail(selectedMachineId);
+    }
+    setIsRefreshing(false);
+  }, [fetchMachineDetail, fetchMachines, fetchOverview, selectedMachineId, token]);
+
   useEffect(() => {
-    let socket;
-    let reconnectTimer;
-    let disposed = false;
+    if (!token) return;
+    fetchOverview();
+    fetchMachines();
+  }, [fetchMachines, fetchOverview, token]);
+
+  useEffect(() => {
+    if (!token || !selectedMachineId) return;
+    fetchMachineDetail(selectedMachineId);
+  }, [fetchMachineDetail, selectedMachineId, token]);
+
+  useEffect(() => {
+    if (!token) return undefined;
+
+    let socket = null;
+    let reconnectTimer = null;
+    let isDisposed = false;
+
+    const scheduleRefreshFromLiveEvent = (payload) => {
+      setLastLiveEvent(payload);
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+      refreshTimerRef.current = setTimeout(async () => {
+        await fetchOverview();
+        await fetchMachines();
+        if (payload?.machine_id && payload.machine_id === selectedMachineId) {
+          await fetchMachineDetail(payload.machine_id);
+        }
+      }, 500);
+    };
 
     const connect = () => {
-      socket = new WebSocket(WS_ENDPOINTS.liveMonitor);
+      socket = new WebSocket(CLOUD_WS_ENDPOINTS.liveMachines);
+
+      socket.onopen = () => {
+        setSocketConnected(true);
+      };
 
       socket.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data);
-          setLiveMetrics({
-            cpu_usage: Number(payload?.cpu || 0),
-            ram_usage: Number(payload?.ram || 0),
-            disk_usage: Number(payload?.disk || 0),
-            network_activity: payload?.networkActivity || "low",
-          });
-          setLiveRiskScore(Number(payload?.riskScore || 0));
-          setSecurityAlerts(Array.isArray(payload?.securityAlerts) ? payload.securityAlerts : []);
+          if (payload?.type && payload.type !== "connected") {
+            scheduleRefreshFromLiveEvent(payload);
+          }
         } catch {
-          // Ignore malformed websocket payloads.
-        }
-      };
-
-      socket.onclose = () => {
-        if (!disposed) {
-          reconnectTimer = setTimeout(connect, 4000);
+          // Ignore malformed payloads.
         }
       };
 
       socket.onerror = () => {
         socket.close();
       };
+
+      socket.onclose = () => {
+        setSocketConnected(false);
+        if (!isDisposed) {
+          reconnectTimer = setTimeout(connect, 3000);
+        }
+      };
     };
 
     connect();
+
     return () => {
-      disposed = true;
+      isDisposed = true;
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
       }
@@ -250,397 +284,489 @@ function App() {
         socket.close();
       }
     };
-  }, []);
+  }, [fetchMachineDetail, fetchMachines, fetchOverview, selectedMachineId, token]);
 
-  const handleRefresh = () => {
-    fetchApps();
-    fetchDrivers();
-    fetchSystemInfo();
-    fetchMonitorSnapshot();
-  };
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    setAuthError("");
 
-  const handleDownloadZip = (mode = "full") => {
-    setDownloading(true);
-    setDownloadLabel(mode === "delta" ? "delta package" : "ZIP package");
-    setDownloadProgress(0);
-    let targetProgress = 0;
-    let interval = setInterval(() => {
-      setDownloadProgress((prev) => (prev < targetProgress ? prev + Math.min(1.5, targetProgress - prev) : prev));
-    }, 50);
-
-    fetch(`${API_ENDPOINTS.scanner}/generate-offline-package?mode=${mode}`)
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Offline package request failed with status ${response.status}`);
-        }
-
-        const contentLength = response.headers.get("Content-Length");
-        const total = contentLength ? parseInt(contentLength, 10) : 0;
-        let loaded = 0;
-        if (!response.body) {
-          throw new Error("Response body is empty");
-        }
-        const reader = response.body.getReader();
-        const chunks = [];
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          loaded += value.length;
-          if (total) targetProgress = Math.round((loaded / total) * 100);
-        }
-        targetProgress = 100;
-        clearInterval(interval);
-        setDownloadProgress(100);
-        const blob = new Blob(chunks);
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", mode === "delta" ? "offline_delta_package.zip" : "offline_update_package.zip");
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-      })
-      .catch((err) => alert(err?.message || "Failed to download ZIP package"))
-      .finally(() => {
-        clearInterval(interval);
-        setTimeout(() => {
-          setDownloading(false);
-          setDownloadLabel("ZIP package");
-          setDownloadProgress(0);
-        }, 500);
-      });
-  };
-
-  const handleExportRemediationScript = async () => {
     try {
-      setScriptDownloading(true);
-      const targetApps = normalizedApps.filter((app) => app.status === "Update Available");
-      const payload = {
-        apps: targetApps.map((app) => app.name),
-        drivers: missingDrivers.map((driver) => driver["Driver Name"]),
-      };
-
-      const res = await fetch(`${API_ENDPOINTS.scanner}/generate-remediation-script`, {
+      const response = await fetch(CLOUD_API_ENDPOINTS.login, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ username, password }),
       });
 
-      if (!res.ok) {
-        throw new Error(`Script export failed with status ${res.status}`);
+      if (!response.ok) {
+        throw new Error("Invalid username or password");
       }
 
-      const scriptText = await res.text();
-      const blob = new Blob([scriptText], { type: "text/plain;charset=utf-8" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "system_revamp_remediation.ps1");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      alert(err?.message || "Failed to export remediation script");
+      const data = await response.json();
+      const accessToken = String(data.access_token || "").trim();
+      if (!accessToken) {
+        throw new Error("Cloud auth response missing token");
+      }
+
+      localStorage.setItem(AUTH_TOKEN_KEY, accessToken);
+      setToken(accessToken);
+      setAuthError("");
+    } catch (error) {
+      setAuthError(error?.message || "Unable to login");
     } finally {
-      setScriptDownloading(false);
+      setIsLoggingIn(false);
     }
   };
 
-  const handleDownloadDrivers = async () => {
-    try {
-      setDriversDownloading(true);
-      const res = await fetch(`${API_ENDPOINTS.drivers}/drivers/download`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          drivers: missingDrivers.map((driver) => driver["Driver Name"]),
-        }),
-      });
+  const handleLogout = () => {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    setToken("");
+    setOverview(null);
+    setMachines([]);
+    setMachineDetail(null);
+    setSelectedMachineId(null);
+    setLastLiveEvent(null);
+    setDashboardError("");
+  };
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || `Driver download failed with status ${res.status}`);
-      }
-
-      const failed = Array.isArray(data.steps) ? data.steps.filter((step) => step.returnCode !== 0) : [];
-
-      if (failed.length === 0) {
-        alert("Driver download/install triggered successfully. Windows may continue in background.");
+  const riskDistribution = useMemo(() => {
+    const installedApps = Array.isArray(machineDetail?.installed_apps) ? machineDetail.installed_apps : [];
+    const counts = { High: 0, Medium: 0, Low: 0, Unknown: 0 };
+    installedApps.forEach((item) => {
+      const key = String(item?.risk_level || "Unknown").trim();
+      if (counts[key] !== undefined) {
+        counts[key] += 1;
       } else {
-        alert("Driver update started, but some steps reported issues. Try running app as Administrator.");
+        counts.Unknown += 1;
       }
+    });
+    return [
+      { name: "High", value: counts.High },
+      { name: "Medium", value: counts.Medium },
+      { name: "Low", value: counts.Low },
+      { name: "Unknown", value: counts.Unknown },
+    ];
+  }, [machineDetail]);
 
-      fetchDrivers();
-    } catch (err) {
-      alert(toFriendlyFetchError(err, "Drivers service", `${API_ENDPOINTS.drivers}`));
-    } finally {
-      setDriversDownloading(false);
-    }
-  };
+  const selectedMachineSummary = useMemo(
+    () => machines.find((machine) => machine.id === selectedMachineId) || null,
+    [machines, selectedMachineId]
+  );
 
-  const totalUpdates = normalizedApps.filter((app) => app.updateRequired).length;
-
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at 10% 0%, rgba(30, 64, 175, 0.42), rgba(2, 6, 23, 1) 35%), radial-gradient(circle at 90% 20%, rgba(14, 116, 144, 0.24), rgba(2, 6, 23, 0.8) 45%), linear-gradient(140deg, #020617 0%, #020b2a 55%, #03143a 100%)",
-        color: "#e2e8f0",
-      }}
-    >
+  if (!token) {
+    return (
       <Box
         sx={{
-          width: 260,
-          borderRight: "1px solid rgba(59, 130, 246, 0.28)",
-          background: "linear-gradient(180deg, rgba(4, 9, 30, 0.9), rgba(4, 12, 34, 0.92))",
-          py: 4,
-          px: 2,
-          backdropFilter: "blur(10px)",
-          boxShadow: "14px 0 30px rgba(2, 6, 23, 0.5)",
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background:
+            "radial-gradient(circle at 20% 0%, rgba(59, 130, 246, 0.2), rgba(2, 6, 23, 1) 45%), linear-gradient(130deg, #020617 0%, #111827 60%, #1f2937 100%)",
+          p: 2,
         }}
       >
-        <Typography variant="h5" sx={{ color: "#dbeafe", fontWeight: 800, mb: 3, textAlign: "center", letterSpacing: 0.6 }}>
-          Dashboard
-        </Typography>
-        <Divider sx={{ borderColor: "rgba(56, 189, 248, 0.28)", mb: 2 }} />
-        <List>
-          {[
-            { id: "overview", label: "Overview", icon: <Dashboard /> },
-            { id: "installed", label: "Installed Apps", icon: <Storage /> },
-            { id: "drivers", label: "Missing Drivers", icon: <Build /> },
-          ].map((item) => (
-            <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
-              <ListItemButton
-                onClick={() => setSelectedMenu(item.id)}
+        <Card sx={{ ...CARD_STYLE, width: 430, p: 1 }}>
+          <CardContent>
+            <Stack spacing={2.2}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Security sx={{ color: "#38bdf8" }} />
+                <Typography variant="h5" sx={{ fontWeight: 800, color: "#f1f5f9" }}>
+                  Cloud Security Core
+                </Typography>
+              </Stack>
+              <Typography sx={{ color: "#94a3b8" }}>
+                Admin login for global machine monitoring.
+              </Typography>
+
+              {authError ? <Alert severity="error">{authError}</Alert> : null}
+
+              <TextField
+                label="Username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                fullWidth
+                variant="outlined"
+                InputLabelProps={{ style: { color: "#cbd5e1" } }}
                 sx={{
-                  borderRadius: 2.5,
-                  px: 2,
-                  py: 1,
-                  background:
-                    selectedMenu === item.id
-                      ? "linear-gradient(120deg, rgba(67, 56, 202, 0.38), rgba(14, 165, 233, 0.25))"
-                      : "transparent",
-                  border: "1px solid",
-                  borderColor: selectedMenu === item.id ? "rgba(56, 189, 248, 0.48)" : "transparent",
-                  "&:hover": {
-                    backgroundColor: "rgba(30, 64, 175, 0.3)",
-                    borderColor: "rgba(56, 189, 248, 0.3)",
-                  },
+                  "& .MuiOutlinedInput-root": { color: "#e2e8f0" },
+                  "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148, 163, 184, 0.32)" },
+                }}
+              />
+              <TextField
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                fullWidth
+                variant="outlined"
+                InputLabelProps={{ style: { color: "#cbd5e1" } }}
+                sx={{
+                  "& .MuiOutlinedInput-root": { color: "#e2e8f0" },
+                  "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148, 163, 184, 0.32)" },
+                }}
+              />
+              <Button
+                variant="contained"
+                disabled={isLoggingIn}
+                onClick={handleLogin}
+                sx={{
+                  py: 1.2,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  background: "linear-gradient(120deg, #0ea5e9, #3b82f6)",
                 }}
               >
-                {React.cloneElement(item.icon, { sx: { color: "#7dd3fc", mr: 2 } })}
-                <ListItemText
-                  primary={item.label}
-                  sx={{ color: "#cbd5e1", "& .MuiTypography-root": { fontWeight: selectedMenu === item.id ? 700 : 500 } }}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-
-        <Box sx={{ mt: 4 }}>
-          <Card sx={{ ...glassCard, p: 2, mb: 2, ...panelHover }}>
-            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Total Apps</Typography>
-            <Typography sx={{ color: "#f8fafc", fontSize: 24, fontWeight: 700 }}>{apps.length}</Typography>
-          </Card>
-          <Card sx={{ ...glassCard, p: 2, mb: 2, ...panelHover }}>
-            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Updates Needed</Typography>
-            <Typography sx={{ color: "#f8fafc", fontSize: 24, fontWeight: 700 }}>{totalUpdates}</Typography>
-          </Card>
-          <Card sx={{ ...glassCard, p: 2, mb: 2, ...panelHover }}>
-            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Missing Drivers</Typography>
-            <Typography sx={{ color: "#f8fafc", fontSize: 24, fontWeight: 700 }}>{missingDrivers.length}</Typography>
-          </Card>
-          <Card sx={{ ...glassCard, p: 2, ...panelHover }}>
-            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Last Scan</Typography>
-            <Typography sx={{ color: "#94a3b8", fontSize: 13, fontWeight: 500 }}>{lastScanTime || "N/A"}</Typography>
-          </Card>
-        </Box>
-
-        <Box sx={{ mt: 4, textAlign: "center" }}>
-          <Button
-            variant="outlined"
-            startIcon={<Refresh />}
-            onClick={handleRefresh}
-            sx={{
-              color: "#bfdbfe",
-              borderColor: "rgba(56, 189, 248, 0.55)",
-              borderRadius: 20,
-              px: 3,
-              fontWeight: 700,
-              "&:hover": {
-                borderColor: "#67e8f9",
-                backgroundColor: "rgba(8, 47, 73, 0.5)",
-              },
-            }}
-            disabled={refreshing}
-          >
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </Button>
-        </Box>
+                {isLoggingIn ? "Signing In..." : "Sign In"}
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
       </Box>
+    );
+  }
 
-      <Box sx={{ flex: 1, p: 4 }}>
-        <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
-          <Computer sx={{ fontSize: 48, color: "#7dd3fc", mr: 1.2, filter: "drop-shadow(0 4px 12px rgba(56, 189, 248, 0.38))" }} />
-          <Typography variant="h3" sx={{ color: "#e2e8f0", fontWeight: 800, letterSpacing: 0.5 }}>
-            System Revamp
-          </Typography>
-        </Box>
+  return (
+    <Box sx={{ minHeight: "100vh", background: "linear-gradient(140deg, #020617 0%, #111827 50%, #0f172a 100%)" }}>
+      <AppBar position="sticky" sx={{ background: "rgba(2, 6, 23, 0.9)", backdropFilter: "blur(10px)" }}>
+        <Toolbar>
+          <Security sx={{ mr: 1.2, color: "#38bdf8" }} />
+          <Typography sx={{ flexGrow: 1, fontWeight: 700 }}>Cloud Security Dashboard</Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Tooltip title={socketConnected ? "Live websocket connected" : "Live websocket reconnecting"}>
+              <Chip
+                icon={<Wifi />}
+                label={socketConnected ? "Live" : "Offline"}
+                size="small"
+                sx={{
+                  bgcolor: socketConnected ? "rgba(34,197,94,0.2)" : "rgba(248,113,113,0.2)",
+                  color: socketConnected ? "#86efac" : "#fca5a5",
+                }}
+              />
+            </Tooltip>
+            <Button
+              startIcon={<Refresh />}
+              onClick={refreshAll}
+              disabled={isRefreshing}
+              variant="outlined"
+              sx={{ borderColor: "rgba(56,189,248,0.5)", color: "#bae6fd" }}
+            >
+              {isRefreshing ? "Refreshing" : "Refresh"}
+            </Button>
+            <Button startIcon={<Logout />} onClick={handleLogout} sx={{ color: "#f8fafc" }}>
+              Logout
+            </Button>
+          </Stack>
+        </Toolbar>
+      </AppBar>
 
-        {loading ? (
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "70vh", color: "#bae6fd" }}>
-            <CircularProgress sx={{ color: "#38bdf8", mb: 2 }} />
-            <Typography sx={{ animation: "pulse 1.5s infinite", "@keyframes pulse": { "0%": { opacity: 0.5 }, "50%": { opacity: 1 }, "100%": { opacity: 0.5 } }, fontWeight: 600 }}>
-              Scanning system for installed apps...
-            </Typography>
-          </Box>
-        ) : (
-          <Fade in timeout={500}>
-            <Box className="space-y-6">
-              {selectedMenu === "overview" && (
-                <>
-                  <LiveSystemMonitor
-                    metrics={liveMetrics}
-                    riskScore={liveRiskScore}
-                    alerts={securityAlerts}
-                    systemInfo={systemInfo}
-                  />
-                  <Card sx={{ ...glassCard, p: 3, mb: 4, ...panelHover }}>
-                    <Typography variant="h5" sx={{ color: "#e0e7ff", mb: 1, fontWeight: 800 }}>
-                      Security Risk Overview
-                    </Typography>
-                    <Typography sx={{ color: "#94a3b8", mb: 3, fontWeight: 500 }}>
-                      Risk distribution from software versions and critical drivers.
-                    </Typography>
-                    <Box sx={{ width: "100%", height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={riskData}>
-                          <XAxis dataKey="name" stroke="#93c5fd" />
-                          <YAxis stroke="#93c5fd" />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "#020617",
-                              border: "1px solid rgba(56, 189, 248, 0.36)",
-                              borderRadius: 8,
-                              color: "#dbeafe",
-                            }}
-                          />
-                          <Bar dataKey="risk" fill="#38bdf8" barSize={40} radius={[8, 8, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  </Card>
+      {(loadingOverview || loadingMachines || loadingDetail) && <LinearProgress color="info" />}
 
-                  <Card sx={{ ...glassCard, p: 3, ...panelHover }}>
-                    <Typography variant="h5" sx={{ color: "#e0e7ff", mb: 1.2, fontWeight: 800 }}>
-                      Offline Patch Package
-                    </Typography>
-                    <Typography sx={{ color: "#94a3b8", mb: 2.2, fontWeight: 500 }}>
-                      Export security update metadata for air-gapped environments.
-                    </Typography>
-                    {downloading ? (
+      <Box sx={{ p: 2.5 }}>
+        {dashboardError ? (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {dashboardError}
+          </Alert>
+        ) : null}
+
+        {lastLiveEvent ? (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Live update: {String(lastLiveEvent.type || "event")} on {lastLiveEvent.hostname || "machine"} at{" "}
+            {formatTimestamp(lastLiveEvent.timestamp)}
+          </Alert>
+        ) : null}
+
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={CARD_STYLE}>
+              <CardContent>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Devices sx={{ color: "#22d3ee" }} />
+                  <Typography color="#cbd5e1">Total Machines</Typography>
+                </Stack>
+                <Typography variant="h4" sx={{ color: "#f8fafc", mt: 1, fontWeight: 800 }}>
+                  {overview?.total_machines ?? 0}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={CARD_STYLE}>
+              <CardContent>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Computer sx={{ color: "#4ade80" }} />
+                  <Typography color="#cbd5e1">Machines Online</Typography>
+                </Stack>
+                <Typography variant="h4" sx={{ color: "#f8fafc", mt: 1, fontWeight: 800 }}>
+                  {overview?.machines_online ?? 0}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={CARD_STYLE}>
+              <CardContent>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <NotificationsActive sx={{ color: "#fb7185" }} />
+                  <Typography color="#cbd5e1">Vulnerabilities</Typography>
+                </Stack>
+                <Typography variant="h4" sx={{ color: "#f8fafc", mt: 1, fontWeight: 800 }}>
+                  {overview?.total_vulnerabilities ?? 0}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={CARD_STYLE}>
+              <CardContent>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <TrendingUp sx={{ color: "#f59e0b" }} />
+                  <Typography color="#cbd5e1">Average Risk</Typography>
+                </Stack>
+                <Typography variant="h4" sx={{ color: "#f8fafc", mt: 1, fontWeight: 800 }}>
+                  {overview?.average_risk_score ?? 0}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        <Grid container spacing={2} sx={{ mt: 0.5 }}>
+          <Grid item xs={12} lg={5}>
+            <Card sx={{ ...CARD_STYLE, height: "100%" }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ color: "#e2e8f0", fontWeight: 700, mb: 1.5 }}>
+                  Machine Fleet
+                </Typography>
+                <TableContainer component={Paper} sx={{ background: "rgba(15,23,42,0.42)", maxHeight: 540 }}>
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Hostname</TableCell>
+                        <TableCell>OS</TableCell>
+                        <TableCell>Last Scan</TableCell>
+                        <TableCell>Risk</TableCell>
+                        <TableCell>Alerts</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {machines.map((machine) => (
+                        <TableRow
+                          key={machine.id}
+                          hover
+                          selected={machine.id === selectedMachineId}
+                          onClick={() => setSelectedMachineId(machine.id)}
+                          sx={{ cursor: "pointer" }}
+                        >
+                          <TableCell>
+                            <Stack spacing={0.4}>
+                              <Typography sx={{ color: "#e2e8f0", fontSize: 13, fontWeight: 600 }}>
+                                {machine.hostname}
+                              </Typography>
+                              <Chip
+                                size="small"
+                                label={machine.online ? "Online" : "Offline"}
+                                sx={{
+                                  width: 70,
+                                  bgcolor: machine.online ? "rgba(34,197,94,0.2)" : "rgba(248,113,113,0.2)",
+                                  color: machine.online ? "#86efac" : "#fca5a5",
+                                }}
+                              />
+                            </Stack>
+                          </TableCell>
+                          <TableCell sx={{ color: "#cbd5e1", fontSize: 12 }}>{machine.os}</TableCell>
+                          <TableCell sx={{ color: "#cbd5e1", fontSize: 12 }}>{formatTimestamp(machine.last_scan)}</TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              icon={<Bolt sx={{ color: "inherit !important" }} />}
+                              label={machine.risk_score ?? 0}
+                              sx={{
+                                bgcolor:
+                                  Number(machine.risk_score || 0) >= 80
+                                    ? "rgba(239,68,68,0.2)"
+                                    : Number(machine.risk_score || 0) >= 50
+                                    ? "rgba(245,158,11,0.2)"
+                                    : "rgba(34,197,94,0.2)",
+                                color:
+                                  Number(machine.risk_score || 0) >= 80
+                                    ? "#fca5a5"
+                                    : Number(machine.risk_score || 0) >= 50
+                                    ? "#fcd34d"
+                                    : "#86efac",
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ color: "#f8fafc", fontWeight: 700 }}>{machine.alerts}</TableCell>
+                        </TableRow>
+                      ))}
+                      {!loadingMachines && machines.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} sx={{ textAlign: "center", color: "#94a3b8" }}>
+                            No registered machines yet.
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} lg={7}>
+            <Card sx={CARD_STYLE}>
+              <CardContent>
+                {!selectedMachineId ? (
+                  <Box sx={{ py: 8, textAlign: "center", color: "#94a3b8" }}>
+                    {loadingMachines ? <CircularProgress size={26} /> : "Select a machine to view details."}
+                  </Box>
+                ) : (
+                  <Stack spacing={2}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
                       <Box>
-                        <Typography sx={{ color: "#bae6fd", mb: 1, fontWeight: 600 }}>
-                          Downloading {downloadLabel}... {Math.round(downloadProgress)}%
+                        <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 800 }}>
+                          {machineDetail?.hostname || selectedMachineSummary?.hostname || "Machine Details"}
                         </Typography>
-                        <LinearProgress
-                          variant="determinate"
-                          value={downloadProgress}
+                        <Typography sx={{ color: "#94a3b8", fontSize: 13 }}>
+                          Last scan: {formatTimestamp(machineDetail?.last_scan || selectedMachineSummary?.last_scan)}
+                        </Typography>
+                      </Box>
+                      <Stack direction="row" spacing={1}>
+                        <Chip label={machineDetail?.os || selectedMachineSummary?.os || "Unknown OS"} />
+                        <Chip
+                          label={`Risk ${machineDetail?.risk_score ?? selectedMachineSummary?.risk_score ?? 0}`}
                           sx={{
-                            height: 10,
-                            borderRadius: 6,
-                            backgroundColor: "rgba(15, 23, 42, 0.85)",
-                            "& .MuiLinearProgress-bar": {
-                              background: "linear-gradient(90deg, #4f46e5, #22d3ee)",
-                            },
+                            bgcolor: "rgba(15,118,110,0.32)",
+                            color: "#99f6e4",
                           }}
                         />
-                      </Box>
-                    ) : (
-                      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
-                        <Button
-                          variant="contained"
-                          startIcon={<CloudDownload />}
-                          onClick={() => handleDownloadZip("full")}
-                          sx={{
-                            background: "linear-gradient(120deg, #4f46e5, #0284c7)",
-                            px: 3.2,
-                            py: 1.1,
-                            fontWeight: 700,
-                            borderRadius: 6,
-                            boxShadow: "0 12px 26px rgba(37, 99, 235, 0.4)",
-                            "&:hover": {
-                              background: "linear-gradient(120deg, #4338ca, #0369a1)",
-                              boxShadow: "0 16px 30px rgba(30, 64, 175, 0.5)",
-                            },
-                          }}
-                        >
-                          Download Full Package
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          startIcon={<CloudDownload />}
-                          onClick={() => handleDownloadZip("delta")}
-                          sx={{
-                            color: "#bae6fd",
-                            borderColor: "rgba(56, 189, 248, 0.55)",
-                            px: 3.2,
-                            py: 1.1,
-                            fontWeight: 700,
-                            borderRadius: 6,
-                            "&:hover": {
-                              borderColor: "#67e8f9",
-                              backgroundColor: "rgba(8, 47, 73, 0.5)",
-                            },
-                          }}
-                        >
-                          Download Delta Pack
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          onClick={handleExportRemediationScript}
-                          disabled={scriptDownloading}
-                          sx={{
-                            color: "#bfdbfe",
-                            borderColor: "rgba(148, 163, 184, 0.5)",
-                            px: 3.2,
-                            py: 1.1,
-                            fontWeight: 700,
-                            borderRadius: 6,
-                            "&:hover": {
-                              borderColor: "#cbd5e1",
-                              backgroundColor: "rgba(30, 41, 59, 0.45)",
-                            },
-                          }}
-                        >
-                          {scriptDownloading ? "Exporting Script..." : "Export Remediation Script"}
-                        </Button>
-                      </Box>
-                    )}
-                  </Card>
-                </>
-              )}
+                        <Chip label={`Alerts ${machineDetail?.alerts ?? selectedMachineSummary?.alerts ?? 0}`} />
+                      </Stack>
+                    </Stack>
 
-              {selectedMenu === "installed" && <InstalledAppsTable data={normalizedApps} />}
+                    <Divider sx={{ borderColor: "rgba(148,163,184,0.2)" }} />
 
-              {selectedMenu === "drivers" && (
-                <MissingDrivers
-                  missing={missingDrivers}
-                  installed={installedDrivers}
-                  riskSummary={driverRiskSummary}
-                  onDownloadDrivers={handleDownloadDrivers}
-                  downloadingDrivers={driversDownloading}
-                />
-              )}
-            </Box>
-          </Fade>
-        )}
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={8}>
+                        <Paper sx={{ p: 1.2, background: "rgba(15,23,42,0.4)", borderRadius: 2 }}>
+                          <Typography sx={{ color: "#e2e8f0", mb: 1, fontWeight: 700 }}>
+                            System Metrics Timeline
+                          </Typography>
+                          <Box sx={{ height: 220 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={machineDetail?.system_metrics || []}>
+                                <CartesianGrid strokeDasharray="4 4" stroke="rgba(148,163,184,0.2)" />
+                                <XAxis
+                                  dataKey="timestamp"
+                                  stroke="#cbd5e1"
+                                  tickFormatter={(value) => new Date(value).toLocaleTimeString()}
+                                />
+                                <YAxis stroke="#cbd5e1" domain={[0, 100]} />
+                                <RechartTooltip
+                                  contentStyle={{ backgroundColor: "#0f172a", border: "1px solid rgba(148,163,184,0.35)" }}
+                                  labelFormatter={(value) => formatTimestamp(value)}
+                                />
+                                <Line type="monotone" dataKey="cpu_usage" stroke="#22d3ee" strokeWidth={2} dot={false} name="CPU" />
+                                <Line type="monotone" dataKey="ram_usage" stroke="#a78bfa" strokeWidth={2} dot={false} name="RAM" />
+                                <Line type="monotone" dataKey="disk_usage" stroke="#fb7185" strokeWidth={2} dot={false} name="Disk" />
+                                <Line type="monotone" dataKey="risk_score" stroke="#f59e0b" strokeWidth={2} dot={false} name="Risk" />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </Box>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Paper sx={{ p: 1.2, background: "rgba(15,23,42,0.4)", borderRadius: 2 }}>
+                          <Typography sx={{ color: "#e2e8f0", mb: 1, fontWeight: 700 }}>
+                            App Risk Split
+                          </Typography>
+                          <Box sx={{ height: 220 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={riskDistribution}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
+                                <XAxis dataKey="name" stroke="#cbd5e1" />
+                                <YAxis stroke="#cbd5e1" />
+                                <RechartTooltip contentStyle={{ backgroundColor: "#0f172a", border: "1px solid rgba(148,163,184,0.35)" }} />
+                                <Bar dataKey="value" fill="#38bdf8" radius={[8, 8, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </Box>
+                        </Paper>
+                      </Grid>
+                    </Grid>
+
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Paper sx={{ p: 1.2, background: "rgba(15,23,42,0.4)", borderRadius: 2, minHeight: 220 }}>
+                          <Typography sx={{ color: "#e2e8f0", mb: 1, fontWeight: 700 }}>
+                            Outdated Software
+                          </Typography>
+                          <Stack spacing={0.8}>
+                            {(machineDetail?.outdated_software || []).slice(0, 10).map((app) => (
+                              <Box key={`${app.name}-${app.current_version}`} sx={{ p: 0.8, borderRadius: 1.2, bgcolor: "rgba(30,41,59,0.7)" }}>
+                                <Typography sx={{ color: "#f8fafc", fontWeight: 600, fontSize: 13 }}>{app.name}</Typography>
+                                <Typography sx={{ color: "#94a3b8", fontSize: 12 }}>
+                                  {app.current_version} -> {app.latest_version}
+                                </Typography>
+                              </Box>
+                            ))}
+                            {(machineDetail?.outdated_software || []).length === 0 ? (
+                              <Typography sx={{ color: "#94a3b8", fontSize: 13 }}>No outdated apps in latest scan.</Typography>
+                            ) : null}
+                          </Stack>
+                        </Paper>
+                      </Grid>
+
+                      <Grid item xs={12} md={6}>
+                        <Paper sx={{ p: 1.2, background: "rgba(15,23,42,0.4)", borderRadius: 2, minHeight: 220 }}>
+                          <Typography sx={{ color: "#e2e8f0", mb: 1, fontWeight: 700 }}>
+                            Driver Issues
+                          </Typography>
+                          <Stack spacing={0.8}>
+                            {(machineDetail?.driver_issues || []).slice(0, 10).map((driver) => (
+                              <Stack
+                                key={`${driver.driver_name}-${driver.status}`}
+                                direction="row"
+                                justifyContent="space-between"
+                                sx={{ p: 0.8, borderRadius: 1.2, bgcolor: "rgba(30,41,59,0.7)" }}
+                              >
+                                <Typography sx={{ color: "#f8fafc", fontSize: 13 }}>{driver.driver_name}</Typography>
+                                <Typography sx={{ color: "#fca5a5", fontSize: 12 }}>{driver.status}</Typography>
+                              </Stack>
+                            ))}
+                            {(machineDetail?.driver_issues || []).length === 0 ? (
+                              <Typography sx={{ color: "#94a3b8", fontSize: 13 }}>No driver issues in latest scan.</Typography>
+                            ) : null}
+                          </Stack>
+                        </Paper>
+                      </Grid>
+                    </Grid>
+
+                    <Paper sx={{ p: 1.2, background: "rgba(15,23,42,0.4)", borderRadius: 2 }}>
+                      <Typography sx={{ color: "#e2e8f0", mb: 1, fontWeight: 700 }}>Security Events</Typography>
+                      <Stack spacing={0.8}>
+                        {(machineDetail?.security_events || []).slice(0, 12).map((event, index) => (
+                          <Stack key={`${event.timestamp}-${index}`} direction="row" spacing={1} alignItems="center">
+                            <Chip
+                              size="small"
+                              label={event.risk_level}
+                              sx={{ bgcolor: `${riskColor(event.risk_level)}33`, color: riskColor(event.risk_level) }}
+                            />
+                            <Typography sx={{ color: "#e2e8f0", fontSize: 13 }}>{event.event_type}</Typography>
+                            <Typography sx={{ color: "#94a3b8", fontSize: 12 }}>{formatTimestamp(event.timestamp)}</Typography>
+                          </Stack>
+                        ))}
+                        {(machineDetail?.security_events || []).length === 0 ? (
+                          <Typography sx={{ color: "#94a3b8", fontSize: 13 }}>No security events recorded.</Typography>
+                        ) : null}
+                      </Stack>
+                    </Paper>
+                  </Stack>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
       </Box>
     </Box>
   );

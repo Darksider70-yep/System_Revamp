@@ -1,4 +1,59 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: system-revamp-postgres
+    environment:
+      POSTGRES_DB: systemrevamp_cloud
+      POSTGRES_USER: systemrevamp
+      POSTGRES_PASSWORD: systemrevamp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U systemrevamp -d systemrevamp_cloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: system-revamp-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  cloud-api:
+    build:
+      context: .
+      dockerfile: cloud_core/Dockerfile
+    container_name: system-revamp-cloud-core
+    environment:
+      CLOUD_DATABASE_URL: postgresql+asyncpg://systemrevamp:systemrevamp@postgres:5432/systemrevamp_cloud
+      CLOUD_REDIS_URL: redis://redis:6379/0
+      CLOUD_JWT_SECRET: change-this-jwt-secret
+      CLOUD_ADMIN_USERNAME: admin
+      CLOUD_ADMIN_PASSWORD: admin123
+      CLOUD_API_KEY_SALT: change-this-api-key-salt
+      CLOUD_JWT_EXPIRE_MINUTES: "60"
+    ports:
+      - "9000:9000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   scanner-api:
     build:
       context: ./backend
@@ -35,8 +90,15 @@ services:
       dockerfile: Dockerfile
     container_name: system-revamp-monitor
     command: uvicorn system_monitor_service.main:app --host 0.0.0.0 --port 8003
+    environment:
+      CLOUD_AGENT_ENABLED: "1"
+      CLOUD_CORE_URL: http://cloud-api:9000
+      CLOUD_AGENT_UPLOAD_INTERVAL_SECONDS: "60"
     ports:
       - "8003:8003"
+    depends_on:
+      cloud-api:
+        condition: service_started
     restart: unless-stopped
 
   frontend:
@@ -47,8 +109,13 @@ services:
     ports:
       - "3000:80"
     depends_on:
+      - cloud-api
       - scanner-api
       - drivers-api
       - version-api
       - system-monitor-api
     restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from .cloud_agent import CloudAgentUploader
 from .event_engine import SecurityEventEngine
 from .fast_scanner import FastScanner
 from .metrics_monitor import MetricsMonitor
@@ -33,7 +35,15 @@ app.add_middleware(
 METRICS_MONITOR = MetricsMonitor(interval_seconds=10)
 FAST_SCANNER = FastScanner(max_workers=4)
 EVENT_ENGINE = SecurityEventEngine(max_events=1000)
+AGENT_UPLOAD_INTERVAL_SECONDS = max(30, int(os.getenv("CLOUD_AGENT_UPLOAD_INTERVAL_SECONDS", "60")))
+CLOUD_AGENT_UPLOADER = CloudAgentUploader(
+    fast_scanner=FAST_SCANNER,
+    metrics_monitor=METRICS_MONITOR,
+    event_engine=EVENT_ENGINE,
+    upload_interval_seconds=AGENT_UPLOAD_INTERVAL_SECONDS,
+)
 DETECTION_TASK: Optional[asyncio.Task] = None
+CLOUD_UPLOAD_TASK: Optional[asyncio.Task] = None
 
 
 async def _auto_detection_loop() -> None:
@@ -59,14 +69,27 @@ async def _auto_detection_loop() -> None:
 
 @app.on_event("startup")
 async def startup_event() -> None:
-    global DETECTION_TASK
+    global DETECTION_TASK, CLOUD_UPLOAD_TASK
     await METRICS_MONITOR.start()
     DETECTION_TASK = asyncio.create_task(_auto_detection_loop(), name="system-monitor-detection-loop")
+    if CLOUD_AGENT_UPLOADER.enabled:
+        CLOUD_UPLOAD_TASK = asyncio.create_task(
+            CLOUD_AGENT_UPLOADER.run_forever(),
+            name="cloud-agent-uploader-loop",
+        )
 
 
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
-    global DETECTION_TASK
+    global DETECTION_TASK, CLOUD_UPLOAD_TASK
+    if CLOUD_UPLOAD_TASK:
+        CLOUD_UPLOAD_TASK.cancel()
+        try:
+            await CLOUD_UPLOAD_TASK
+        except asyncio.CancelledError:
+            pass
+        CLOUD_UPLOAD_TASK = None
+
     if DETECTION_TASK:
         DETECTION_TASK.cancel()
         try:
@@ -74,6 +97,7 @@ async def shutdown_event() -> None:
         except asyncio.CancelledError:
             pass
         DETECTION_TASK = None
+    CLOUD_AGENT_UPLOADER.close()
     await METRICS_MONITOR.stop()
     FAST_SCANNER.shutdown()
 
