@@ -1,0 +1,15 @@
+node_modules
+routes/node_modules
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.venv
+venv
+cache
+installer_cache
+*.log
+.git

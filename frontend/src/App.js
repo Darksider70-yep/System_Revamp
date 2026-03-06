@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import InstalledAppsTable from "./components/InstalledAppsTable";
 import MissingDrivers from "./components/MissingDrivers";
+import LiveSystemMonitor from "./components/LiveSystemMonitor";
 import {
   Box,
   Typography,
@@ -17,7 +18,7 @@ import {
 } from "@mui/material";
 import { CloudDownload, Refresh, Computer, Dashboard, Storage, Build } from "@mui/icons-material";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { API_ENDPOINTS } from "./apiConfig";
+import { API_ENDPOINTS, WS_ENDPOINTS } from "./apiConfig";
 
 const panelHover = {
   transition: "box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease",
@@ -50,6 +51,15 @@ function App() {
   const [driverRiskSummary, setDriverRiskSummary] = useState({ critical: 0, high: 0, medium: 0, low: 0 });
   const [selectedMenu, setSelectedMenu] = useState("overview");
   const [lastScanTime, setLastScanTime] = useState(null);
+  const [liveMetrics, setLiveMetrics] = useState({
+    cpu_usage: 0,
+    ram_usage: 0,
+    disk_usage: 0,
+    network_activity: "low",
+  });
+  const [liveRiskScore, setLiveRiskScore] = useState(0);
+  const [securityAlerts, setSecurityAlerts] = useState([]);
+  const [systemInfo, setSystemInfo] = useState({});
 
   const toFriendlyFetchError = (err, serviceName, endpoint) => {
     const msg = err?.message || "";
@@ -149,14 +159,104 @@ function App() {
     }
   };
 
+  const fetchSystemInfo = async () => {
+    try {
+      const res = await fetch(`${API_ENDPOINTS.monitor}/system-info`);
+      if (!res.ok) {
+        throw new Error(`System monitor info failed (${res.status})`);
+      }
+      const data = await res.json();
+      setSystemInfo(data || {});
+    } catch {
+      setSystemInfo({});
+    }
+  };
+
+  const fetchMonitorSnapshot = async () => {
+    try {
+      const [metricsRes, eventsRes] = await Promise.all([
+        fetch(`${API_ENDPOINTS.monitor}/system-metrics`),
+        fetch(`${API_ENDPOINTS.monitor}/security-events?limit=5`),
+      ]);
+      if (metricsRes.ok) {
+        const metrics = await metricsRes.json();
+        setLiveMetrics({
+          cpu_usage: Number(metrics?.cpu_usage || 0),
+          ram_usage: Number(metrics?.ram_usage || 0),
+          disk_usage: Number(metrics?.disk_usage || 0),
+          network_activity: metrics?.network_activity || "low",
+        });
+      }
+      if (eventsRes.ok) {
+        const payload = await eventsRes.json();
+        setSecurityAlerts(Array.isArray(payload?.events) ? payload.events : []);
+        setLiveRiskScore(Number(payload?.riskScore || 0));
+      }
+    } catch {
+      setSecurityAlerts([]);
+      setLiveRiskScore(0);
+    }
+  };
+
   useEffect(() => {
     fetchApps();
     fetchDrivers();
+    fetchSystemInfo();
+    fetchMonitorSnapshot();
+  }, []);
+
+  useEffect(() => {
+    let socket;
+    let reconnectTimer;
+    let disposed = false;
+
+    const connect = () => {
+      socket = new WebSocket(WS_ENDPOINTS.liveMonitor);
+
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          setLiveMetrics({
+            cpu_usage: Number(payload?.cpu || 0),
+            ram_usage: Number(payload?.ram || 0),
+            disk_usage: Number(payload?.disk || 0),
+            network_activity: payload?.networkActivity || "low",
+          });
+          setLiveRiskScore(Number(payload?.riskScore || 0));
+          setSecurityAlerts(Array.isArray(payload?.securityAlerts) ? payload.securityAlerts : []);
+        } catch {
+          // Ignore malformed websocket payloads.
+        }
+      };
+
+      socket.onclose = () => {
+        if (!disposed) {
+          reconnectTimer = setTimeout(connect, 4000);
+        }
+      };
+
+      socket.onerror = () => {
+        socket.close();
+      };
+    };
+
+    connect();
+    return () => {
+      disposed = true;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      if (socket) {
+        socket.close();
+      }
+    };
   }, []);
 
   const handleRefresh = () => {
     fetchApps();
     fetchDrivers();
+    fetchSystemInfo();
+    fetchMonitorSnapshot();
   };
 
   const handleDownloadZip = (mode = "full") => {
@@ -405,6 +505,12 @@ function App() {
             <Box className="space-y-6">
               {selectedMenu === "overview" && (
                 <>
+                  <LiveSystemMonitor
+                    metrics={liveMetrics}
+                    riskScore={liveRiskScore}
+                    alerts={securityAlerts}
+                    systemInfo={systemInfo}
+                  />
                   <Card sx={{ ...glassCard, p: 3, mb: 4, ...panelHover }}>
                     <Typography variant="h5" sx={{ color: "#e0e7ff", mb: 1, fontWeight: 800 }}>
                       Security Risk Overview
