@@ -4,6 +4,16 @@ The frontend is implemented using React and Material-UI, ensuring responsive des
 
 The backend integrates system-level commands to fetch application data, parse it into structured formats, and expose it through REST APIs for the frontend to consume. A new Cloud Security Core service centralizes machine registration, scan ingestion, global analytics, and websocket broadcasts.
 
+Phase 9 adds:
+
+- Unified `/health` endpoints across services
+- Global risk engine: `GET /risk-score/{machine_id}`
+- Security event timeline API: `GET /events/{machine_id}`
+- Patch orchestration API: `POST /install-patch` + `GET /patch-status/{machine_id}`
+- Real-time alert websocket: `/alerts` (critical risk threshold > 80)
+- Audit log persistence (`audit_logs` table)
+- Rate limiting + secure headers middleware
+
 The goal of System Revamp is to give users a centralized hub for system visibility, helping them quickly identify unused, outdated, or suspicious applications. This not only enhances user control but also supports better system health, optimization, and security management.
 
 ## Docker
@@ -26,6 +36,14 @@ docker compose up --build
 - Cloud Security Core API: http://localhost:9000
 - PostgreSQL: localhost:5432
 - Redis: localhost:6379
+
+Docker service names:
+
+- `scanner_service`
+- `driver_service`
+- `version_service`
+- `monitor_service`
+- `cloud_core`
 
 ### Cloud dashboard login
 
@@ -51,3 +69,11 @@ The scanner and driver services inspect the runtime environment they run in. Ins
 - Registers each machine once via `POST /register-machine`
 - Stores machine identity in `backend/cache/cloud_agent_identity.json`
 - Every 60 seconds performs fast scan + metrics collection and uploads real payloads to `POST /upload-scan`
+
+### Security hardening
+
+- Admin JWT auth for dashboard/cloud APIs
+- Machine API key auth for scan uploads
+- Rate limiting middleware
+- Secure response headers
+- Centralized error payload format for local services

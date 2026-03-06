@@ -18,8 +18,13 @@ export const CLOUD_API_ENDPOINTS = {
   overview: `${cloudApiBase}/dashboard/overview`,
   machines: `${cloudApiBase}/dashboard/machines`,
   machineDetails: `${cloudApiBase}/dashboard/machines`,
+  riskScore: `${cloudApiBase}/risk-score`,
+  events: `${cloudApiBase}/events`,
+  installPatch: `${cloudApiBase}/install-patch`,
+  patchStatus: `${cloudApiBase}/patch-status`,
 };
 
 export const CLOUD_WS_ENDPOINTS = {
   liveMachines: `${cloudWsBase}/live-machines`,
+  alerts: `${cloudWsBase}/alerts`,
 };

@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 from typing import Any, Dict, Mapping
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+from common.api import apply_standard_api_controls, configure_logger, success_payload
 
 try:
     from version_checker import check_latest_versions
 except ImportError:  # pragma: no cover
     from .version_checker import check_latest_versions
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
-LOGGER = logging.getLogger("version_service.main")
+SERVICE_NAME = "version_service"
+LOGGER = configure_logger(f"{SERVICE_NAME}.main")
 
 MAX_APPS_PER_REQUEST = 500
 MAX_NAME_LENGTH = 120
@@ -32,6 +32,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+apply_standard_api_controls(app, SERVICE_NAME)
 
 
 def _validate_installed_apps(payload: Any) -> Dict[str, str]:
@@ -70,18 +71,23 @@ def _validate_installed_apps(payload: Any) -> Dict[str, str]:
 
 
 @app.get("/")
-def root() -> Dict[str, str]:
+def root() -> Dict[str, Any]:
     """Health endpoint."""
-    return {"message": "Version Intelligence Service running"}
+    return success_payload(SERVICE_NAME, {"message": "Version Intelligence Service running"})
+
+
+@app.get("/health")
+def health() -> Dict[str, str]:
+    return {"status": "healthy", "service": SERVICE_NAME}
 
 
 @app.post("/check-versions")
-def check_versions(installed_apps: Dict[str, Any]) -> Dict[str, Any]:
+async def check_versions(installed_apps: Dict[str, Any]) -> Dict[str, Any]:
     """Compare installed versions against local/live intelligence sources."""
     try:
         validated = _validate_installed_apps(installed_apps)
-        results = check_latest_versions(validated)
-        return {"apps": results}
+        results = await asyncio.to_thread(check_latest_versions, validated)
+        return success_payload(SERVICE_NAME, {"apps": results}, apps=results)
     except HTTPException:
         raise
     except Exception as exc:

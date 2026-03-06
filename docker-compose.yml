@@ -32,10 +32,10 @@ services:
       retries: 10
     restart: unless-stopped
 
-  cloud-api:
+  cloud_core:
     build:
       context: .
-      dockerfile: cloud_core/Dockerfile
+      dockerfile: docker/cloud_core.Dockerfile
     container_name: system-revamp-cloud-core
     environment:
       CLOUD_DATABASE_URL: postgresql+asyncpg://systemrevamp:systemrevamp@postgres:5432/systemrevamp_cloud
@@ -45,75 +45,83 @@ services:
       CLOUD_ADMIN_PASSWORD: admin123
       CLOUD_API_KEY_SALT: change-this-api-key-salt
       CLOUD_JWT_EXPIRE_MINUTES: "60"
-    ports:
-      - "9000:9000"
+      CLOUD_RATE_LIMIT_PER_MINUTE: "1200"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    ports:
+      - "9000:9000"
     restart: unless-stopped
 
-  scanner-api:
+  scanner_service:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/scanner_service.Dockerfile
     container_name: system-revamp-scanner
-    command: uvicorn scanner_service.main:app --host 0.0.0.0 --port 8000
+    environment:
+      SERVICE_API_KEY: ${SERVICE_API_KEY:-}
+      SERVICE_RATE_LIMIT_PER_MINUTE: "600"
     ports:
       - "8000:8000"
     restart: unless-stopped
 
-  drivers-api:
+  driver_service:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/driver_service.Dockerfile
     container_name: system-revamp-drivers
-    command: uvicorn drivers_service.drivers_api:app --host 0.0.0.0 --port 8001
+    environment:
+      SERVICE_API_KEY: ${SERVICE_API_KEY:-}
+      SERVICE_RATE_LIMIT_PER_MINUTE: "600"
     ports:
       - "8001:8001"
     restart: unless-stopped
 
-  version-api:
+  version_service:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/version_service.Dockerfile
     container_name: system-revamp-version
-    command: uvicorn version_service.main:app --host 0.0.0.0 --port 8002
+    environment:
+      SERVICE_API_KEY: ${SERVICE_API_KEY:-}
+      SERVICE_RATE_LIMIT_PER_MINUTE: "600"
     ports:
       - "8002:8002"
     restart: unless-stopped
 
-  system-monitor-api:
+  monitor_service:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/monitor_service.Dockerfile
     container_name: system-revamp-monitor
-    command: uvicorn system_monitor_service.main:app --host 0.0.0.0 --port 8003
     environment:
+      SERVICE_API_KEY: ${SERVICE_API_KEY:-}
+      SERVICE_RATE_LIMIT_PER_MINUTE: "600"
       CLOUD_AGENT_ENABLED: "1"
-      CLOUD_CORE_URL: http://cloud-api:9000
+      CLOUD_CORE_URL: http://cloud_core:9000
       CLOUD_AGENT_UPLOAD_INTERVAL_SECONDS: "60"
+    depends_on:
+      cloud_core:
+        condition: service_started
     ports:
       - "8003:8003"
-    depends_on:
-      cloud-api:
-        condition: service_started
     restart: unless-stopped
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/frontend.Dockerfile
     container_name: system-revamp-frontend
+    depends_on:
+      - scanner_service
+      - driver_service
+      - version_service
+      - monitor_service
+      - cloud_core
     ports:
       - "3000:80"
-    depends_on:
-      - cloud-api
-      - scanner-api
-      - drivers-api
-      - version-api
-      - system-monitor-api
     restart: unless-stopped
 
 volumes:

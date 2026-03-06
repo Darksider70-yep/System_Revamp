@@ -11,11 +11,10 @@ from typing import Dict, List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
-LOGGER = logging.getLogger("drivers_service")
+from common.api import apply_standard_api_controls, configure_logger, success_payload
+
+SERVICE_NAME = "driver_service"
+LOGGER = configure_logger(SERVICE_NAME)
 
 app = FastAPI(title="Driver Scanner Service", version="1.0.0")
 
@@ -26,6 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
     allow_credentials=True,
 )
+apply_standard_api_controls(app, SERVICE_NAME)
 
 EXPECTED_DRIVERS = [
     {"Driver Name": "nvlddmkm", "Device": "NVIDIA GPU"},
@@ -88,9 +88,14 @@ def _build_known_driver_map() -> Dict[str, Dict[str, str]]:
 
 
 @app.get("/")
-def root() -> Dict[str, str]:
+def root() -> Dict[str, object]:
     """Health endpoint."""
-    return {"message": "Driver Scanner Service running"}
+    return success_payload(SERVICE_NAME, {"message": "Driver Scanner Service running"})
+
+
+@app.get("/health")
+def health() -> Dict[str, str]:
+    return {"status": "healthy", "service": SERVICE_NAME}
 
 
 @app.get("/drivers")
@@ -127,11 +132,12 @@ def get_drivers() -> Dict[str, object]:
                 }
             )
 
-    return {
+    result = {
         "missingDrivers": missing_drivers,
         "installedDrivers": installed_drivers,
         "riskSummary": risk_summary,
     }
+    return success_payload(SERVICE_NAME, result, **result)
 
 
 @app.post("/drivers/download")
@@ -181,8 +187,9 @@ def download_missing_drivers(payload: Dict[str, List[str]] | None = None) -> Dic
             )
 
     success = all(item.get("returnCode", 1) == 0 for item in logs)
-    return {
+    result = {
         "requestedDrivers": requested,
         "steps": logs,
         "success": success,
     }
+    return success_payload(SERVICE_NAME, result, **result)

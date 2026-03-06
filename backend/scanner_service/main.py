@@ -17,16 +17,15 @@ from fastapi.responses import StreamingResponse
 from packaging.version import InvalidVersion, Version
 from pydantic import BaseModel, Field
 
+from common.api import apply_standard_api_controls, configure_logger, success_payload
+
 try:
     from scanner import get_installed_apps
 except ImportError:  # pragma: no cover
     from .scanner import get_installed_apps
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
-LOGGER = logging.getLogger("scanner_service.main")
+SERVICE_NAME = "scanner_service"
+LOGGER = configure_logger(f"{SERVICE_NAME}.main")
 
 app = FastAPI(title="System Scanner Service", version="1.0.0")
 
@@ -37,6 +36,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+apply_standard_api_controls(app, SERVICE_NAME)
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 VERSION_DB_CANDIDATES = [
@@ -213,48 +213,56 @@ def _guess_winget_id(app_name: str) -> Optional[str]:
 
 
 @app.get("/")
-def root() -> Dict[str, str]:
+def root() -> Dict[str, Any]:
     """Health endpoint."""
-    return {"message": "Scanner Service running"}
+    return success_payload(SERVICE_NAME, {"message": "Scanner Service running"})
+
+
+@app.get("/health")
+def health() -> Dict[str, str]:
+    return {"status": "healthy", "service": SERVICE_NAME}
 
 
 @app.get("/scan")
-def scan_system() -> Dict[str, List[Dict[str, str]]]:
+def scan_system() -> Dict[str, Any]:
     """Scan installed applications for the current OS."""
     try:
-        return {"apps": get_installed_apps()}
+        apps = get_installed_apps()
+        return success_payload(SERVICE_NAME, {"apps": apps}, apps=apps)
     except Exception as exc:
         LOGGER.exception("Scan failed: %s", exc)
         raise HTTPException(status_code=500, detail="System scan failed.") from exc
 
 
 @app.post("/simulate-attack")
-def simulate_attack(payload: AttackSimulationRequest) -> Dict[str, str]:
+def simulate_attack(payload: AttackSimulationRequest) -> Dict[str, Any]:
     """Generate an educational vulnerability scenario for outdated software."""
     software = payload.software.strip()
     risk_level = _infer_risk_level(payload.current, payload.latest, payload.riskLevel)
 
-    return {
+    result = {
         "software": software,
         "vulnerability": _vulnerability_label(software),
         "riskLevel": risk_level,
         "possibleAttack": _attack_profile_for_risk(risk_level),
         "recommendation": _recommendation(payload.latest),
     }
+    return success_payload(SERVICE_NAME, result, **result)
 
 
 @app.get("/simulate-attack/{software}")
-def simulate_attack_legacy(software: str) -> Dict[str, str]:
+def simulate_attack_legacy(software: str) -> Dict[str, Any]:
     """Backward-compatible simulation endpoint."""
     if not software.strip():
         raise HTTPException(status_code=422, detail="Software name is required.")
-    return {
+    result = {
         "software": software.strip(),
         "vulnerability": _vulnerability_label(software),
         "riskLevel": "Unknown",
         "possibleAttack": _attack_profile_for_risk("Unknown"),
         "recommendation": "Collect version intelligence and update to the latest secure release",
     }
+    return success_payload(SERVICE_NAME, result, **result)
 
 
 @app.get("/generate-offline-package")

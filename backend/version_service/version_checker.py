@@ -8,6 +8,7 @@ import re
 import subprocess
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Tuple
 
@@ -238,21 +239,31 @@ def check_latest_versions(installed_apps: Mapping[str, str]) -> List[Dict[str, s
     latest_db = load_latest_versions()
     results: List[Dict[str, str]] = []
 
-    for app_name, current_version in installed_apps.items():
-        clean_name = str(app_name).strip()
-        clean_current = str(current_version).strip()
+    normalized_items = [
+        (str(app_name).strip(), str(current_version).strip())
+        for app_name, current_version in installed_apps.items()
+        if str(app_name).strip()
+    ]
+    max_workers = min(16, max(4, len(normalized_items)))
 
-        latest_version = resolve_latest_version(clean_name, latest_db)
-        status, risk_level = _status_and_risk(clean_current, latest_version)
+    def resolve(app_name: str, current_version: str) -> Dict[str, str]:
+        latest_version = resolve_latest_version(app_name, latest_db)
+        status, risk_level = _status_and_risk(current_version, latest_version)
+        return {
+            "name": app_name,
+            "current": current_version,
+            "latest": latest_version,
+            "status": status,
+            "riskLevel": risk_level,
+        }
 
-        results.append(
-            {
-                "name": clean_name,
-                "current": clean_current,
-                "latest": latest_version,
-                "status": status,
-                "riskLevel": risk_level,
-            }
-        )
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(resolve, app_name, current_version) for app_name, current_version in normalized_items]
+        for future in as_completed(futures):
+            try:
+                results.append(future.result())
+            except Exception as exc:
+                LOGGER.warning("Version resolution worker failed: %s", exc)
 
+    results.sort(key=lambda item: item.get("name", "").lower())
     return results

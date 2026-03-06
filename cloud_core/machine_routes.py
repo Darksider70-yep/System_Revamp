@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .audit import write_audit_log
 from .auth import generate_machine_api_key, hash_machine_api_key
 from .database import get_db
 from .models import Machine
@@ -51,6 +52,17 @@ async def register_machine(
 
     db.add(machine)
     try:
+        await db.flush()
+        await write_audit_log(
+            db,
+            action_type="machine_registration",
+            machine_id=machine.id,
+            details={
+                "hostname": machine.hostname,
+                "os": machine.os,
+                "os_version": machine.os_version,
+            },
+        )
         await db.commit()
     except SQLAlchemyError as exc:
         await db.rollback()

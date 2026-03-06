@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime, timezone
+import os
 from threading import Lock
 from typing import Any, Deque, Dict, Iterable, List, Mapping, Optional
+
+import psutil
 
 
 class SecurityEventEngine:
@@ -16,6 +19,28 @@ class SecurityEventEngine:
         self._lock = Lock()
         self._recent_keys: Dict[str, float] = {}
         self._dedupe_window_seconds = 45.0
+        self._last_process_scan_epoch = 0.0
+        self._process_scan_interval_seconds = max(30, int(os.getenv("MONITOR_PROCESS_SCAN_INTERVAL_SECONDS", "60")))
+        self._suspicious_tokens = {
+            "mimikatz",
+            "metasploit",
+            "nmap",
+            "wireshark",
+            "netcat",
+            "nc.exe",
+            "psexec",
+            "hydra",
+        }
+        self._safe_high_cpu_processes = {
+            "system",
+            "idle",
+            "python",
+            "python3",
+            "chrome",
+            "firefox",
+            "msedge",
+            "java",
+        }
 
     def _event_timestamp(self) -> str:
         return datetime.now(timezone.utc).isoformat()
@@ -82,6 +107,8 @@ class SecurityEventEngine:
                 details="Network throughput exceeded normal baseline",
             )
 
+        self._scan_process_activity()
+
     def ingest_scan(self, scan_result: Mapping[str, Any]) -> None:
         for app_name in scan_result.get("new_unknown_apps", []) or []:
             self._emit(
@@ -99,10 +126,48 @@ class SecurityEventEngine:
 
         for app_name in scan_result.get("critical_outdated_apps", []) or []:
             self._emit(
-                event="Critical Software Outdated",
+                event="Critical Vulnerability Exposure",
                 software=str(app_name),
                 risk_level="High",
             )
+
+    def _scan_process_activity(self) -> None:
+        now_epoch = datetime.now(timezone.utc).timestamp()
+        if (now_epoch - self._last_process_scan_epoch) < self._process_scan_interval_seconds:
+            return
+        self._last_process_scan_epoch = now_epoch
+
+        try:
+            for proc in psutil.process_iter(attrs=["name", "cpu_percent", "cmdline"]):
+                info = proc.info
+                name = str(info.get("name") or "").strip().lower()
+                cpu_percent = float(info.get("cpu_percent") or 0)
+                cmdline_raw = info.get("cmdline") or []
+                cmdline = " ".join(str(part).lower() for part in cmdline_raw if str(part).strip())
+
+                if not name:
+                    continue
+
+                if any(token in name or token in cmdline for token in self._suspicious_tokens):
+                    self._emit(
+                        event="Unknown Process Activity",
+                        risk_level="High",
+                        software=name,
+                        details="Suspicious process signature detected",
+                    )
+                    continue
+
+                # Flag unusually high CPU processes if they are not common platform processes.
+                if cpu_percent >= 85 and name not in self._safe_high_cpu_processes:
+                    self._emit(
+                        event="Suspicious CPU Spike",
+                        risk_level="Medium",
+                        software=name,
+                        details=f"Process CPU usage reached {cpu_percent:.1f}%",
+                    )
+        except Exception:
+            # Keep monitoring resilient against process list races/permissions.
+            return
 
     def list_events(self, limit: int = 50) -> List[Dict[str, Any]]:
         safe_limit = max(1, min(int(limit), 500))
@@ -124,4 +189,3 @@ class SecurityEventEngine:
             security_weight += self._severity_weight(str(item.get("riskLevel", "Low")))
         score = int(min(100, baseline + min(security_weight, 40)))
         return max(0, score)
-

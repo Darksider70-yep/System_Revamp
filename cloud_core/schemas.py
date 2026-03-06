@@ -143,3 +143,50 @@ class MachineDetailResponse(BaseModel):
     driver_issues: list[DriverRecord]
     security_events: list[SecurityEventRecord]
     system_metrics: list[MetricsPoint]
+
+
+class RiskScoreBreakdown(BaseModel):
+    outdated_apps: int
+    missing_drivers: int
+    cpu_spikes: int
+    security_events: int
+
+
+class RiskScoreResponse(BaseModel):
+    machine_id: UUID
+    risk_score: int
+    breakdown: RiskScoreBreakdown
+
+
+class SecurityEventsResponse(BaseModel):
+    machine_id: UUID
+    count: int
+    events: list[SecurityEventRecord]
+
+
+class PatchInstallRequest(BaseModel):
+    machine_id: UUID
+    software: str = Field(..., min_length=1, max_length=255)
+
+
+class PatchInstallResponse(BaseModel):
+    status: str
+    software: str
+    new_version: str
+    provider: str
+    command: str
+    machine_id: UUID
+
+
+class PatchStatusItem(BaseModel):
+    software: str
+    status: str
+    provider: str
+    timestamp: datetime
+    new_version: str | None = None
+
+
+class PatchStatusResponse(BaseModel):
+    machine_id: UUID
+    count: int
+    items: list[PatchStatusItem]

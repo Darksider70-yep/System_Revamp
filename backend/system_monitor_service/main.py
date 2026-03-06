@@ -10,17 +10,15 @@ from typing import Any, Dict, Optional
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from common.api import apply_standard_api_controls, configure_logger, success_payload
 from .cloud_agent import CloudAgentUploader
 from .event_engine import SecurityEventEngine
 from .fast_scanner import FastScanner
 from .metrics_monitor import MetricsMonitor
 from .system_info import collect_system_info
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
-LOGGER = logging.getLogger("system_monitor_service.main")
+SERVICE_NAME = "monitor_service"
+LOGGER = configure_logger(f"{SERVICE_NAME}.main")
 
 app = FastAPI(title="System Monitor Service", version="1.0.0")
 
@@ -31,6 +29,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+apply_standard_api_controls(app, SERVICE_NAME)
 
 METRICS_MONITOR = MetricsMonitor(interval_seconds=10)
 FAST_SCANNER = FastScanner(max_workers=4)
@@ -103,19 +102,25 @@ async def shutdown_event() -> None:
 
 
 @app.get("/")
-async def root() -> Dict[str, str]:
-    return {"message": "System Monitor Service running"}
+async def root() -> Dict[str, Any]:
+    return success_payload(SERVICE_NAME, {"message": "System Monitor Service running"})
+
+
+@app.get("/health")
+async def health() -> Dict[str, str]:
+    return {"status": "healthy", "service": SERVICE_NAME}
 
 
 @app.get("/system-info")
 async def system_info() -> Dict[str, Any]:
-    return collect_system_info()
+    payload = collect_system_info()
+    return success_payload(SERVICE_NAME, payload, **payload)
 
 
 @app.get("/system-metrics")
 async def system_metrics() -> Dict[str, Any]:
     metrics = await METRICS_MONITOR.latest()
-    return {
+    payload = {
         "cpu_usage": metrics.get("cpu_usage", 0),
         "ram_usage": metrics.get("ram_usage", 0),
         "disk_usage": metrics.get("disk_usage", 0),
@@ -123,24 +128,26 @@ async def system_metrics() -> Dict[str, Any]:
         "network_bytes_per_second": metrics.get("network_bytes_per_second", 0),
         "timestamp": metrics.get("timestamp"),
     }
+    return success_payload(SERVICE_NAME, payload, **payload)
 
 
 @app.get("/fast-scan")
 async def fast_scan(force_full: bool = Query(default=False)) -> Dict[str, Any]:
     scan = await FAST_SCANNER.fast_scan(force_full=force_full)
     EVENT_ENGINE.ingest_scan(scan)
-    return scan
+    return success_payload(SERVICE_NAME, scan, **scan)
 
 
 @app.get("/security-events")
 async def security_events(limit: int = Query(default=50, ge=1, le=500)) -> Dict[str, Any]:
     events = EVENT_ENGINE.list_events(limit=limit)
     metrics = await METRICS_MONITOR.latest()
-    return {
+    payload = {
         "count": len(events),
         "events": events,
         "riskScore": EVENT_ENGINE.risk_score(metrics=metrics, recent_events=events[:10]),
     }
+    return success_payload(SERVICE_NAME, payload, **payload)
 
 
 @app.websocket("/live-monitor")

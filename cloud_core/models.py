@@ -41,6 +41,11 @@ class Machine(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    audit_logs: Mapped[List["AuditLog"]] = relationship(
+        back_populates="machine",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class ScanResult(Base):
@@ -131,4 +136,25 @@ class SecurityEvent(Base):
 
     __table_args__ = (
         Index("ix_security_events_machine_timestamp", "machine_id", "timestamp"),
+    )
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("machines.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    action_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    details: Mapped[Dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+
+    machine: Mapped[Machine | None] = relationship(back_populates="audit_logs")
+
+    __table_args__ = (
+        Index("ix_audit_logs_machine_timestamp", "machine_id", "timestamp"),
     )
