@@ -1,18 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
-
-:root {
-  --bg-main: #04070d;
-  --bg-elev: #0d1624;
-  --bg-panel: rgba(12, 21, 34, 0.76);
-  --bg-panel-strong: rgba(11, 18, 30, 0.9);
-  --stroke-soft: rgba(148, 163, 184, 0.18);
-  --text-primary: #e6edf6;
-  --text-muted: #90a3ba;
-  --brand: #22d3ee;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --success: #22c55e;
-}
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Sora:wght@400;500;600;700;800&display=swap");
 
 * {
   box-sizing: border-box;
@@ -27,18 +13,30 @@ body,
 
 body {
   margin: 0;
-  color: var(--text-primary);
+  color: #eaf2ff;
   background:
-    radial-gradient(circle at 80% -10%, rgba(20, 184, 166, 0.17), transparent 42%),
-    radial-gradient(circle at 10% 0%, rgba(59, 130, 246, 0.12), transparent 35%),
-    linear-gradient(160deg, #02050b 0%, #060d18 48%, #0a1220 100%);
-  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    radial-gradient(circle at 82% -12%, rgba(49, 199, 213, 0.19), transparent 40%),
+    radial-gradient(circle at 8% 4%, rgba(245, 163, 91, 0.14), transparent 36%),
+    linear-gradient(160deg, #02060e 0%, #07101b 52%, #0a1423 100%);
+  font-family: "Sora", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(126, 154, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(126, 154, 184, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(circle at center, black 35%, transparent 90%);
+}
+
 code {
-  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 ::-webkit-scrollbar {
@@ -57,6 +55,6 @@ code {
 }
 
 .metric-value {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
   letter-spacing: 0.02em;
 }
