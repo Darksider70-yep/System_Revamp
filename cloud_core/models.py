@@ -46,6 +46,11 @@ class Machine(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    commands: Mapped[List["MachineCommand"]] = relationship(
+        back_populates="machine",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class ScanResult(Base):
@@ -157,4 +162,31 @@ class AuditLog(Base):
 
     __table_args__ = (
         Index("ix_audit_logs_machine_timestamp", "machine_id", "timestamp"),
+    )
+
+
+class MachineCommand(Base):
+    __tablename__ = "machine_commands"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    machine_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("machines.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    command_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, index=True, default="queued")
+    payload: Mapped[Dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    result: Mapped[Dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    requested_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+    dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    machine: Mapped[Machine] = relationship(back_populates="commands")
+
+    __table_args__ = (
+        Index("ix_machine_commands_machine_status_created", "machine_id", "status", "created_at"),
     )

@@ -6,10 +6,16 @@ import logging
 import asyncio
 from typing import Any, Dict, Mapping
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from common.api import apply_standard_api_controls, configure_logger, success_payload
+from common.api import (
+    allowed_origins_from_env,
+    apply_standard_api_controls,
+    configure_logger,
+    health_payload,
+    success_payload,
+)
 
 try:
     from version_checker import check_latest_versions
@@ -25,9 +31,10 @@ MAX_VERSION_LENGTH = 64
 
 app = FastAPI(title="Version Intelligence Service", version="1.0.0")
 
+origins = allowed_origins_from_env()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins or ["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,23 +78,37 @@ def _validate_installed_apps(payload: Any) -> Dict[str, str]:
 
 
 @app.get("/")
-def root() -> Dict[str, Any]:
+def root(request: Request) -> Dict[str, Any]:
     """Health endpoint."""
-    return success_payload(SERVICE_NAME, {"message": "Version Intelligence Service running"})
+    return success_payload(
+        SERVICE_NAME,
+        {"message": "Version Intelligence Service running"},
+        request_id=getattr(request.state, "request_id", ""),
+    )
 
 
 @app.get("/health")
-def health() -> Dict[str, str]:
-    return {"status": "healthy", "service": SERVICE_NAME}
+def health() -> Dict[str, Any]:
+    return health_payload(
+        SERVICE_NAME,
+        database={"status": "ok", "type": "file_database"},
+        cache={"status": "ok", "type": "memory"},
+        api={"status": "ok"},
+    )
 
 
 @app.post("/check-versions")
-async def check_versions(installed_apps: Dict[str, Any]) -> Dict[str, Any]:
+async def check_versions(installed_apps: Dict[str, Any], request: Request) -> Dict[str, Any]:
     """Compare installed versions against local/live intelligence sources."""
     try:
         validated = _validate_installed_apps(installed_apps)
         results = await asyncio.to_thread(check_latest_versions, validated)
-        return success_payload(SERVICE_NAME, {"apps": results}, apps=results)
+        return success_payload(
+            SERVICE_NAME,
+            {"apps": results},
+            request_id=getattr(request.state, "request_id", ""),
+            apps=results,
+        )
     except HTTPException:
         raise
     except Exception as exc:

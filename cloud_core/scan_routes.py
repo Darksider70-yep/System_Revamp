@@ -1,231 +1,68 @@
-"""Scan upload and dashboard routes."""
+"""Scan upload, machine command, and dashboard routes."""
 
 from __future__ import annotations
 
-import asyncio
-import json
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import and_, func, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .audit import write_audit_log
 from .auth import get_current_admin, get_machine_api_key, verify_machine_api_key
 from .database import get_db
-from .models import App, AuditLog, Driver, Machine, ScanResult, SecurityEvent
-from .patch_orchestrator import PatchOrchestrator
+from .models import App, Driver, Machine, MachineCommand, ScanResult, SecurityEvent
+from .platform_ops import (
+    CACHE_TTL_MACHINE_DETAIL,
+    CACHE_TTL_MACHINES,
+    CACHE_TTL_OVERVIEW,
+    ONLINE_WINDOW_SECONDS,
+    cache_get,
+    cache_set,
+    calculate_risk_breakdown,
+    complete_machine_command,
+    enqueue_machine_command,
+    enqueue_scan,
+    invalidate_dashboard_cache,
+    is_online,
+    latest_scan_ids_subquery,
+    persist_scan_payload,
+    pop_machine_command,
+    risk_score_formula,
+    serialize_command,
+)
 from .schemas import (
     AppRecord,
     DashboardOverviewResponse,
     DriverRecord,
+    MachineCommandPollResponse,
+    MachineCommandQueueResponse,
+    MachineCommandResultRequest,
     MachineDetailResponse,
     MachineListResponse,
+    MachinePatchCommandRequest,
     MachineSummary,
+    ManualScanCommandRequest,
     MetricsPoint,
     PatchInstallRequest,
     PatchInstallResponse,
     PatchStatusItem,
     PatchStatusResponse,
-    RiskScoreBreakdown,
     RiskScoreResponse,
     ScanUploadRequest,
     ScanUploadResponse,
-    SecurityEventsResponse,
     SecurityEventRecord,
+    SecurityEventsResponse,
 )
 
 router = APIRouter(tags=["scans"])
-PATCH_ORCHESTRATOR = PatchOrchestrator()
-
-ONLINE_WINDOW_SECONDS = max(30, int(os.getenv("CLOUD_MACHINE_ONLINE_SECONDS", "120")))
-CACHE_TTL_OVERVIEW = max(5, int(os.getenv("CLOUD_CACHE_TTL_OVERVIEW", "15")))
-CACHE_TTL_MACHINES = max(5, int(os.getenv("CLOUD_CACHE_TTL_MACHINES", "15")))
-CACHE_TTL_MACHINE_DETAIL = max(5, int(os.getenv("CLOUD_CACHE_TTL_MACHINE_DETAIL", "20")))
-
-
-def _to_utc(dt: datetime) -> datetime:
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
-
-
-def _is_online(last_seen_at: datetime | None) -> bool:
-    if last_seen_at is None:
-        return False
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=ONLINE_WINDOW_SECONDS)
-    return _to_utc(last_seen_at) >= cutoff
-
-
-def _json_default(value: Any) -> str:
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, UUID):
-        return str(value)
-    return str(value)
-
-
-async def _cache_get(redis_client: object | None, key: str) -> dict[str, Any] | None:
-    if redis_client is None:
-        return None
-
-    try:
-        raw = await redis_client.get(key)
-    except Exception:
-        return None
-
-    if not raw:
-        return None
-
-    try:
-        payload = json.loads(raw)
-        if isinstance(payload, dict):
-            return payload
-    except json.JSONDecodeError:
-        return None
-    return None
-
-
-async def _cache_set(redis_client: object | None, key: str, payload: dict[str, Any], ttl_seconds: int) -> None:
-    if redis_client is None:
-        return
-    try:
-        await redis_client.set(key, json.dumps(payload, default=_json_default), ex=ttl_seconds)
-    except Exception:
-        return
-
-
-async def _invalidate_cache(redis_client: object | None, machine_id: UUID | None = None) -> None:
-    if redis_client is None:
-        return
-
-    try:
-        keys: set[str] = {"dashboard:overview"}
-        async for key in redis_client.scan_iter(match="dashboard:machines:*"):
-            keys.add(str(key))
-
-        if machine_id is not None:
-            pattern = f"dashboard:machine:{machine_id}:*"
-            async for key in redis_client.scan_iter(match=pattern):
-                keys.add(str(key))
-
-        if keys:
-            await redis_client.delete(*list(keys))
-    except Exception:
-        return
-
-
-def _latest_scan_ids_subquery() -> Any:
-    latest_scan_time_subquery = (
-        select(
-            ScanResult.machine_id.label("machine_id"),
-            func.max(ScanResult.timestamp).label("latest_timestamp"),
-        )
-        .group_by(ScanResult.machine_id)
-        .subquery()
-    )
-
-    return (
-        select(ScanResult.id.label("scan_id"))
-        .join(
-            latest_scan_time_subquery,
-            and_(
-                ScanResult.machine_id == latest_scan_time_subquery.c.machine_id,
-                ScanResult.timestamp == latest_scan_time_subquery.c.latest_timestamp,
-            ),
-        )
-        .subquery()
-    )
 
 
 def _is_outdated(app: AppRecord) -> bool:
     if app.latest_version.strip().lower() in {"unknown", "n/a"}:
         return False
     return app.current_version.strip() != app.latest_version.strip()
-
-
-def _risk_score_formula(outdated_apps: int, missing_drivers: int, cpu_spikes: int, security_events: int) -> int:
-    raw = (outdated_apps * 10) + (missing_drivers * 15) + (cpu_spikes * 5) + (security_events * 20)
-    return max(0, min(100, int(raw)))
-
-
-async def _calculate_risk_breakdown(db: AsyncSession, machine_id: UUID) -> RiskScoreBreakdown:
-    latest_scan = (
-        (
-            await db.execute(
-                select(ScanResult)
-                .where(ScanResult.machine_id == machine_id)
-                .order_by(ScanResult.timestamp.desc())
-                .limit(1)
-            )
-        )
-        .scalars()
-        .first()
-    )
-
-    outdated_apps = 0
-    missing_drivers = 0
-    if latest_scan is not None:
-        outdated_apps = int(
-            (
-                await db.scalar(
-                    select(func.count(App.id)).where(
-                        App.scan_id == latest_scan.id,
-                        App.latest_version.is_not(None),
-                        func.lower(App.latest_version) != "unknown",
-                        App.current_version != App.latest_version,
-                    )
-                )
-            )
-            or 0
-        )
-        missing_drivers = int(
-            (
-                await db.scalar(
-                    select(func.count(Driver.id)).where(
-                        Driver.scan_id == latest_scan.id,
-                        func.lower(Driver.status) != "installed",
-                    )
-                )
-            )
-            or 0
-        )
-
-    cpu_spikes = int(
-        (
-            await db.scalar(
-                select(func.count(ScanResult.id)).where(
-                    ScanResult.machine_id == machine_id,
-                    ScanResult.timestamp >= (datetime.now(timezone.utc) - timedelta(hours=1)),
-                    ScanResult.cpu_usage >= 90,
-                )
-            )
-        )
-        or 0
-    )
-
-    security_events = int(
-        (
-            await db.scalar(
-                select(func.count(SecurityEvent.id)).where(
-                    SecurityEvent.machine_id == machine_id,
-                    SecurityEvent.timestamp >= (datetime.now(timezone.utc) - timedelta(hours=24)),
-                )
-            )
-        )
-        or 0
-    )
-
-    return RiskScoreBreakdown(
-        outdated_apps=outdated_apps,
-        missing_drivers=missing_drivers,
-        cpu_spikes=cpu_spikes,
-        security_events=security_events,
-    )
 
 
 @router.post("/upload-scan", response_model=ScanUploadResponse)
@@ -238,153 +75,17 @@ async def upload_scan(
     machine = await db.get(Machine, payload.machine_id)
     if machine is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found.")
-
     if not verify_machine_api_key(api_key, machine.api_key_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid machine API key.")
 
-    scan_timestamp = _to_utc(payload.timestamp)
-    previous_risk = machine.last_risk_score
-
-    metrics = payload.system_metrics
-    scan = ScanResult(
-        machine_id=machine.id,
-        timestamp=scan_timestamp,
-        risk_score=payload.risk_score,
-        cpu_usage=float(metrics.cpu_usage),
-        ram_usage=float(metrics.ram_usage),
-        disk_usage=float(metrics.disk_usage),
-        network_activity=metrics.network_activity,
-        metrics_raw=metrics.model_dump(mode="json"),
-    )
-    db.add(scan)
-
-    try:
-        await db.flush()
-
-        for app in payload.apps:
-            db.add(
-                App(
-                    scan_id=scan.id,
-                    name=app.name.strip(),
-                    current_version=app.current_version.strip(),
-                    latest_version=app.latest_version.strip(),
-                    risk_level=app.risk_level.strip().title(),
-                )
-            )
-
-        for driver in payload.drivers:
-            db.add(
-                Driver(
-                    scan_id=scan.id,
-                    driver_name=driver.driver_name.strip(),
-                    status=driver.status.strip().title(),
-                )
-            )
-
-        for event in payload.security_events:
-            db.add(
-                SecurityEvent(
-                    machine_id=machine.id,
-                    event_type=event.event_type.strip(),
-                    risk_level=event.risk_level.strip().title(),
-                    timestamp=_to_utc(event.timestamp),
-                    details=event.details.strip() if event.details else None,
-                )
-            )
-
-        if payload.risk_score > 80:
-            db.add(
-                SecurityEvent(
-                    machine_id=machine.id,
-                    event_type="High Risk Score",
-                    risk_level="High",
-                    timestamp=scan_timestamp,
-                    details=f"Risk score crossed alert threshold: {payload.risk_score}",
-                )
-            )
-
-        machine.last_seen_at = scan_timestamp
-        machine.last_risk_score = payload.risk_score
-
-        await write_audit_log(
-            db,
-            action_type="scan_upload",
-            machine_id=machine.id,
-            details={
-                "scan_id": scan.id,
-                "risk_score": payload.risk_score,
-                "apps_count": len(payload.apps),
-                "drivers_count": len(payload.drivers),
-                "events_count": len(payload.security_events),
-            },
-        )
-
-        await db.commit()
-    except SQLAlchemyError as exc:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to store scan data.") from exc
-
+    accepted_at = datetime.now(timezone.utc)
     redis_client = getattr(request.app.state, "redis", None)
-    await _invalidate_cache(redis_client, machine_id=machine.id)
+    queue_id = await enqueue_scan(redis_client, payload)
+    if queue_id:
+        return ScanUploadResponse(status="accepted", queue_id=queue_id, accepted_at=accepted_at)
 
-    hub = getattr(request.app.state, "live_hub", None)
-    if hub is not None:
-        await hub.publish(
-            {
-                "type": "new_scan",
-                "machine_id": str(machine.id),
-                "hostname": machine.hostname,
-                "risk_score": payload.risk_score,
-                "timestamp": scan_timestamp,
-            }
-        )
-
-        if previous_risk is not None and previous_risk != payload.risk_score:
-            await hub.publish(
-                {
-                    "type": "risk_score_changed",
-                    "machine_id": str(machine.id),
-                    "hostname": machine.hostname,
-                    "previous_risk_score": previous_risk,
-                    "new_risk_score": payload.risk_score,
-                    "timestamp": scan_timestamp,
-                }
-            )
-
-        if payload.security_events:
-            await hub.publish(
-                {
-                    "type": "security_event",
-                    "machine_id": str(machine.id),
-                    "hostname": machine.hostname,
-                    "count": len(payload.security_events),
-                    "timestamp": scan_timestamp,
-                }
-            )
-
-    alert_hub = getattr(request.app.state, "alert_hub", None)
-    if payload.risk_score > 80:
-        alert_payload = {
-            "type": "security_alert",
-            "machine_id": str(machine.id),
-            "hostname": machine.hostname,
-            "risk_score": payload.risk_score,
-            "severity": "critical",
-            "message": f"Risk score exceeded threshold ({payload.risk_score})",
-            "timestamp": scan_timestamp,
-        }
-        if alert_hub is not None:
-            await alert_hub.publish(alert_payload)
-
-        async with db.begin():
-            await write_audit_log(
-                db,
-                action_type="security_alert",
-                machine_id=machine.id,
-                details=alert_payload,
-            )
-
-    return ScanUploadResponse(scan_id=int(scan.id), status="accepted")
+    await persist_scan_payload(payload, request.app)
+    return ScanUploadResponse(status="stored", queue_id=None, accepted_at=accepted_at)
 
 
 @router.get("/dashboard/overview", response_model=DashboardOverviewResponse)
@@ -395,12 +96,11 @@ async def dashboard_overview(
 ) -> DashboardOverviewResponse:
     cache_key = "dashboard:overview"
     redis_client = getattr(request.app.state, "redis", None)
-    cached = await _cache_get(redis_client, cache_key)
+    cached = await cache_get(redis_client, cache_key)
     if cached is not None:
         return DashboardOverviewResponse(**cached)
 
     total_machines = int((await db.scalar(select(func.count(Machine.id)))) or 0)
-
     online_cutoff = datetime.now(timezone.utc) - timedelta(seconds=ONLINE_WINDOW_SECONDS)
     machines_online = int(
         (
@@ -413,7 +113,6 @@ async def dashboard_overview(
         )
         or 0
     )
-
     average_risk_score = float(
         (
             await db.scalar(
@@ -425,8 +124,7 @@ async def dashboard_overview(
         or 0.0
     )
 
-    latest_scan_ids = _latest_scan_ids_subquery()
-
+    latest_scan_ids = latest_scan_ids_subquery()
     app_vulnerability_count = int(
         (
             await db.scalar(
@@ -438,7 +136,6 @@ async def dashboard_overview(
         )
         or 0
     )
-
     driver_vulnerability_count = int(
         (
             await db.scalar(
@@ -458,9 +155,7 @@ async def dashboard_overview(
         average_risk_score=round(average_risk_score, 2),
         last_updated=datetime.now(timezone.utc),
     )
-
-    encoded = payload.model_dump(mode="json")
-    await _cache_set(redis_client, cache_key, encoded, ttl_seconds=CACHE_TTL_OVERVIEW)
+    await cache_set(redis_client, cache_key, payload.model_dump(mode="json"), ttl_seconds=CACHE_TTL_OVERVIEW)
     return payload
 
 
@@ -474,12 +169,11 @@ async def list_machines(
 ) -> MachineListResponse:
     cache_key = f"dashboard:machines:{limit}:{offset}"
     redis_client = getattr(request.app.state, "redis", None)
-    cached = await _cache_get(redis_client, cache_key)
+    cached = await cache_get(redis_client, cache_key)
     if cached is not None:
         return MachineListResponse(**cached)
 
     total = int((await db.scalar(select(func.count(Machine.id)))) or 0)
-
     event_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
     alerts_subquery = (
         select(
@@ -519,14 +213,13 @@ async def list_machines(
             last_scan=row.last_seen_at,
             risk_score=row.last_risk_score,
             alerts=int(row.alerts or 0),
-            online=_is_online(row.last_seen_at),
+            online=is_online(row.last_seen_at),
         )
         for row in rows
     ]
 
     payload = MachineListResponse(total=total, items=items)
-    encoded = payload.model_dump(mode="json")
-    await _cache_set(redis_client, cache_key, encoded, ttl_seconds=CACHE_TTL_MACHINES)
+    await cache_set(redis_client, cache_key, payload.model_dump(mode="json"), ttl_seconds=CACHE_TTL_MACHINES)
     return payload
 
 
@@ -541,7 +234,7 @@ async def machine_detail(
 ) -> MachineDetailResponse:
     cache_key = f"dashboard:machine:{machine_id}:{events_limit}:{history_points}"
     redis_client = getattr(request.app.state, "redis", None)
-    cached = await _cache_get(redis_client, cache_key)
+    cached = await cache_get(redis_client, cache_key)
     if cached is not None:
         return MachineDetailResponse(**cached)
 
@@ -583,9 +276,7 @@ async def machine_detail(
         drivers = (
             (
                 await db.execute(
-                    select(Driver)
-                    .where(Driver.scan_id == latest_scan.id)
-                    .order_by(Driver.driver_name.asc())
+                    select(Driver).where(Driver.scan_id == latest_scan.id).order_by(Driver.driver_name.asc())
                 )
             )
             .scalars()
@@ -609,7 +300,6 @@ async def machine_detail(
         .scalars()
         .all()
     )
-
     security_events = [
         SecurityEventRecord(
             event_type=item.event_type,
@@ -637,7 +327,6 @@ async def machine_detail(
         )
         .all()
     )
-
     metrics_points = [
         MetricsPoint(
             timestamp=row.timestamp,
@@ -672,7 +361,7 @@ async def machine_detail(
         last_scan=machine.last_seen_at,
         risk_score=machine.last_risk_score,
         alerts=alerts,
-        online=_is_online(machine.last_seen_at),
+        online=is_online(machine.last_seen_at),
         installed_apps=latest_apps,
         outdated_software=[app for app in latest_apps if _is_outdated(app)],
         driver_issues=latest_drivers,
@@ -680,8 +369,7 @@ async def machine_detail(
         system_metrics=metrics_points,
     )
 
-    encoded = payload.model_dump(mode="json")
-    await _cache_set(redis_client, cache_key, encoded, ttl_seconds=CACHE_TTL_MACHINE_DETAIL)
+    await cache_set(redis_client, cache_key, payload.model_dump(mode="json"), ttl_seconds=CACHE_TTL_MACHINE_DETAIL)
     return payload
 
 
@@ -695,8 +383,8 @@ async def machine_risk_score(
     if machine is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found.")
 
-    breakdown = await _calculate_risk_breakdown(db, machine_id)
-    score = _risk_score_formula(
+    breakdown = await calculate_risk_breakdown(db, machine_id)
+    score = risk_score_formula(
         outdated_apps=breakdown.outdated_apps,
         missing_drivers=breakdown.missing_drivers,
         cpu_spikes=breakdown.cpu_spikes,
@@ -706,6 +394,7 @@ async def machine_risk_score(
 
 
 @router.get("/events/{machine_id}", response_model=SecurityEventsResponse)
+@router.get("/machines/{machine_id}/events", response_model=SecurityEventsResponse)
 async def machine_events(
     machine_id: UUID,
     limit: int = Query(default=300, ge=1, le=2000),
@@ -740,70 +429,90 @@ async def machine_events(
     return SecurityEventsResponse(machine_id=machine_id, count=len(events), events=events)
 
 
+async def _queue_command(
+    machine_id: UUID,
+    command_type: str,
+    command_payload: dict[str, Any],
+    request: Request,
+    admin_subject: str,
+    db: AsyncSession,
+) -> MachineCommandQueueResponse:
+    machine = await db.get(Machine, machine_id)
+    if machine is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found.")
+
+    redis_client = getattr(request.app.state, "redis", None)
+    command = await enqueue_machine_command(
+        db,
+        redis_client,
+        machine_id=machine.id,
+        command_type=command_type,
+        payload=command_payload,
+        requested_by=admin_subject,
+    )
+    await invalidate_dashboard_cache(redis_client, machine_id=machine.id)
+    return MachineCommandQueueResponse(
+        status="queued",
+        command_id=command.id,
+        machine_id=machine.id,
+        command_type=command.command_type,
+        queued_at=command.created_at,
+    )
+
+
+@router.post("/machines/{machine_id}/scan", response_model=MachineCommandQueueResponse)
+async def queue_manual_scan(
+    machine_id: UUID,
+    payload: ManualScanCommandRequest,
+    request: Request,
+    admin_subject: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> MachineCommandQueueResponse:
+    return await _queue_command(
+        machine_id,
+        "scan",
+        {"force_full": payload.force_full},
+        request,
+        admin_subject,
+        db,
+    )
+
+
+@router.post("/machines/{machine_id}/patch", response_model=MachineCommandQueueResponse)
+async def queue_machine_patch(
+    machine_id: UUID,
+    payload: MachinePatchCommandRequest,
+    request: Request,
+    admin_subject: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> MachineCommandQueueResponse:
+    command_payload = {
+        "software": payload.software,
+        "patch_all": payload.patch_all or not bool(payload.software),
+    }
+    return await _queue_command(machine_id, "patch", command_payload, request, admin_subject, db)
+
+
 @router.post("/install-patch", response_model=PatchInstallResponse)
 async def install_patch(
     payload: PatchInstallRequest,
     request: Request,
-    _: str = Depends(get_current_admin),
+    admin_subject: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ) -> PatchInstallResponse:
-    machine = await db.get(Machine, payload.machine_id)
-    if machine is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found.")
-
-    result = await asyncio.to_thread(PATCH_ORCHESTRATOR.install_patch, payload.software)
-    if result.status != "patch_installed":
-        async with db.begin():
-            await write_audit_log(
-                db,
-                action_type="patch_install_failed",
-                machine_id=machine.id,
-                details={
-                    "software": result.software,
-                    "provider": result.provider,
-                    "command": result.command,
-                    "stderr": result.stderr,
-                },
-            )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Patch installation failed: {result.stderr or 'unknown error'}",
-        )
-
-    async with db.begin():
-        await write_audit_log(
-            db,
-            action_type="patch_install",
-            machine_id=machine.id,
-            details={
-                "software": result.software,
-                "new_version": result.new_version,
-                "provider": result.provider,
-                "command": result.command,
-            },
-        )
-
-    hub = getattr(request.app.state, "live_hub", None)
-    if hub is not None:
-        await hub.publish(
-            {
-                "type": "patch_installed",
-                "machine_id": str(machine.id),
-                "hostname": machine.hostname,
-                "software": result.software,
-                "new_version": result.new_version,
-                "provider": result.provider,
-                "timestamp": datetime.now(timezone.utc),
-            }
-        )
-
+    queued = await _queue_command(
+        payload.machine_id,
+        "patch",
+        {"software": payload.software, "patch_all": False},
+        request,
+        admin_subject,
+        db,
+    )
     return PatchInstallResponse(
-        status=result.status,
-        software=result.software,
-        new_version=result.new_version,
-        provider=result.provider,
-        command=result.command,
-        machine_id=machine.id,
+        status=queued.status,
+        command_id=queued.command_id,
+        command_type=queued.command_type,
+        machine_id=queued.machine_id,
     )
 
 
@@ -821,12 +530,12 @@ async def patch_status(
     rows = (
         (
             await db.execute(
-                select(AuditLog)
+                select(MachineCommand)
                 .where(
-                    AuditLog.machine_id == machine_id,
-                    AuditLog.action_type.in_(["patch_install", "patch_install_failed"]),
+                    MachineCommand.machine_id == machine_id,
+                    MachineCommand.command_type == "patch",
                 )
-                .order_by(AuditLog.timestamp.desc())
+                .order_by(MachineCommand.created_at.desc())
                 .limit(limit)
             )
         )
@@ -836,12 +545,53 @@ async def patch_status(
 
     items = [
         PatchStatusItem(
-            software=str((row.details or {}).get("software", "unknown")),
-            status="patch_installed" if row.action_type == "patch_install" else "patch_failed",
-            provider=str((row.details or {}).get("provider", "unknown")),
-            timestamp=row.timestamp,
-            new_version=(row.details or {}).get("new_version"),
+            command_id=row.id,
+            software=str((row.result or row.payload or {}).get("software", "all_packages")),
+            status="patch_installed" if row.status == "completed" else ("patch_failed" if row.status == "failed" else row.status),
+            provider=str((row.result or {}).get("provider", "pending")),
+            timestamp=row.completed_at or row.updated_at or row.created_at,
+            new_version=(row.result or {}).get("new_version"),
         )
         for row in rows
     ]
     return PatchStatusResponse(machine_id=machine_id, count=len(items), items=items)
+
+
+@router.get("/agent/commands/next", response_model=MachineCommandPollResponse)
+async def next_agent_command(
+    machine_id: UUID,
+    request: Request,
+    api_key: str = Depends(get_machine_api_key),
+    db: AsyncSession = Depends(get_db),
+) -> MachineCommandPollResponse:
+    machine = await db.get(Machine, machine_id)
+    if machine is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found.")
+    if not verify_machine_api_key(api_key, machine.api_key_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid machine API key.")
+
+    command = await pop_machine_command(db, getattr(request.app.state, "redis", None), machine_id)
+    return MachineCommandPollResponse(
+        machine_id=machine_id,
+        command=serialize_command(command) if command is not None else None,
+    )
+
+
+@router.post("/agent/commands/{command_id}/result", response_model=MachineCommandPollResponse)
+async def record_agent_command_result(
+    command_id: UUID,
+    payload: MachineCommandResultRequest,
+    api_key: str = Depends(get_machine_api_key),
+    db: AsyncSession = Depends(get_db),
+) -> MachineCommandPollResponse:
+    command = await db.get(MachineCommand, command_id)
+    if command is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Command not found.")
+    machine = await db.get(Machine, command.machine_id)
+    if machine is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found.")
+    if not verify_machine_api_key(api_key, machine.api_key_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid machine API key.")
+
+    updated = await complete_machine_command(db, command_id, payload.status, payload.result, payload.error)
+    return MachineCommandPollResponse(machine_id=updated.machine_id, command=serialize_command(updated))

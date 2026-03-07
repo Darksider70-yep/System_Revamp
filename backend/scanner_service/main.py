@@ -2,22 +2,27 @@
 
 from __future__ import annotations
 
-import io
 import json
 import logging
-import platform
 import time
-import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from packaging.version import InvalidVersion, Version
 from pydantic import BaseModel, Field
 
-from common.api import apply_standard_api_controls, configure_logger, success_payload
+from common.api import (
+    allowed_origins_from_env,
+    apply_standard_api_controls,
+    configure_logger,
+    health_payload,
+    success_payload,
+)
+from common.offline_packages import create_offline_package
+from cloud_core.patch_orchestrator import PatchOrchestrator
 
 try:
     from scanner import get_installed_apps
@@ -29,14 +34,16 @@ LOGGER = configure_logger(f"{SERVICE_NAME}.main")
 
 app = FastAPI(title="System Scanner Service", version="1.0.0")
 
+origins = allowed_origins_from_env()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins or ["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 apply_standard_api_controls(app, SERVICE_NAME)
+PATCH_ORCHESTRATOR = PatchOrchestrator()
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 VERSION_DB_CANDIDATES = [
@@ -176,25 +183,6 @@ def _recommendation(latest: Optional[str]) -> str:
     return "Apply latest vendor security patches"
 
 
-def _build_instructions(manifest: Mapping[str, Any]) -> str:
-    generated_at = manifest.get("generatedAt", "Unknown")
-    return "\n".join(
-        [
-            "SYSTEM REVAMP OFFLINE PATCH PACKAGE",
-            f"Generated: {generated_at}",
-            "",
-            "How to use:",
-            "1. Copy this ZIP to the air-gapped target system.",
-            "2. Extract ZIP contents to a trusted folder.",
-            "3. Review updates_manifest.json to prioritize risky outdated apps.",
-            "4. Use latest_versions.json to validate approved target versions.",
-            "5. Perform vendor-approved updates and re-run the scanner service.",
-            "",
-            "This package is intended for educational and defensive operations.",
-        ]
-    )
-
-
 def _guess_winget_id(app_name: str) -> Optional[str]:
     name = _normalize_name(app_name)
     known = {
@@ -213,29 +201,45 @@ def _guess_winget_id(app_name: str) -> Optional[str]:
 
 
 @app.get("/")
-def root() -> Dict[str, Any]:
+def root(request: Request) -> Dict[str, Any]:
     """Health endpoint."""
-    return success_payload(SERVICE_NAME, {"message": "Scanner Service running"})
+    return success_payload(
+        SERVICE_NAME,
+        {"message": "Scanner Service running"},
+        request_id=getattr(request.state, "request_id", ""),
+    )
 
 
 @app.get("/health")
-def health() -> Dict[str, str]:
-    return {"status": "healthy", "service": SERVICE_NAME}
+def health() -> Dict[str, Any]:
+    latest_db_ok = any(path.exists() for path in VERSION_DB_CANDIDATES)
+    return health_payload(
+        SERVICE_NAME,
+        database={"status": "ok" if latest_db_ok else "degraded", "type": "file_database"},
+        cache={"status": "not_configured"},
+        api={"status": "ok"},
+        details={"version_database_paths": [str(path) for path in VERSION_DB_CANDIDATES]},
+    )
 
 
 @app.get("/scan")
-def scan_system() -> Dict[str, Any]:
+def scan_system(request: Request) -> Dict[str, Any]:
     """Scan installed applications for the current OS."""
     try:
         apps = get_installed_apps()
-        return success_payload(SERVICE_NAME, {"apps": apps}, apps=apps)
+        return success_payload(
+            SERVICE_NAME,
+            {"apps": apps},
+            request_id=getattr(request.state, "request_id", ""),
+            apps=apps,
+        )
     except Exception as exc:
         LOGGER.exception("Scan failed: %s", exc)
         raise HTTPException(status_code=500, detail="System scan failed.") from exc
 
 
 @app.post("/simulate-attack")
-def simulate_attack(payload: AttackSimulationRequest) -> Dict[str, Any]:
+def simulate_attack(payload: AttackSimulationRequest, request: Request) -> Dict[str, Any]:
     """Generate an educational vulnerability scenario for outdated software."""
     software = payload.software.strip()
     risk_level = _infer_risk_level(payload.current, payload.latest, payload.riskLevel)
@@ -247,11 +251,16 @@ def simulate_attack(payload: AttackSimulationRequest) -> Dict[str, Any]:
         "possibleAttack": _attack_profile_for_risk(risk_level),
         "recommendation": _recommendation(payload.latest),
     }
-    return success_payload(SERVICE_NAME, result, **result)
+    return success_payload(
+        SERVICE_NAME,
+        result,
+        request_id=getattr(request.state, "request_id", ""),
+        **result,
+    )
 
 
 @app.get("/simulate-attack/{software}")
-def simulate_attack_legacy(software: str) -> Dict[str, Any]:
+def simulate_attack_legacy(software: str, request: Request) -> Dict[str, Any]:
     """Backward-compatible simulation endpoint."""
     if not software.strip():
         raise HTTPException(status_code=422, detail="Software name is required.")
@@ -262,11 +271,19 @@ def simulate_attack_legacy(software: str) -> Dict[str, Any]:
         "possibleAttack": _attack_profile_for_risk("Unknown"),
         "recommendation": "Collect version intelligence and update to the latest secure release",
     }
-    return success_payload(SERVICE_NAME, result, **result)
+    return success_payload(
+        SERVICE_NAME,
+        result,
+        request_id=getattr(request.state, "request_id", ""),
+        **result,
+    )
 
 
 @app.get("/generate-offline-package")
-def generate_offline_package(mode: str = Query(default="full")) -> StreamingResponse:
+def generate_offline_package(
+    request: Request,
+    mode: str = Query(default="full"),
+) -> StreamingResponse:
     """Build offline patch ZIP package for air-gapped environments."""
     try:
         scan_mode = mode.strip().lower()
@@ -276,28 +293,25 @@ def generate_offline_package(mode: str = Query(default="full")) -> StreamingResp
         apps = get_installed_apps()
         latest_normalized, latest_raw = _load_latest_versions()
         metadata = _build_update_metadata(apps, latest_normalized)
-
-        manifest = {
-            "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "platform": platform.system(),
-            "mode": scan_mode,
-            **metadata,
-        }
-
-        instructions = _build_instructions(manifest)
-
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr("updates_manifest.json", json.dumps(manifest, indent=2))
-            archive.writestr("latest_versions.json", json.dumps(latest_raw, indent=2))
-            archive.writestr("instructions.txt", instructions)
-
-        zip_buffer.seek(0)
-        filename = "offline_update_package.zip" if scan_mode == "full" else "offline_delta_package.zip"
+        try:
+            patch_metadata = PATCH_ORCHESTRATOR.export_patch_metadata()
+        except Exception:
+            patch_metadata = []
+        package = create_offline_package(
+            latest_versions=latest_raw,
+            installed_apps=apps,
+            patch_metadata=patch_metadata,
+            source_service=SERVICE_NAME,
+            mode=scan_mode,
+        )
         return StreamingResponse(
-            zip_buffer,
+            iter([package.content]),
             media_type="application/zip",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={
+                "Content-Disposition": f'attachment; filename="{package.filename}"',
+                "X-Request-ID": getattr(request.state, "request_id", ""),
+                "X-Offline-Update-Count": str(metadata["totalOutdatedApps"]),
+            },
         )
     except Exception as exc:
         LOGGER.exception("Offline package generation failed: %s", exc)
@@ -305,7 +319,7 @@ def generate_offline_package(mode: str = Query(default="full")) -> StreamingResp
 
 
 @app.post("/generate-remediation-script")
-def generate_remediation_script(payload: Dict[str, Any]) -> Response:
+def generate_remediation_script(payload: Dict[str, Any], request: Request) -> Response:
     """Generate a PowerShell remediation script for selected apps/drivers."""
     apps = payload.get("apps", []) if isinstance(payload, dict) else []
     drivers = payload.get("drivers", []) if isinstance(payload, dict) else []

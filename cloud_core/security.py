@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import threading
 import time
+import uuid
 from collections import defaultdict, deque
 from typing import Deque, Dict
 
@@ -37,6 +38,8 @@ def install_cloud_security(app: FastAPI) -> None:
 
     @app.middleware("http")
     async def security_middleware(request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID", "").strip() or str(uuid.uuid4())
+        request.state.request_id = request_id
         client_ip = request.client.host if request.client else "unknown"
         limit_key = f"{client_ip}:{request.url.path}"
 
@@ -60,4 +63,5 @@ def install_cloud_security(app: FastAPI) -> None:
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Service-Name"] = "cloud_core"
+        response.headers["X-Request-ID"] = request_id
         return response

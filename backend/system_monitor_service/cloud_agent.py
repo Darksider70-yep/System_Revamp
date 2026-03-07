@@ -53,6 +53,14 @@ class CloudAgentUploader:
     def enabled(self) -> bool:
         return self._enabled
 
+    @property
+    def machine_id(self) -> str | None:
+        return self._machine_id
+
+    @property
+    def api_key(self) -> str | None:
+        return self._api_key
+
     async def run_forever(self) -> None:
         if not self._enabled:
             LOGGER.info("Cloud agent uploader disabled via CLOUD_AGENT_ENABLED")
@@ -68,16 +76,16 @@ class CloudAgentUploader:
 
             await asyncio.sleep(self._upload_interval_seconds)
 
-    async def upload_once(self) -> None:
+    async def upload_once(self, force_full: bool = False) -> Dict[str, Any] | None:
         if not self._enabled:
-            return
+            return None
 
         await self._ensure_registered()
         if not self._machine_id or not self._api_key:
             LOGGER.warning("Cloud agent has no machine identity; skipping upload")
-            return
+            return None
 
-        scan = await self._fast_scanner.fast_scan()
+        scan = await self._fast_scanner.fast_scan(force_full=force_full)
         metrics = await self._metrics_monitor.latest()
 
         recent_events = self._event_engine.list_events(limit=20)
@@ -107,20 +115,91 @@ class CloudAgentUploader:
             self._machine_id = None
             self._api_key = None
             self._identity_path.unlink(missing_ok=True)
-            return
+            return None
 
         if response.status_code == 404:
             LOGGER.warning("Cloud machine record not found. Re-registering machine identity.")
             self._machine_id = None
             self._api_key = None
             self._identity_path.unlink(missing_ok=True)
-            return
+            return None
 
         if response.status_code >= 400:
             LOGGER.warning("Cloud upload failed (%s): %s", response.status_code, response.text)
-            return
+            return None
 
         LOGGER.info("Cloud scan upload succeeded for machine %s", self._machine_id)
+        try:
+            response_payload = response.json() if response.content else {}
+        except Exception:
+            response_payload = {}
+        return {"scan": scan, "metrics": metrics, "response": response_payload}
+
+    async def ensure_registered(self) -> None:
+        await self._ensure_registered()
+
+    async def fetch_next_command(self) -> Dict[str, Any] | None:
+        if not self._enabled:
+            return None
+        await self._ensure_registered()
+        if not self._machine_id or not self._api_key:
+            return None
+
+        response = await asyncio.to_thread(
+            self._session.get,
+            f"{self._cloud_base_url}/agent/commands/next",
+            params={"machine_id": self._machine_id},
+            headers={"X-API-Key": self._api_key},
+            timeout=self._timeout,
+        )
+
+        if response.status_code == 401:
+            LOGGER.warning("Cloud command poll rejected API key. Re-registering machine identity.")
+            self._machine_id = None
+            self._api_key = None
+            self._identity_path.unlink(missing_ok=True)
+            return None
+        if response.status_code >= 400:
+            LOGGER.warning("Cloud command poll failed (%s): %s", response.status_code, response.text)
+            return None
+
+        try:
+            payload = response.json() if response.content else {}
+        except Exception:
+            LOGGER.warning("Cloud command poll returned invalid JSON")
+            return None
+
+        command = payload.get("command")
+        return command if isinstance(command, dict) else None
+
+    async def report_command_result(
+        self,
+        command_id: str,
+        status: str,
+        result: Mapping[str, Any] | None = None,
+        error: str | None = None,
+    ) -> bool:
+        if not self._enabled:
+            return False
+        await self._ensure_registered()
+        if not self._machine_id or not self._api_key:
+            return False
+
+        response = await asyncio.to_thread(
+            self._session.post,
+            f"{self._cloud_base_url}/agent/commands/{command_id}/result",
+            json={
+                "status": status,
+                "result": dict(result or {}),
+                "error": error,
+            },
+            headers={"X-API-Key": self._api_key},
+            timeout=self._timeout,
+        )
+        if response.status_code >= 400:
+            LOGGER.warning("Cloud command result update failed (%s): %s", response.status_code, response.text)
+            return False
+        return True
 
     async def _ensure_registered(self) -> None:
         if self._machine_id and self._api_key:

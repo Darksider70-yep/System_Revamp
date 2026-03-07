@@ -59,8 +59,9 @@ class ScanUploadRequest(BaseModel):
 
 
 class ScanUploadResponse(BaseModel):
-    scan_id: int
     status: str
+    queue_id: str | None = None
+    accepted_at: datetime
 
 
 class LoginRequest(BaseModel):
@@ -171,14 +172,13 @@ class PatchInstallRequest(BaseModel):
 
 class PatchInstallResponse(BaseModel):
     status: str
-    software: str
-    new_version: str
-    provider: str
-    command: str
+    command_id: UUID
+    command_type: str
     machine_id: UUID
 
 
 class PatchStatusItem(BaseModel):
+    command_id: UUID | None = None
     software: str
     status: str
     provider: str
@@ -190,3 +190,44 @@ class PatchStatusResponse(BaseModel):
     machine_id: UUID
     count: int
     items: list[PatchStatusItem]
+
+
+class ManualScanCommandRequest(BaseModel):
+    force_full: bool = Field(default=True)
+
+
+class MachinePatchCommandRequest(BaseModel):
+    software: str | None = Field(default=None, max_length=255)
+    patch_all: bool = Field(default=False)
+
+
+class MachineCommandQueueResponse(BaseModel):
+    status: str
+    command_id: UUID
+    machine_id: UUID
+    command_type: str
+    queued_at: datetime
+
+
+class MachineCommandItem(BaseModel):
+    id: UUID
+    machine_id: UUID
+    command_type: str
+    status: str
+    payload: dict[str, object] | None = None
+    result: dict[str, object] | None = None
+    created_at: datetime
+    updated_at: datetime
+    dispatched_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
+class MachineCommandPollResponse(BaseModel):
+    machine_id: UUID
+    command: MachineCommandItem | None = None
+
+
+class MachineCommandResultRequest(BaseModel):
+    status: str = Field(..., min_length=1, max_length=30)
+    result: dict[str, object] = Field(default_factory=dict)
+    error: str | None = Field(default=None, max_length=1000)

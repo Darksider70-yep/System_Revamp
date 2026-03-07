@@ -40,12 +40,14 @@ services:
     environment:
       CLOUD_DATABASE_URL: postgresql+asyncpg://systemrevamp:systemrevamp@postgres:5432/systemrevamp_cloud
       CLOUD_REDIS_URL: redis://redis:6379/0
-      CLOUD_JWT_SECRET: change-this-jwt-secret
-      CLOUD_ADMIN_USERNAME: admin
-      CLOUD_ADMIN_PASSWORD: admin123
-      CLOUD_API_KEY_SALT: change-this-api-key-salt
+      CLOUD_JWT_SECRET: ${CLOUD_JWT_SECRET:-change-this-jwt-secret}
+      CLOUD_ADMIN_USERNAME: ${CLOUD_ADMIN_USERNAME:-admin}
+      CLOUD_ADMIN_PASSWORD: ${CLOUD_ADMIN_PASSWORD:-admin123}
+      CLOUD_API_KEY_SALT: ${CLOUD_API_KEY_SALT:-change-this-api-key-salt}
       CLOUD_JWT_EXPIRE_MINUTES: "60"
       CLOUD_RATE_LIMIT_PER_MINUTE: "1200"
+      SERVICE_ALLOWED_ORIGINS: ${SERVICE_ALLOWED_ORIGINS:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,6 +65,8 @@ services:
     environment:
       SERVICE_API_KEY: ${SERVICE_API_KEY:-}
       SERVICE_RATE_LIMIT_PER_MINUTE: "600"
+      SERVICE_ALLOWED_ORIGINS: ${SERVICE_ALLOWED_ORIGINS:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -75,6 +79,8 @@ services:
     environment:
       SERVICE_API_KEY: ${SERVICE_API_KEY:-}
       SERVICE_RATE_LIMIT_PER_MINUTE: "600"
+      SERVICE_ALLOWED_ORIGINS: ${SERVICE_ALLOWED_ORIGINS:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "8001:8001"
     restart: unless-stopped
@@ -87,6 +93,8 @@ services:
     environment:
       SERVICE_API_KEY: ${SERVICE_API_KEY:-}
       SERVICE_RATE_LIMIT_PER_MINUTE: "600"
+      SERVICE_ALLOWED_ORIGINS: ${SERVICE_ALLOWED_ORIGINS:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "8002:8002"
     restart: unless-stopped
@@ -99,14 +107,39 @@ services:
     environment:
       SERVICE_API_KEY: ${SERVICE_API_KEY:-}
       SERVICE_RATE_LIMIT_PER_MINUTE: "600"
-      CLOUD_AGENT_ENABLED: "1"
+      SERVICE_ALLOWED_ORIGINS: ${SERVICE_ALLOWED_ORIGINS:-http://localhost:3000}
+      CLOUD_AGENT_ENABLED: "0"
       CLOUD_CORE_URL: http://cloud_core:9000
       CLOUD_AGENT_UPLOAD_INTERVAL_SECONDS: "60"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       cloud_core:
         condition: service_started
     ports:
       - "8003:8003"
+    restart: unless-stopped
+
+  agent_service:
+    build:
+      context: .
+      dockerfile: docker/agent_service.Dockerfile
+    container_name: system-revamp-agent
+    environment:
+      SERVICE_API_KEY: ${SERVICE_API_KEY:-}
+      SERVICE_RATE_LIMIT_PER_MINUTE: "600"
+      SERVICE_ALLOWED_ORIGINS: ${SERVICE_ALLOWED_ORIGINS:-http://localhost:3000}
+      CLOUD_AGENT_ENABLED: "1"
+      CLOUD_CORE_URL: http://cloud_core:9000
+      CLOUD_AGENT_UPLOAD_INTERVAL_SECONDS: "60"
+      AGENT_COMMAND_POLL_INTERVAL_SECONDS: "10"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      cloud_core:
+        condition: service_started
+    ports:
+      - "8004:8004"
+    volumes:
+      - agent-cache:/app/backend/cache
     restart: unless-stopped
 
   frontend:
@@ -119,6 +152,7 @@ services:
       - driver_service
       - version_service
       - monitor_service
+      - agent_service
       - cloud_core
     ports:
       - "3000:80"
@@ -127,3 +161,4 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  agent-cache:
