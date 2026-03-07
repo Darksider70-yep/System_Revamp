@@ -33,62 +33,68 @@ const MissingDrivers = ({
   onDownloadDrivers = null,
   downloadingDrivers = false,
 }) => {
-  const statusColors = { Missing: "#dc2626", Installed: "#15803d" };
+  const statusColors = { Missing: "#dc2626", Installed: "#15803d", Unknown: "#64748b" };
 
-  const renderDriverCard = (driver, key) => (
-    <Card
-      key={key}
-      sx={{
-        p: 2,
-        backgroundColor: "rgba(15, 23, 42, 0.78)",
-        borderRadius: 3,
-        color: "#e2e8f0",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        border: "1px solid rgba(56, 189, 248, 0.2)",
-        ...hoverCard,
-      }}
-    >
-      <Box>
-        <Typography
-          sx={{
-            fontWeight: 700,
-            fontSize: 16,
-            color: "#bae6fd",
-          }}
-        >
-          {driver["Driver Name"]}.sys
-        </Typography>
-        <Typography sx={{ fontSize: 13, color: "#94a3b8" }}>Device: {driver.Device}</Typography>
-        {driver.Status === "Missing" && (
-          <Typography sx={{ fontSize: 12, color: "#94a3b8", mt: 0.5 }}>
-            Impact: {driver.Impact || "Low"} | Risk Score: {driver.RiskScore ?? 0}
+  const renderDriverCard = (driver, key) => {
+    const status = driver.Status || "Unknown";
+    const rawName = String(driver["Driver Name"] || "Unknown");
+    const displayName = rawName.toLowerCase().endsWith(".sys") ? rawName : `${rawName}.sys`;
+
+    return (
+      <Card
+        key={key}
+        sx={{
+          p: 2,
+          backgroundColor: "rgba(15, 23, 42, 0.78)",
+          borderRadius: 3,
+          color: "#e2e8f0",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          border: "1px solid rgba(56, 189, 248, 0.2)",
+          ...hoverCard,
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontWeight: 700,
+              fontSize: 16,
+              color: "#bae6fd",
+            }}
+          >
+            {displayName}
           </Typography>
-        )}
-      </Box>
-      <Box sx={{ display: "flex", gap: 1 }}>
-        {driver.Status === "Missing" && driver.Impact && (
+          <Typography sx={{ fontSize: 13, color: "#94a3b8" }}>Device: {driver.Device || "Unknown Device"}</Typography>
+          {status === "Missing" && (
+            <Typography sx={{ fontSize: 12, color: "#94a3b8", mt: 0.5 }}>
+              Impact: {driver.Impact || "Low"} | Risk Score: {driver.RiskScore ?? 0}
+            </Typography>
+          )}
+        </Box>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          {status === "Missing" && driver.Impact && (
+            <Chip
+              label={driver.Impact}
+              sx={{
+                fontWeight: 700,
+                color: "#ffffff",
+                backgroundColor: impactColors[driver.Impact] || "#475569",
+              }}
+            />
+          )}
           <Chip
-            label={driver.Impact}
+            label={status}
             sx={{
               fontWeight: 700,
               color: "#ffffff",
-              backgroundColor: impactColors[driver.Impact] || "#475569",
+              backgroundColor: statusColors[status] || statusColors.Unknown,
             }}
           />
-        )}
-        <Chip
-          label={driver.Status}
-          sx={{
-            fontWeight: 700,
-            color: "#ffffff",
-            backgroundColor: statusColors[driver.Status],
-          }}
-        />
-      </Box>
-    </Card>
-  );
+        </Box>
+      </Card>
+    );
+  };
 
   const renderPanel = (title, drivers, emptyMessage) => (
     <Card sx={{ flex: 1, ...panelStyle }}>

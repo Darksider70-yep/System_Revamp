@@ -21,11 +21,11 @@ const columns = [
     Cell: ({ value }) => (
       <span
         style={{
-          color: value.includes("Up-to-date") ? "#4ade80" : "#fbbf24",
+          color: String(value || "").includes("Up-to-date") ? "#4ade80" : "#fbbf24",
           fontWeight: 700,
         }}
       >
-        {value}
+        {value || "Unknown"}
       </span>
     ),
   },
@@ -33,8 +33,8 @@ const columns = [
     Header: "Risk",
     accessor: "riskLevel",
     Cell: ({ value }) => {
-      const riskPercent = value === "High" ? 90 : value === "Medium" ? 60 : 20;
-      const barColor = value === "High" ? "#f43f5e" : value === "Medium" ? "#f59e0b" : "#22c55e";
+      const riskPercent = value === "High" ? 90 : value === "Medium" ? 60 : value === "Low" ? 20 : 35;
+      const barColor = value === "High" ? "#f43f5e" : value === "Medium" ? "#f59e0b" : value === "Low" ? "#22c55e" : "#94a3b8";
 
       return (
         <div
@@ -63,6 +63,7 @@ const columns = [
     Header: "Actions",
     accessor: "actions",
     Cell: ({ row }) => {
+      const disabled = typeof row.original.handleAttack !== "function";
       const handleMouseOver = (e) => {
         e.target.style.background = "linear-gradient(120deg, #4338ca, #0369a1)";
         e.target.style.boxShadow = "0 10px 18px rgba(67, 56, 202, 0.5)";
@@ -76,6 +77,7 @@ const columns = [
         <button
           className="attack-btn"
           onClick={() => row.original.handleAttack(row.original)}
+          disabled={disabled}
           style={{
             background: "linear-gradient(120deg, #4f46e5, #0284c7)",
             color: "#e2e8f0",
@@ -84,11 +86,12 @@ const columns = [
             boxShadow: "0 8px 14px rgba(79, 70, 229, 0.42)",
             padding: "7px 12px",
             border: "1px solid rgba(125, 211, 252, 0.35)",
-            cursor: "pointer",
+            cursor: disabled ? "not-allowed" : "pointer",
+            opacity: disabled ? 0.6 : 1,
             transition: "all 0.2s ease-in-out",
           }}
-          onMouseOver={handleMouseOver}
-          onMouseOut={handleMouseOut}
+          onMouseOver={disabled ? undefined : handleMouseOver}
+          onMouseOut={disabled ? undefined : handleMouseOut}
         >
           Simulate Attack
         </button>

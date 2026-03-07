@@ -1,27 +1,27 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
-  Paper,
   TablePagination,
+  TableRow,
   TextField,
-  Box,
   Typography,
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
 } from "@mui/material";
-import { useTable, usePagination, useGlobalFilter, useSortBy } from "react-table";
+import { useGlobalFilter, usePagination, useSortBy, useTable } from "react-table";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import columnsData from "./InstalledAppsTableColumns";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { API_ENDPOINTS } from "../apiConfig";
 
 const COLORS = ["#38bdf8", "#f59e0b"];
 
@@ -47,9 +47,9 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const InstalledAppsTable = ({ data }) => {
+const InstalledAppsTable = ({ data, loading = false, error = "", onRefresh = null, onSimulateAttack = null }) => {
   const [attackLoading, setAttackLoading] = useState(false);
-  const [attackError, setAttackError] = useState(null);
+  const [attackError, setAttackError] = useState("");
   const [attackResult, setAttackResult] = useState(null);
   const [attackDialogOpen, setAttackDialogOpen] = useState(false);
 
@@ -66,122 +66,110 @@ const InstalledAppsTable = ({ data }) => {
     [data]
   );
 
-  const handleAttack = useCallback(async (appRow) => {
-    const software = appRow?.name || "Unknown Software";
-    setAttackDialogOpen(true);
-    setAttackLoading(true);
-    setAttackError(null);
-    setAttackResult(null);
-
-    try {
-      const response = await fetch(`${API_ENDPOINTS.scanner}/simulate-attack`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          software,
-          current: appRow?.current,
-          latest: appRow?.latest,
-          riskLevel: appRow?.riskLevel,
-        }),
-      });
-
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.detail || payload?.error || `Simulation failed (${response.status})`);
+  const handleAttack = useCallback(
+    async (appRow) => {
+      if (!onSimulateAttack) {
+        return;
       }
-      setAttackResult(payload);
-    } catch (error) {
-      setAttackError(error?.message || "Attack simulation failed");
-    } finally {
-      setAttackLoading(false);
-    }
-  }, []);
+      setAttackDialogOpen(true);
+      setAttackLoading(true);
+      setAttackError("");
+      setAttackResult(null);
+      try {
+        const result = await onSimulateAttack(appRow);
+        setAttackResult(result || null);
+      } catch (requestError) {
+        setAttackError(requestError.message || "Attack simulation failed.");
+      } finally {
+        setAttackLoading(false);
+      }
+    },
+    [onSimulateAttack]
+  );
 
   const tableData = useMemo(() => data.map((row) => ({ ...row, handleAttack })), [data, handleAttack]);
 
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    prepareRow,
-    page,
-    state,
-    setGlobalFilter,
-    gotoPage,
-    setPageSize,
-  } = useTable({ columns, data: tableData, initialState: { pageSize: 5 } }, useGlobalFilter, useSortBy, usePagination);
+  const { getTableProps, getTableBodyProps, headerGroups, prepareRow, page, state, setGlobalFilter, gotoPage, setPageSize } =
+    useTable({ columns, data: tableData, initialState: { pageSize: 8 } }, useGlobalFilter, useSortBy, usePagination);
 
   const { globalFilter, pageIndex, pageSize } = state;
 
   return (
-    <Box sx={{ p: 3, minHeight: "100vh" }}>
+    <Box sx={{ p: { xs: 1, md: 2 } }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2, gap: 1.5 }}>
+        <Typography variant="h4" sx={{ fontSize: { xs: 24, md: 30 }, fontWeight: 800, color: "#e2e8f0" }}>
+          Installed Applications
+        </Typography>
+        {onRefresh ? (
+          <Button
+            variant="outlined"
+            onClick={onRefresh}
+            disabled={loading}
+            sx={{
+              color: "#bae6fd",
+              borderColor: "rgba(56, 189, 248, 0.45)",
+              "&:hover": { borderColor: "#38bdf8" },
+            }}
+          >
+            Refresh
+          </Button>
+        ) : null}
+      </Box>
+
+      {error ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      ) : null}
+
       <Box
         sx={{
           background: "linear-gradient(145deg, rgba(5, 13, 34, 0.88), rgba(8, 23, 52, 0.8))",
           border: "1px solid rgba(56, 189, 248, 0.24)",
           borderRadius: 3,
           p: 3,
-          mb: 4,
+          mb: 3,
           boxShadow: "0 18px 38px rgba(2, 6, 23, 0.5)",
           backdropFilter: "blur(8px)",
         }}
       >
         <Typography variant="h6" align="center" sx={{ color: "#e2e8f0", mb: 2, fontWeight: 800 }}>
-          System Update Status
+          Update Compliance
         </Typography>
-        <Box sx={{ width: "100%", height: 300 }}>
+        <Box sx={{ width: "100%", height: 260 }}>
           <ResponsiveContainer>
             <PieChart>
-              <defs>
-                <filter id="glow" height="300%" width="300%" x="-75%" y="-75%">
-                  <feGaussianBlur stdDeviation="4" result="coloredBlur" />
-                  <feMerge>
-                    <feMergeNode in="coloredBlur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-
               <Pie
                 data={chartData}
                 cx="50%"
                 cy="50%"
                 label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                outerRadius={110}
-                innerRadius={50}
+                outerRadius={104}
+                innerRadius={45}
                 paddingAngle={3}
                 dataKey="value"
                 stroke="#0f172a"
                 strokeWidth={2}
-                filter="url(#glow)"
               >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index]} stroke={COLORS[index]} strokeWidth={2} />
                 ))}
               </Pie>
-
               <Tooltip content={<CustomTooltip />} />
-
-              <Legend
-                wrapperStyle={{
-                  color: "#cbd5e1",
-                  fontWeight: 700,
-                  bottom: -10,
-                }}
-              />
+              <Legend wrapperStyle={{ color: "#cbd5e1", fontWeight: 700 }} />
             </PieChart>
           </ResponsiveContainer>
         </Box>
       </Box>
 
       <TextField
-        label="Search apps"
+        label="Search applications"
         variant="outlined"
         value={globalFilter || ""}
-        onChange={(e) => setGlobalFilter(e.target.value)}
+        onChange={(event) => setGlobalFilter(event.target.value)}
         fullWidth
         sx={{
-          mb: 3,
+          mb: 2,
           "& .MuiOutlinedInput-root": {
             color: "#e2e8f0",
             backgroundColor: "rgba(15, 23, 42, 0.86)",
@@ -194,82 +182,90 @@ const InstalledAppsTable = ({ data }) => {
         }}
       />
 
-      <TableContainer
-        component={Paper}
-        sx={{
-          background: "linear-gradient(145deg, rgba(7, 15, 36, 0.9), rgba(9, 25, 58, 0.82))",
-          borderRadius: 3,
-          border: "1px solid rgba(56, 189, 248, 0.24)",
-          boxShadow: "0 18px 36px rgba(2, 6, 23, 0.52)",
-        }}
-      >
-        <Table {...getTableProps()}>
-          <TableHead>
-            {headerGroups.map((headerGroup) => (
-              <TableRow {...headerGroup.getHeaderGroupProps()} key={headerGroup.id}>
-                {headerGroup.headers.map((column) => (
-                  <TableCell
-                    {...column.getHeaderProps(column.getSortByToggleProps())}
-                    key={column.id}
-                    sx={{
-                      fontWeight: 800,
-                      color: "#bfdbfe",
-                      borderBottom: "1px solid rgba(56, 189, 248, 0.24)",
-                      background: "linear-gradient(90deg, rgba(8, 19, 44, 0.95), rgba(12, 29, 64, 0.95))",
-                    }}
-                  >
-                    {column.render("Header")}
-                    {column.isSorted ? (column.isSortedDesc ? " v" : " ^") : ""}
-                  </TableCell>
+      {loading ? (
+        <Box sx={{ py: 6, display: "flex", justifyContent: "center" }}>
+          <CircularProgress sx={{ color: "#38bdf8" }} />
+        </Box>
+      ) : tableData.length === 0 ? (
+        <Alert severity="info">No applications were returned by scanner/version services.</Alert>
+      ) : (
+        <>
+          <TableContainer
+            component={Paper}
+            sx={{
+              background: "linear-gradient(145deg, rgba(7, 15, 36, 0.9), rgba(9, 25, 58, 0.82))",
+              borderRadius: 3,
+              border: "1px solid rgba(56, 189, 248, 0.24)",
+              boxShadow: "0 18px 36px rgba(2, 6, 23, 0.52)",
+            }}
+          >
+            <Table {...getTableProps()}>
+              <TableHead>
+                {headerGroups.map((headerGroup) => (
+                  <TableRow {...headerGroup.getHeaderGroupProps()} key={headerGroup.id}>
+                    {headerGroup.headers.map((column) => (
+                      <TableCell
+                        {...column.getHeaderProps(column.getSortByToggleProps())}
+                        key={column.id}
+                        sx={{
+                          fontWeight: 800,
+                          color: "#bfdbfe",
+                          borderBottom: "1px solid rgba(56, 189, 248, 0.24)",
+                          background: "linear-gradient(90deg, rgba(8, 19, 44, 0.95), rgba(12, 29, 64, 0.95))",
+                        }}
+                      >
+                        {column.render("Header")}
+                        {column.isSorted ? (column.isSortedDesc ? " v" : " ^") : ""}
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-              </TableRow>
-            ))}
-          </TableHead>
-          <TableBody {...getTableBodyProps()}>
-            {page.map((row) => {
-              prepareRow(row);
-              return (
-                <TableRow
-                  {...row.getRowProps()}
-                  key={row.id}
-                  sx={{
-                    backgroundColor: "rgba(2, 6, 23, 0.34)",
-                    "&:hover": {
-                      backgroundColor: "rgba(30, 64, 175, 0.28)",
-                    },
-                    transition: "background-color 0.2s ease-in-out",
-                  }}
-                >
-                  {row.cells.map((cell) => (
-                    <TableCell
-                      {...cell.getCellProps()}
-                      key={cell.column.id}
-                      sx={{ color: "#e2e8f0", borderBottom: "1px solid rgba(56, 189, 248, 0.14)" }}
+              </TableHead>
+              <TableBody {...getTableBodyProps()}>
+                {page.map((row) => {
+                  prepareRow(row);
+                  return (
+                    <TableRow
+                      {...row.getRowProps()}
+                      key={row.id}
+                      sx={{
+                        backgroundColor: "rgba(2, 6, 23, 0.34)",
+                        "&:hover": { backgroundColor: "rgba(30, 64, 175, 0.28)" },
+                        transition: "background-color 0.2s ease-in-out",
+                      }}
                     >
-                      {cell.render("Cell")}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                      {row.cells.map((cell) => (
+                        <TableCell
+                          {...cell.getCellProps()}
+                          key={cell.column.id}
+                          sx={{ color: "#e2e8f0", borderBottom: "1px solid rgba(56, 189, 248, 0.14)" }}
+                        >
+                          {cell.render("Cell")}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-      <TablePagination
-        component="div"
-        count={tableData.length}
-        page={pageIndex}
-        onPageChange={(e, newPage) => gotoPage(newPage)}
-        rowsPerPage={pageSize}
-        onRowsPerPageChange={(e) => setPageSize(Number(e.target.value))}
-        rowsPerPageOptions={[5, 10, 20]}
-        sx={{
-          color: "#cbd5e1",
-          mt: 2,
-          "& .MuiTablePagination-actions button": { color: "#7dd3fc" },
-        }}
-      />
+          <TablePagination
+            component="div"
+            count={tableData.length}
+            page={pageIndex}
+            onPageChange={(_, newPage) => gotoPage(newPage)}
+            rowsPerPage={pageSize}
+            onRowsPerPageChange={(event) => setPageSize(Number(event.target.value))}
+            rowsPerPageOptions={[8, 15, 25]}
+            sx={{
+              color: "#cbd5e1",
+              mt: 2,
+              "& .MuiTablePagination-actions button": { color: "#7dd3fc" },
+            }}
+          />
+        </>
+      )}
 
       <Dialog
         open={attackDialogOpen}
@@ -296,14 +292,24 @@ const InstalledAppsTable = ({ data }) => {
             <Typography sx={{ color: "#fda4af" }}>{attackError}</Typography>
           ) : attackResult ? (
             <Box sx={{ display: "grid", gap: 1.2 }}>
-              <Typography><strong>Software:</strong> {attackResult.software}</Typography>
-              <Typography><strong>Vulnerability:</strong> {attackResult.vulnerability}</Typography>
-              <Typography><strong>Risk Level:</strong> {attackResult.riskLevel}</Typography>
-              <Typography><strong>Possible Attack:</strong> {attackResult.possibleAttack}</Typography>
-              <Typography><strong>Recommendation:</strong> {attackResult.recommendation}</Typography>
+              <Typography>
+                <strong>Software:</strong> {attackResult.software || "Unknown"}
+              </Typography>
+              <Typography>
+                <strong>Risk Level:</strong> {attackResult.riskLevel || "Unknown"}
+              </Typography>
+              <Typography>
+                <strong>Vulnerability:</strong> {attackResult.vulnerability || "N/A"}
+              </Typography>
+              <Typography>
+                <strong>Possible Attack:</strong> {attackResult.possibleAttack || "N/A"}
+              </Typography>
+              <Typography>
+                <strong>Recommendation:</strong> {attackResult.recommendation || "N/A"}
+              </Typography>
             </Box>
           ) : (
-            <Typography sx={{ color: "#94a3b8" }}>No simulation output.</Typography>
+            <Typography sx={{ color: "#94a3b8" }}>No simulation data returned.</Typography>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
