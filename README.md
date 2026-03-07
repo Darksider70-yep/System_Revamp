@@ -51,6 +51,7 @@ The compose stack uses healthchecks for all APIs and frontend, and service start
 - Version API: http://localhost:8002
 - System Monitor API: http://localhost:8003
 - Agent API: http://localhost:8004
+- Protection API: http://localhost:8005
 - Cloud Security Core API: http://localhost:9000
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3001
@@ -64,6 +65,7 @@ Docker service names:
 - `version_service`
 - `monitor_service`
 - `agent_service`
+- `protection_service`
 - `cloud_core`
 - `prometheus`
 - `grafana`

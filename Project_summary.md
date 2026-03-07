@@ -23,6 +23,7 @@ It provides:
 - `version_service` (port `8002`): latest-version resolution and version risk classification.
 - `monitor_service` (port `8003`): real-time metrics + fast scan + event detection.
 - `agent_service` (port `8004`): unified machine agent (scan, events, patching, command execution, offline sync).
+- `protection_service` (port `8005`): malware reputation scan for installed software with VirusTotal integration.
 - `cloud_core` (port `9000`): machine registry, ingestion, analytics, RBAC auth, command center, group/policy/playbook engines.
 - `frontend` (port `3000`): SOC-style React dashboard.
 - `postgres` (port `5432`): persistent cloud data store.
@@ -421,6 +422,11 @@ PostgreSQL tables in `cloud_core/models.py`:
 - `GET /system-info`
 - `GET /metrics`
 
+### Protection Service (`8005`)
+- `GET /`
+- `GET /protection/debug-key`
+- `POST /protection/scan`
+
 ### Cloud Core (`9000`)
 - Auth: `POST /auth/login`, `POST /auth/rotate-token`
 - Machine registration: `POST /register-machine`
@@ -482,4 +488,3 @@ This implementation uses live/runtime data paths:
 - For production, rotate secrets and replace default credentials.
 - Provide `NVD_API_KEY` and `GITHUB_TOKEN` to reduce rate-limit issues on vulnerability feeds.
 - RBAC and rate limits are enforced at cloud API boundaries.
-

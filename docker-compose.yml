@@ -171,6 +171,20 @@ services:
       - agent-cache:/app/backend/cache
     restart: unless-stopped
 
+  protection_service:
+    build:
+      context: .
+      dockerfile: docker/protection_service.Dockerfile
+    container_name: system-revamp-protection
+    init: true
+    environment:
+      VT_API_KEY: ${VT_API_KEY:-}
+      SERVICE_ALLOWED_ORIGINS: ${SERVICE_ALLOWED_ORIGINS:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8005:8005"
+    restart: unless-stopped
+
   frontend:
     build:
       context: .
@@ -187,6 +201,8 @@ services:
       monitor_service:
         condition: service_healthy
       agent_service:
+        condition: service_healthy
+      protection_service:
         condition: service_healthy
       cloud_core:
         condition: service_healthy

@@ -1,5 +1,6 @@
 import hashlib
 import os
+import platform
 import re
 import subprocess
 from pathlib import Path
@@ -149,6 +150,26 @@ def _get_authenticode_status(file_path: str):
 
 
 def _scan_installed_apps_with_paths():
+    if platform.system() != "Windows":
+        # Containerized Linux/macOS deployments do not expose Windows registry.
+        try:
+            from scanner_service.scanner import get_installed_apps
+        except Exception:
+            try:
+                from backend.scanner_service.scanner import get_installed_apps  # type: ignore
+            except Exception:
+                return []
+
+        apps = get_installed_apps()
+        return [
+            {
+                "name": str(item.get("name", "Unknown")).strip() or "Unknown",
+                "version": str(item.get("version", "Unknown")).strip() or "Unknown",
+                "path": None,
+            }
+            for item in apps
+        ]
+
     import winreg
 
     uninstall_paths = [
