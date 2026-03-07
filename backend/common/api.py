@@ -168,7 +168,7 @@ def apply_standard_api_controls(app: FastAPI, service_name: str) -> None:
                 ),
             )
 
-        if service_api_key and request.url.path not in {"/health", "/", "/docs", "/openapi.json", "/redoc"}:
+        if service_api_key and request.url.path not in {"/health", "/metrics", "/", "/docs", "/openapi.json", "/redoc"}:
             provided_key = request.headers.get("X-Service-Api-Key", "").strip()
             if provided_key != service_api_key:
                 return JSONResponse(

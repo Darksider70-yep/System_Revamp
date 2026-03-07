@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,7 @@ from common.api import (
     health_payload,
     success_payload,
 )
+from common.metrics import install_metrics, observe_scan_duration
 from common.offline_packages import (
     apply_offline_package as apply_offline_package_bytes,
     create_offline_package,
@@ -49,6 +51,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 apply_standard_api_controls(app, SERVICE_NAME)
+install_metrics(app, SERVICE_NAME)
 
 METRICS_MONITOR = MetricsMonitor(interval_seconds=10)
 FAST_SCANNER = FastScanner(max_workers=4)
@@ -272,7 +275,9 @@ def health() -> dict[str, Any]:
 
 @app.get("/scan")
 async def scan(request: Request, force_full: bool = Query(default=False)) -> dict[str, Any]:
+    started_at = time.perf_counter()
     scan_result = await FAST_SCANNER.fast_scan(force_full=force_full)
+    observe_scan_duration(SERVICE_NAME, "fast_forced" if force_full else "fast", time.perf_counter() - started_at)
     EVENT_ENGINE.ingest_scan(scan_result)
     metrics = await METRICS_MONITOR.latest()
     recent_events = EVENT_ENGINE.list_events(limit=25)

@@ -43,7 +43,7 @@ def install_cloud_security(app: FastAPI) -> None:
         client_ip = request.client.host if request.client else "unknown"
         limit_key = f"{client_ip}:{request.url.path}"
 
-        if request.url.path not in {"/docs", "/openapi.json", "/redoc"} and not limiter.allow(limit_key):
+        if request.url.path not in {"/docs", "/openapi.json", "/redoc", "/metrics", "/health"} and not limiter.allow(limit_key):
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 content={

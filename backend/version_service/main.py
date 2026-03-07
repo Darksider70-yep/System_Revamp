@@ -16,6 +16,7 @@ from common.api import (
     health_payload,
     success_payload,
 )
+from common.metrics import install_metrics
 
 try:
     from version_checker import check_latest_versions
@@ -40,6 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 apply_standard_api_controls(app, SERVICE_NAME)
+install_metrics(app, SERVICE_NAME)
 
 
 def _validate_installed_apps(payload: Any) -> Dict[str, str]:

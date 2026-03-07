@@ -37,15 +37,36 @@ services:
       context: .
       dockerfile: docker/cloud_core.Dockerfile
     container_name: system-revamp-cloud-core
+    init: true
     environment:
       CLOUD_DATABASE_URL: postgresql+asyncpg://systemrevamp:systemrevamp@postgres:5432/systemrevamp_cloud
       CLOUD_REDIS_URL: redis://redis:6379/0
       CLOUD_JWT_SECRET: ${CLOUD_JWT_SECRET:-change-this-jwt-secret}
+      CLOUD_JWT_KEYS_JSON: ${CLOUD_JWT_KEYS_JSON:-}
+      CLOUD_JWT_ACTIVE_KID: ${CLOUD_JWT_ACTIVE_KID:-default}
       CLOUD_ADMIN_USERNAME: ${CLOUD_ADMIN_USERNAME:-admin}
       CLOUD_ADMIN_PASSWORD: ${CLOUD_ADMIN_PASSWORD:-admin123}
+      CLOUD_AUTH_USERS_JSON: ${CLOUD_AUTH_USERS_JSON:-}
       CLOUD_API_KEY_SALT: ${CLOUD_API_KEY_SALT:-change-this-api-key-salt}
       CLOUD_JWT_EXPIRE_MINUTES: "60"
       CLOUD_RATE_LIMIT_PER_MINUTE: "1200"
+      CLOUD_SCAN_INGESTION_BATCH_SIZE: "50"
+      CLOUD_POLICY_REQUIRE_LATEST_SOFTWARE: "1"
+      CLOUD_POLICY_MAX_RISK_SCORE: "80"
+      CLOUD_POLICY_MANDATORY_DRIVER_PRESENCE: "1"
+      CLOUD_PLAYBOOK_EMERGENCY_PATCH_RISK: "90"
+      CLOUD_PLAYBOOK_SCAN_UNKNOWN_SOFTWARE: "1"
+      CLOUD_PLAYBOOK_PATCH_COOLDOWN_MINUTES: "30"
+      CLOUD_PLAYBOOK_SCAN_COOLDOWN_MINUTES: "15"
+      NVD_API_KEY: ${NVD_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      VULN_INTEL_TIMEOUT_SECONDS: "20"
+      VULN_INTEL_CACHE_SECONDS: "900"
+      VULN_INTEL_MAX_RESULTS_PER_SOURCE: "5"
+      ML_RISK_LOOKBACK_DAYS: "90"
+      ML_RISK_MIN_SAMPLES: "25"
+      ML_RISK_ESCALATION_DELTA: "10"
+      ML_CRITICAL_RISK_SCORE: "85"
       SERVICE_ALLOWED_ORIGINS: ${SERVICE_ALLOWED_ORIGINS:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
@@ -62,6 +83,7 @@ services:
       context: .
       dockerfile: docker/scanner_service.Dockerfile
     container_name: system-revamp-scanner
+    init: true
     environment:
       SERVICE_API_KEY: ${SERVICE_API_KEY:-}
       SERVICE_RATE_LIMIT_PER_MINUTE: "600"
@@ -76,6 +98,7 @@ services:
       context: .
       dockerfile: docker/driver_service.Dockerfile
     container_name: system-revamp-drivers
+    init: true
     environment:
       SERVICE_API_KEY: ${SERVICE_API_KEY:-}
       SERVICE_RATE_LIMIT_PER_MINUTE: "600"
@@ -90,6 +113,7 @@ services:
       context: .
       dockerfile: docker/version_service.Dockerfile
     container_name: system-revamp-version
+    init: true
     environment:
       SERVICE_API_KEY: ${SERVICE_API_KEY:-}
       SERVICE_RATE_LIMIT_PER_MINUTE: "600"
@@ -104,6 +128,7 @@ services:
       context: .
       dockerfile: docker/monitor_service.Dockerfile
     container_name: system-revamp-monitor
+    init: true
     environment:
       SERVICE_API_KEY: ${SERVICE_API_KEY:-}
       SERVICE_RATE_LIMIT_PER_MINUTE: "600"
@@ -111,10 +136,11 @@ services:
       CLOUD_AGENT_ENABLED: "0"
       CLOUD_CORE_URL: http://cloud_core:9000
       CLOUD_AGENT_UPLOAD_INTERVAL_SECONDS: "60"
+      CLOUD_AGENT_TIMEOUT_SECONDS: "20"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       cloud_core:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8003:8003"
     restart: unless-stopped
@@ -124,6 +150,7 @@ services:
       context: .
       dockerfile: docker/agent_service.Dockerfile
     container_name: system-revamp-agent
+    init: true
     environment:
       SERVICE_API_KEY: ${SERVICE_API_KEY:-}
       SERVICE_RATE_LIMIT_PER_MINUTE: "600"
@@ -131,11 +158,13 @@ services:
       CLOUD_AGENT_ENABLED: "1"
       CLOUD_CORE_URL: http://cloud_core:9000
       CLOUD_AGENT_UPLOAD_INTERVAL_SECONDS: "60"
+      CLOUD_AGENT_TIMEOUT_SECONDS: "20"
+      CLOUD_AGENT_MAX_PENDING_UPLOADS: "500"
       AGENT_COMMAND_POLL_INTERVAL_SECONDS: "10"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       cloud_core:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8004:8004"
     volumes:
@@ -147,18 +176,84 @@ services:
       context: .
       dockerfile: docker/frontend.Dockerfile
     container_name: system-revamp-frontend
+    init: true
     depends_on:
-      - scanner_service
-      - driver_service
-      - version_service
-      - monitor_service
-      - agent_service
-      - cloud_core
+      scanner_service:
+        condition: service_healthy
+      driver_service:
+        condition: service_healthy
+      version_service:
+        condition: service_healthy
+      monitor_service:
+        condition: service_healthy
+      agent_service:
+        condition: service_healthy
+      cloud_core:
+        condition: service_healthy
     ports:
       - "3000:80"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: system-revamp-prometheus
+    init: true
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      cloud_core:
+        condition: service_healthy
+      scanner_service:
+        condition: service_healthy
+      driver_service:
+        condition: service_healthy
+      version_service:
+        condition: service_healthy
+      monitor_service:
+        condition: service_healthy
+      agent_service:
+        condition: service_healthy
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.1.4
+    container_name: system-revamp-grafana
+    init: true
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    ports:
+      - "3001:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
 volumes:
   postgres-data:
   redis-data:
   agent-cache:
+  prometheus-data:
+  grafana-data:

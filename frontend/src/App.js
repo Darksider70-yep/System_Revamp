@@ -29,7 +29,7 @@ import {
 } from "@mui/material";
 import { alpha, createTheme, ThemeProvider } from "@mui/material/styles";
 import { Bolt, CloudSync, Download, Logout, NotificationsActive, Refresh, Security, UploadFile, Wifi } from "@mui/icons-material";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip as RechartTooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip as RechartTooltip, XAxis, YAxis, ZAxis } from "recharts";
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AGENT_API_ENDPOINTS, CLOUD_API_ENDPOINTS, CLOUD_WS_ENDPOINTS } from "./apiConfig";
@@ -74,6 +74,14 @@ const riskTone = (score) => {
   if (value >= 60) return { label: "High", color: "#f97316" };
   if (value >= 40) return { label: "Medium", color: "#f59e0b" };
   return { label: "Low", color: "#36d399" };
+};
+
+const clusterColor = (cluster) => {
+  const name = String(cluster || "").toLowerCase();
+  if (name === "critical") return "#f43f5e";
+  if (name === "high") return "#f97316";
+  if (name === "medium") return "#f59e0b";
+  return "#36d399";
 };
 
 const formatTs = (value) => {
@@ -138,6 +146,7 @@ function Dashboard({ token, onLogout }) {
   const fileInputRef = useRef(null);
   const [selectedMachineId, setSelectedMachineId] = useState(null);
   const [patchTarget, setPatchTarget] = useState("");
+  const [groupName, setGroupName] = useState("");
   const [liveConnected, setLiveConnected] = useState(false);
   const [alertsConnected, setAlertsConnected] = useState(false);
   const [alertFeed, setAlertFeed] = useState([]);
@@ -145,7 +154,9 @@ function Dashboard({ token, onLogout }) {
   const notify = (message, severity = "success") => setToast({ open: true, severity, message });
 
   const overviewQuery = useQuery({ queryKey: ["overview"], queryFn: () => apiFetch(CLOUD_API_ENDPOINTS.overview, { token }), refetchInterval: 30000 });
+  const heatmapQuery = useQuery({ queryKey: ["heatmap"], queryFn: () => apiFetch(CLOUD_API_ENDPOINTS.heatmap, { token }), refetchInterval: 20000 });
   const machinesQuery = useQuery({ queryKey: ["machines"], queryFn: () => apiFetch(`${CLOUD_API_ENDPOINTS.machines}?limit=200&offset=0`, { token }), refetchInterval: 20000 });
+  const groupsQuery = useQuery({ queryKey: ["groups"], queryFn: () => apiFetch(CLOUD_API_ENDPOINTS.groups, { token }), refetchInterval: 30000 });
   const agentHealthQuery = useQuery({ queryKey: ["agent-health"], queryFn: () => apiFetch(AGENT_API_ENDPOINTS.health), refetchInterval: 30000 });
   const packagesQuery = useQuery({ queryKey: ["offline-packages"], queryFn: () => apiFetch(AGENT_API_ENDPOINTS.offlinePackages), refetchInterval: 20000 });
   const pendingQuery = useQuery({ queryKey: ["pending-patches"], queryFn: () => apiFetch(AGENT_API_ENDPOINTS.pendingPatches), refetchInterval: 20000 });
@@ -155,11 +166,28 @@ function Dashboard({ token, onLogout }) {
 
   const detailQuery = useQuery({ queryKey: ["detail", selectedMachineId], enabled: Boolean(selectedMachineId), queryFn: () => apiFetch(`${CLOUD_API_ENDPOINTS.machineDetails}/${selectedMachineId}?events_limit=120&history_points=90`, { token }), refetchInterval: 15000 });
   const riskQuery = useQuery({ queryKey: ["risk", selectedMachineId], enabled: Boolean(selectedMachineId), queryFn: () => apiFetch(`${CLOUD_API_ENDPOINTS.riskScore}/${selectedMachineId}`, { token }), refetchInterval: 15000 });
+  const predictedRiskQuery = useQuery({ queryKey: ["predict-risk", selectedMachineId], enabled: Boolean(selectedMachineId), queryFn: () => apiFetch(`${CLOUD_API_ENDPOINTS.predictRisk}/${selectedMachineId}`, { token }), refetchInterval: 30000 });
+  const vulnerabilityIntelQuery = useQuery({ queryKey: ["vulnerability-intel", selectedMachineId], enabled: Boolean(selectedMachineId), queryFn: () => apiFetch(`${CLOUD_API_ENDPOINTS.vulnerabilities}/${selectedMachineId}/vulnerabilities?limit=15`, { token }), refetchInterval: 45000 });
   const eventsQuery = useQuery({ queryKey: ["events", selectedMachineId], enabled: Boolean(selectedMachineId), queryFn: () => apiFetch(`${CLOUD_API_ENDPOINTS.events}/${selectedMachineId}/events?limit=200`, { token }), refetchInterval: 15000 });
   const patchStatusQuery = useQuery({ queryKey: ["patch-status", selectedMachineId], enabled: Boolean(selectedMachineId), queryFn: () => apiFetch(`${CLOUD_API_ENDPOINTS.patchStatus}/${selectedMachineId}?limit=30`, { token }), refetchInterval: 15000 });
 
   const queueScan = useMutation({ mutationFn: () => apiFetch(`${CLOUD_API_ENDPOINTS.queueScan}/${selectedMachineId}/scan`, { token, method: "POST", body: { force_full: true } }), onSuccess: () => notify("Manual scan queued."), onError: (e) => notify(e.message, "error") });
   const queuePatch = useMutation({ mutationFn: () => apiFetch(`${CLOUD_API_ENDPOINTS.queuePatch}/${selectedMachineId}/patch`, { token, method: "POST", body: { software: patchTarget || null, patch_all: !patchTarget } }), onSuccess: () => { notify("Patch command queued."); qc.invalidateQueries({ queryKey: ["patch-status", selectedMachineId] }); }, onError: (e) => notify(e.message, "error") });
+  const createGroup = useMutation({
+    mutationFn: () => apiFetch(CLOUD_API_ENDPOINTS.groups, { token, method: "POST", body: { name: groupName, policy: { require_latest_software: true, max_risk_score: 80, mandatory_driver_presence: true } } }),
+    onSuccess: () => { setGroupName(""); notify("Fleet group created."); qc.invalidateQueries({ queryKey: ["groups"] }); },
+    onError: (e) => notify(e.message, "error"),
+  });
+  const addMachineToGroup = useMutation({
+    mutationFn: ({ groupId, machineId }) => apiFetch(`${CLOUD_API_ENDPOINTS.groups}/${groupId}/add-machine`, { token, method: "POST", body: { machine_id: machineId } }),
+    onSuccess: () => { notify("Machine assigned to group."); qc.invalidateQueries({ queryKey: ["groups"] }); },
+    onError: (e) => notify(e.message, "error"),
+  });
+  const scanGroup = useMutation({
+    mutationFn: (groupId) => apiFetch(`${CLOUD_API_ENDPOINTS.groups}/${groupId}/scan`, { token, method: "POST", body: { force_full: true } }),
+    onSuccess: (payload) => notify(`Queued ${payload.queued_commands} machine scans for group.`),
+    onError: (e) => notify(e.message, "error"),
+  });
   const applyOffline = useMutation({ mutationFn: uploadOfflinePackage, onSuccess: (payload) => { notify(`Offline package applied. ${payload.updates_available} updates scheduled.`); qc.invalidateQueries({ queryKey: ["pending-patches"] }); }, onError: (e) => notify(e.message, "error") });
   const autoPatch = useMutation({ mutationFn: () => apiFetch(AGENT_API_ENDPOINTS.autoPatch, { method: "POST", body: { software: [] } }), onSuccess: (payload) => { notify(`Auto patch completed. Patched ${payload.patched.length}.`); qc.invalidateQueries({ queryKey: ["pending-patches"] }); qc.invalidateQueries({ queryKey: ["patch-status", selectedMachineId] }); }, onError: (e) => notify(e.message, "error") });
 
@@ -170,7 +198,13 @@ function Dashboard({ token, onLogout }) {
       ws.onopen = () => setLiveConnected(true);
       ws.onclose = () => { setLiveConnected(false); if (!disposed) reconnect = setTimeout(connect, 3000); };
       ws.onerror = () => ws.close();
-      ws.onmessage = () => { qc.invalidateQueries({ queryKey: ["overview"] }); qc.invalidateQueries({ queryKey: ["machines"] }); if (selectedMachineId) ["detail", "risk", "events", "patch-status"].forEach((key) => qc.invalidateQueries({ queryKey: [key, selectedMachineId] })); };
+      ws.onmessage = () => {
+        qc.invalidateQueries({ queryKey: ["overview"] });
+        qc.invalidateQueries({ queryKey: ["heatmap"] });
+        qc.invalidateQueries({ queryKey: ["machines"] });
+        qc.invalidateQueries({ queryKey: ["groups"] });
+        if (selectedMachineId) ["detail", "risk", "predict-risk", "vulnerability-intel", "events", "patch-status"].forEach((key) => qc.invalidateQueries({ queryKey: [key, selectedMachineId] }));
+      };
     };
     connect(); return () => { disposed = true; if (reconnect) clearTimeout(reconnect); if (ws) ws.close(); };
   }, [qc, selectedMachineId]);
@@ -195,14 +229,21 @@ function Dashboard({ token, onLogout }) {
 
   const detail = detailQuery.data || {};
   const risk = riskQuery.data || {};
+  const predictedRisk = predictedRiskQuery.data || {};
   const events = Array.isArray(eventsQuery.data?.events) ? eventsQuery.data.events : [];
   const patches = Array.isArray(patchStatusQuery.data?.items) ? patchStatusQuery.data.items : [];
+  const vulnerabilityFindings = Array.isArray(vulnerabilityIntelQuery.data?.findings) ? vulnerabilityIntelQuery.data.findings : [];
   const metricRows = Array.isArray(detail.system_metrics) ? detail.system_metrics : [];
   const outdatedApps = Array.isArray(detail.outdated_software) ? detail.outdated_software : [];
   const driverIssues = Array.isArray(detail.driver_issues) ? detail.driver_issues : [];
+  const groups = Array.isArray(groupsQuery.data?.items) ? groupsQuery.data.items : [];
+  const heatmapPoints = Array.isArray(heatmapQuery.data?.points) ? heatmapQuery.data.points : [];
+  const clusterCounts = heatmapQuery.data?.clusters || { critical: 0, high: 0, medium: 0, low: 0 };
   const packages = Array.isArray(packagesQuery.data?.items) ? packagesQuery.data.items : [];
   const pendingPatches = Array.isArray(pendingQuery.data?.items) ? pendingQuery.data.items : [];
   const bars = machines.slice(0, 8).map((item) => ({ name: item.hostname.slice(0, 10), risk: Number(item.risk_score || 0) }));
+  const heatmapScatter = heatmapPoints.map((item) => ({ x: item.risk_score, y: item.vulnerability_count, z: item.health_status === "online" ? 2 : 1, name: item.hostname, cluster: item.cluster }));
+  const clusterPie = Object.entries(clusterCounts).map(([name, value]) => ({ name, value }));
   const latestMetric = metricRows[metricRows.length - 1] || {};
 
   const generateOfflinePackage = async () => {
@@ -270,6 +311,75 @@ function Dashboard({ token, onLogout }) {
             </Panel>
           </Grid>
 
+          <Grid item xs={12} lg={8}>
+            <Panel title="Global Security Heatmap" subtitle="Risk clusters, vulnerability concentration, machine health">
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={8}>
+                  <Box sx={{ height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" dataKey="x" name="Risk Score" domain={[0, 100]} />
+                        <YAxis type="number" dataKey="y" name="Vulnerabilities" />
+                        <ZAxis type="number" dataKey="z" range={[90, 220]} />
+                        <RechartTooltip cursor={{ strokeDasharray: "3 3" }} formatter={(value, name) => [value, name]} labelFormatter={(_, payload) => payload?.[0]?.payload?.name || ""} />
+                        <Scatter data={heatmapScatter} shape={(props) => <circle {...props} fill={clusterColor(props.payload.cluster)} />} />
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Box sx={{ height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={clusterPie} dataKey="value" nameKey="name" outerRadius={76} label>
+                          {clusterPie.map((entry) => <Cell key={entry.name} fill={clusterColor(entry.name)} />)}
+                        </Pie>
+                        <RechartTooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Panel>
+          </Grid>
+
+          <Grid item xs={12} lg={4}>
+            <Stack spacing={2}>
+              <Panel title="Predictive Risk Engine" subtitle="RandomForest vulnerability escalation forecast">
+                <Typography color="#9ab0c6">Predicted Escalation</Typography>
+                <Typography variant="h4" sx={monoSx}>{Number(predictedRisk.risk_prediction || 0).toFixed(2)}</Typography>
+                <Chip sx={{ mt: 1 }} label={`${predictedRisk.risk_level || "Unknown"} (${predictedRisk.model_state || "n/a"})`} />
+                <Typography variant="caption" display="block" color="#8ca5bc" sx={{ mt: 1 }}>
+                  Training Rows: {predictedRisk.training_rows || 0}
+                </Typography>
+              </Panel>
+              <Panel title="Enterprise Fleet Groups" subtitle="Group machines, assign policy baseline, run group scans">
+                <Stack spacing={1}>
+                  <TextField size="small" label="Group name" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
+                  <Button variant="contained" onClick={() => createGroup.mutate()} disabled={!groupName.trim()}>Create Group</Button>
+                </Stack>
+                <Stack spacing={1} sx={{ mt: 1.2, maxHeight: 170, overflowY: "auto" }}>
+                  {groups.map((group) => (
+                    <Paper key={group.id} sx={{ p: 1, borderRadius: 2 }}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Box>
+                          <Typography>{group.name}</Typography>
+                          <Typography variant="caption" color="#8ca5bc">{group.machine_count} machines</Typography>
+                        </Box>
+                        <Stack direction="row" spacing={1}>
+                          <Button size="small" onClick={() => scanGroup.mutate(group.id)}>Scan</Button>
+                          <Button size="small" disabled={!selectedMachineId} onClick={() => addMachineToGroup.mutate({ groupId: group.id, machineId: selectedMachineId })}>Add Selected</Button>
+                        </Stack>
+                      </Stack>
+                    </Paper>
+                  ))}
+                  {groups.length === 0 ? <Typography color="#8ca5bc">No groups configured.</Typography> : null}
+                </Stack>
+              </Panel>
+            </Stack>
+          </Grid>
+
           <Grid item xs={12} lg={7}>
             <Panel title="Selected Machine Telemetry" subtitle={detail.hostname || "No machine selected"}>
               <Box sx={{ height: 240, mb: 2 }}>
@@ -320,6 +430,36 @@ function Dashboard({ token, onLogout }) {
                 </Stack>
               </Panel>
             </Stack>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Panel title="Vulnerability Intelligence Integration" subtitle="NVD + GitHub Security Advisories + OS vendor advisories">
+              <TableContainer sx={{ maxHeight: 240 }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Software</TableCell>
+                      <TableCell>CVE</TableCell>
+                      <TableCell>Severity</TableCell>
+                      <TableCell>CVSS</TableCell>
+                      <TableCell>Source</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {vulnerabilityFindings.slice(0, 30).map((item) => (
+                      <TableRow key={`${item.source}-${item.cve}`}>
+                        <TableCell>{item.software}</TableCell>
+                        <TableCell>{item.cve}</TableCell>
+                        <TableCell>{item.severity}</TableCell>
+                        <TableCell sx={monoSx}>{item.cvss_score ?? "N/A"}</TableCell>
+                        <TableCell>{item.source}</TableCell>
+                      </TableRow>
+                    ))}
+                    {vulnerabilityFindings.length === 0 ? <TableRow><TableCell colSpan={5}>No live advisories matched current software inventory.</TableCell></TableRow> : null}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Panel>
           </Grid>
 
           <Grid item xs={12}>

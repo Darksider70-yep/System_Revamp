@@ -16,14 +16,19 @@ const agentApiBase = trimTrailingSlash(
 
 export const CLOUD_API_ENDPOINTS = {
   login: `${cloudApiBase}/auth/login`,
+  rotateToken: `${cloudApiBase}/auth/rotate-token`,
   overview: `${cloudApiBase}/dashboard/overview`,
+  heatmap: `${cloudApiBase}/dashboard/heatmap`,
   machines: `${cloudApiBase}/dashboard/machines`,
   machineDetails: `${cloudApiBase}/dashboard/machines`,
   riskScore: `${cloudApiBase}/risk-score`,
+  predictRisk: `${cloudApiBase}/predict-risk`,
+  vulnerabilities: `${cloudApiBase}/machines`,
   events: `${cloudApiBase}/machines`,
   queueScan: `${cloudApiBase}/machines`,
   queuePatch: `${cloudApiBase}/machines`,
   patchStatus: `${cloudApiBase}/patch-status`,
+  groups: `${cloudApiBase}/groups`,
 };
 
 export const AGENT_API_ENDPOINTS = {

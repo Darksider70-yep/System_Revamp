@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: "System Revamp Dashboards"
+    orgId: 1
+    folder: "System Revamp"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

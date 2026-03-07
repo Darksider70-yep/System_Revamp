@@ -10,6 +10,7 @@ import subprocess
 from dataclasses import asdict, dataclass
 from typing import Iterable, Sequence
 
+from common.metrics import record_patch_result
 
 @dataclass(slots=True)
 class PatchCandidate:
@@ -218,7 +219,7 @@ class PatchOrchestrator:
             result = self._run(command)
             if result.returncode != 0:
                 stderr_parts.append((result.stderr or result.stdout or "").strip())
-                return PatchInstallResult(
+                patch_result = PatchInstallResult(
                     status="patch_failed",
                     software=candidate.name,
                     new_version=candidate.current_version,
@@ -227,9 +228,11 @@ class PatchOrchestrator:
                     stderr=" | ".join(part for part in stderr_parts if part),
                     package_id=candidate.package_id,
                 )
+                record_patch_result("patch_orchestrator", candidate.provider, patch_result.status)
+                return patch_result
 
         new_version = self.detect_version(candidate.package_id, candidate.provider) or candidate.available_version
-        return PatchInstallResult(
+        patch_result = PatchInstallResult(
             status="patch_installed",
             software=candidate.name,
             new_version=new_version,
@@ -237,6 +240,8 @@ class PatchOrchestrator:
             command=combined_command,
             package_id=candidate.package_id,
         )
+        record_patch_result("patch_orchestrator", candidate.provider, patch_result.status)
+        return patch_result
 
     def auto_patch(self, targets: Sequence[str] | None = None) -> dict[str, list[dict[str, str]]]:
         patched: list[dict[str, str]] = []

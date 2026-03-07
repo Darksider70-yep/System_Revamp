@@ -4,15 +4,30 @@ The frontend is implemented using React and Material-UI, ensuring responsive des
 
 The backend integrates system-level commands to fetch application data, parse it into structured formats, and expose it through REST APIs for the frontend to consume. A new Cloud Security Core service centralizes machine registration, scan ingestion, global analytics, and websocket broadcasts.
 
-Phase 9 adds:
+Phase 11 adds:
 
-- Unified `/health` endpoints across services
-- Global risk engine: `GET /risk-score/{machine_id}`
-- Security event timeline API: `GET /events/{machine_id}`
-- Patch orchestration API: `POST /install-patch` + `GET /patch-status/{machine_id}`
-- Real-time alert websocket: `/alerts` (critical risk threshold > 80)
-- Audit log persistence (`audit_logs` table)
-- Rate limiting + secure headers middleware
+- Predictive ML risk engine (`GET /predict-risk/{machine_id}`) using `RandomForestClassifier` trained from real scan/event/patch history
+- Live vulnerability intelligence integration for machine inventories:
+  - NVD API
+  - GitHub Security Advisories API
+  - Ubuntu vendor advisory API
+- Enterprise fleet management APIs:
+  - `POST /groups`
+  - `POST /groups/{id}/add-machine`
+  - `POST /groups/{id}/scan`
+- Automated policy + playbook engine:
+  - Latest software compliance checks
+  - Risk threshold enforcement
+  - Driver presence enforcement
+  - Automatic patch/scan command workflows on trigger conditions
+- Agent resilience:
+  - Persistent offline upload queue
+  - Automatic retry/flush after reconnect
+- Prometheus metrics across services (`/metrics`) with Grafana dashboard provisioning
+- Expanded security model:
+  - Role-based access control (admin/analyst/operator)
+  - JWT key-id based token rotation support (`/auth/rotate-token`)
+  - Audit trail logging for group/policy/playbook actions
 
 The goal of System Revamp is to give users a centralized hub for system visibility, helping them quickly identify unused, outdated, or suspicious applications. This not only enhances user control but also supports better system health, optimization, and security management.
 
@@ -23,8 +38,10 @@ This repository includes an independent multi-service Docker setup.
 ### Start everything
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
+
+The compose stack uses healthchecks for all APIs and frontend, and service startup ordering waits for upstream dependencies to become healthy.
 
 ### Services
 
@@ -33,7 +50,10 @@ docker compose up --build
 - Drivers API: http://localhost:8001
 - Version API: http://localhost:8002
 - System Monitor API: http://localhost:8003
+- Agent API: http://localhost:8004
 - Cloud Security Core API: http://localhost:9000
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3001
 - PostgreSQL: localhost:5432
 - Redis: localhost:6379
 
@@ -43,7 +63,10 @@ Docker service names:
 - `driver_service`
 - `version_service`
 - `monitor_service`
+- `agent_service`
 - `cloud_core`
+- `prometheus`
+- `grafana`
 
 ### Cloud dashboard login
 

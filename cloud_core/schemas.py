@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -73,6 +74,8 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+    role: str
+    key_id: str
 
 
 class DashboardOverviewResponse(BaseModel):
@@ -231,3 +234,115 @@ class MachineCommandResultRequest(BaseModel):
     status: str = Field(..., min_length=1, max_length=30)
     result: dict[str, object] = Field(default_factory=dict)
     error: str | None = Field(default=None, max_length=1000)
+
+
+class RiskPredictionResponse(BaseModel):
+    machine_id: UUID
+    risk_prediction: float
+    risk_level: str
+    model: str
+    model_state: str
+    training_rows: int
+    lookback_days: int
+
+
+class VulnerabilityFindingRecord(BaseModel):
+    software: str
+    cve: str
+    severity: str
+    cvss_score: float | None = None
+    source: str
+    summary: str | None = None
+    url: str | None = None
+    published_at: str | None = None
+
+
+class VulnerabilityIntelligenceResponse(BaseModel):
+    machine_id: UUID
+    machine_os: str
+    queried_software: list[dict[str, str]]
+    findings_count: int
+    findings: list[VulnerabilityFindingRecord]
+    generated_at: datetime
+
+
+class GroupPolicy(BaseModel):
+    require_latest_software: bool | None = None
+    max_risk_score: int | None = Field(default=None, ge=0, le=100)
+    mandatory_driver_presence: bool | None = None
+
+
+class GroupCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+    policy: GroupPolicy | None = None
+    scan_schedule_cron: str | None = Field(default=None, max_length=120)
+    patch_window_start: str | None = Field(default=None, max_length=16)
+    patch_window_end: str | None = Field(default=None, max_length=16)
+    timezone: str | None = Field(default=None, max_length=64)
+
+
+class GroupPolicyUpdateRequest(BaseModel):
+    policy: GroupPolicy
+    scan_schedule_cron: str | None = Field(default=None, max_length=120)
+    patch_window_start: str | None = Field(default=None, max_length=16)
+    patch_window_end: str | None = Field(default=None, max_length=16)
+    timezone: str | None = Field(default=None, max_length=64)
+
+
+class GroupAddMachineRequest(BaseModel):
+    machine_id: UUID
+
+
+class GroupScanRequest(BaseModel):
+    force_full: bool = True
+
+
+class GroupMachineRecord(BaseModel):
+    machine_id: UUID
+    hostname: str
+    os: str
+    last_seen_at: datetime | None = None
+    risk_score: int | None = None
+
+
+class GroupResponse(BaseModel):
+    id: UUID
+    name: str
+    description: str | None = None
+    policy: dict[str, Any]
+    scan_schedule_cron: str | None = None
+    patch_window_start: str | None = None
+    patch_window_end: str | None = None
+    timezone: str | None = None
+    machine_count: int
+    machines: list[GroupMachineRecord] = Field(default_factory=list)
+    created_at: datetime
+
+
+class GroupListResponse(BaseModel):
+    total: int
+    items: list[GroupResponse]
+
+
+class GroupCommandResponse(BaseModel):
+    group_id: UUID
+    queued_commands: int
+    command_ids: list[UUID]
+    queued_at: datetime
+
+
+class HeatmapMachinePoint(BaseModel):
+    machine_id: UUID
+    hostname: str
+    risk_score: int
+    vulnerability_count: int
+    health_status: str
+    cluster: str
+
+
+class HeatmapResponse(BaseModel):
+    generated_at: datetime
+    total_machines: int
+    clusters: dict[str, int]
+    points: list[HeatmapMachinePoint]

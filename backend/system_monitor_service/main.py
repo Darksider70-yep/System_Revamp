@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from typing import Any, Dict, Optional
 
 import requests
@@ -18,6 +19,7 @@ from common.api import (
     health_payload,
     success_payload,
 )
+from common.metrics import install_metrics, observe_scan_duration
 from .cloud_agent import CloudAgentUploader
 from .event_engine import SecurityEventEngine
 from .fast_scanner import FastScanner
@@ -38,6 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 apply_standard_api_controls(app, SERVICE_NAME)
+install_metrics(app, SERVICE_NAME)
 
 METRICS_MONITOR = MetricsMonitor(interval_seconds=10)
 FAST_SCANNER = FastScanner(max_workers=4)
@@ -169,7 +172,9 @@ async def system_metrics(request: Request) -> Dict[str, Any]:
 
 @app.get("/fast-scan")
 async def fast_scan(request: Request, force_full: bool = Query(default=False)) -> Dict[str, Any]:
+    started_at = time.perf_counter()
     scan = await FAST_SCANNER.fast_scan(force_full=force_full)
+    observe_scan_duration(SERVICE_NAME, "fast_forced" if force_full else "fast", time.perf_counter() - started_at)
     EVENT_ENGINE.ingest_scan(scan)
     return success_payload(
         SERVICE_NAME,

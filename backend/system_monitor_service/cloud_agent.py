@@ -6,11 +6,13 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping
 
 import requests
+from requests.exceptions import RequestException
 
 from .event_engine import SecurityEventEngine
 from .fast_scanner import FastScanner
@@ -42,10 +44,16 @@ class CloudAgentUploader:
         default_identity_path = Path(__file__).resolve().parents[1] / "cache" / "cloud_agent_identity.json"
         configured_identity_path = os.getenv("CLOUD_AGENT_IDENTITY_PATH", str(default_identity_path))
         self._identity_path = Path(configured_identity_path)
+        default_pending_queue_path = Path(__file__).resolve().parents[1] / "cache" / "pending_scan_uploads.json"
+        self._pending_upload_queue_path = Path(
+            os.getenv("CLOUD_AGENT_PENDING_QUEUE_PATH", str(default_pending_queue_path))
+        )
+        self._max_pending_uploads = max(10, int(os.getenv("CLOUD_AGENT_MAX_PENDING_UPLOADS", "500")))
 
         self._machine_id: str | None = None
         self._api_key: str | None = None
         self._last_uploaded_event_ts: datetime | None = None
+        self._last_transport_warning_at = 0.0
 
         self._session = requests.Session()
 
@@ -60,6 +68,13 @@ class CloudAgentUploader:
     @property
     def api_key(self) -> str | None:
         return self._api_key
+
+    def _log_transport_warning(self, operation: str, exc: Exception) -> None:
+        now = time.time()
+        if now - self._last_transport_warning_at < 30:
+            return
+        self._last_transport_warning_at = now
+        LOGGER.warning("Cloud transport failure during %s: %s", operation, exc)
 
     async def run_forever(self) -> None:
         if not self._enabled:
@@ -85,6 +100,9 @@ class CloudAgentUploader:
             LOGGER.warning("Cloud agent has no machine identity; skipping upload")
             return None
 
+        headers = {"X-API-Key": self._api_key}
+        await self._flush_pending_uploads(headers)
+
         scan = await self._fast_scanner.fast_scan(force_full=force_full)
         metrics = await self._metrics_monitor.latest()
 
@@ -101,20 +119,16 @@ class CloudAgentUploader:
             "security_events": self._collect_new_events(recent_events),
         }
 
-        headers = {"X-API-Key": self._api_key}
-        response = await asyncio.to_thread(
-            self._session.post,
-            f"{self._cloud_base_url}/upload-scan",
-            json=payload,
-            headers=headers,
-            timeout=self._timeout,
-        )
+        response = await self._upload_payload(payload, headers)
+        if response is None:
+            return None
 
         if response.status_code == 401:
             LOGGER.warning("Cloud API rejected API key. Re-registering machine identity.")
             self._machine_id = None
             self._api_key = None
             self._identity_path.unlink(missing_ok=True)
+            self._enqueue_pending_upload(payload)
             return None
 
         if response.status_code == 404:
@@ -122,10 +136,12 @@ class CloudAgentUploader:
             self._machine_id = None
             self._api_key = None
             self._identity_path.unlink(missing_ok=True)
+            self._enqueue_pending_upload(payload)
             return None
 
         if response.status_code >= 400:
             LOGGER.warning("Cloud upload failed (%s): %s", response.status_code, response.text)
+            self._enqueue_pending_upload(payload)
             return None
 
         LOGGER.info("Cloud scan upload succeeded for machine %s", self._machine_id)
@@ -145,13 +161,17 @@ class CloudAgentUploader:
         if not self._machine_id or not self._api_key:
             return None
 
-        response = await asyncio.to_thread(
-            self._session.get,
-            f"{self._cloud_base_url}/agent/commands/next",
-            params={"machine_id": self._machine_id},
-            headers={"X-API-Key": self._api_key},
-            timeout=self._timeout,
-        )
+        try:
+            response = await asyncio.to_thread(
+                self._session.get,
+                f"{self._cloud_base_url}/agent/commands/next",
+                params={"machine_id": self._machine_id},
+                headers={"X-API-Key": self._api_key},
+                timeout=self._timeout,
+            )
+        except RequestException as exc:
+            self._log_transport_warning("command poll", exc)
+            return None
 
         if response.status_code == 401:
             LOGGER.warning("Cloud command poll rejected API key. Re-registering machine identity.")
@@ -185,17 +205,21 @@ class CloudAgentUploader:
         if not self._machine_id or not self._api_key:
             return False
 
-        response = await asyncio.to_thread(
-            self._session.post,
-            f"{self._cloud_base_url}/agent/commands/{command_id}/result",
-            json={
-                "status": status,
-                "result": dict(result or {}),
-                "error": error,
-            },
-            headers={"X-API-Key": self._api_key},
-            timeout=self._timeout,
-        )
+        try:
+            response = await asyncio.to_thread(
+                self._session.post,
+                f"{self._cloud_base_url}/agent/commands/{command_id}/result",
+                json={
+                    "status": status,
+                    "result": dict(result or {}),
+                    "error": error,
+                },
+                headers={"X-API-Key": self._api_key},
+                timeout=self._timeout,
+            )
+        except RequestException as exc:
+            self._log_transport_warning("command result upload", exc)
+            return False
         if response.status_code >= 400:
             LOGGER.warning("Cloud command result update failed (%s): %s", response.status_code, response.text)
             return False
@@ -237,12 +261,16 @@ class CloudAgentUploader:
             "ram_gb": max(1, int(round(float(system_info.get("ram_gb", 1))))),
         }
 
-        response = await asyncio.to_thread(
-            self._session.post,
-            f"{self._cloud_base_url}/register-machine",
-            json=payload,
-            timeout=self._timeout,
-        )
+        try:
+            response = await asyncio.to_thread(
+                self._session.post,
+                f"{self._cloud_base_url}/register-machine",
+                json=payload,
+                timeout=self._timeout,
+            )
+        except RequestException as exc:
+            self._log_transport_warning("machine registration", exc)
+            return
 
         if response.status_code >= 400:
             LOGGER.warning("Machine registration failed (%s): %s", response.status_code, response.text)
@@ -259,6 +287,78 @@ class CloudAgentUploader:
         self._machine_id = machine_id
         self._api_key = api_key
         self._persist_identity_file(machine_id=machine_id, api_key=api_key)
+
+    def _load_pending_uploads(self) -> List[Dict[str, Any]]:
+        if not self._pending_upload_queue_path.exists():
+            return []
+        try:
+            payload = json.loads(self._pending_upload_queue_path.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+        rows = payload.get("pending_uploads", [])
+        return rows if isinstance(rows, list) else []
+
+    def _persist_pending_uploads(self, rows: List[Dict[str, Any]]) -> None:
+        try:
+            self._pending_upload_queue_path.parent.mkdir(parents=True, exist_ok=True)
+            self._pending_upload_queue_path.write_text(
+                json.dumps({"pending_uploads": rows[-self._max_pending_uploads :]}, indent=2),
+                encoding="utf-8",
+            )
+        except Exception:
+            LOGGER.exception("Unable to persist pending cloud uploads")
+
+    def _enqueue_pending_upload(self, payload: Mapping[str, Any]) -> None:
+        rows = self._load_pending_uploads()
+        rows.append(dict(payload))
+        self._persist_pending_uploads(rows)
+
+    async def _upload_payload(
+        self,
+        payload: Mapping[str, Any],
+        headers: Dict[str, str],
+        *,
+        queue_on_failure: bool = True,
+    ) -> requests.Response | None:
+        try:
+            response = await asyncio.to_thread(
+                self._session.post,
+                f"{self._cloud_base_url}/upload-scan",
+                json=dict(payload),
+                headers=headers,
+                timeout=self._timeout,
+            )
+        except RequestException as exc:
+            self._log_transport_warning("scan upload", exc)
+            if queue_on_failure:
+                self._enqueue_pending_upload(payload)
+            return None
+        return response
+
+    async def _flush_pending_uploads(self, headers: Dict[str, str]) -> None:
+        pending = self._load_pending_uploads()
+        if not pending:
+            return
+
+        remaining: List[Dict[str, Any]] = []
+        for index, payload in enumerate(pending):
+            response = await self._upload_payload(payload, headers, queue_on_failure=False)
+            if response is None:
+                remaining.append(payload)
+                continue
+            if response.status_code in {401, 404}:
+                self._machine_id = None
+                self._api_key = None
+                self._identity_path.unlink(missing_ok=True)
+                remaining.append(payload)
+                remaining.extend(pending[index + 1 :])
+                break
+            if response.status_code >= 400:
+                remaining.append(payload)
+                continue
+            LOGGER.info("Flushed queued scan payload for machine %s", self._machine_id)
+
+        self._persist_pending_uploads(remaining)
 
     def _persist_identity_file(self, machine_id: str, api_key: str) -> None:
         try:

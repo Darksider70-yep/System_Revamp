@@ -5,3 +5,4 @@ GPUtil>=1.4.0
 requests>=2.31.0
 packaging>=24.0
 python-multipart>=0.0.9
+prometheus-client>=0.22.0

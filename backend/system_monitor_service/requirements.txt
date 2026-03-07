@@ -4,3 +4,4 @@ psutil>=5.9.8
 GPUtil>=1.4.0
 requests>=2.31.0
 packaging>=24.0
+prometheus-client>=0.22.0

@@ -4,14 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, status
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from backend.common.api import allowed_origins_from_env, configure_logger
-from .auth import JWT_EXPIRE_MINUTES, create_admin_access_token, validate_admin_credentials
+from common.api import allowed_origins_from_env, configure_logger
+from common.metrics import install_metrics
+from .auth import JWT_EXPIRE_MINUTES, authenticate_user, create_access_token, get_current_user
 from .database import engine, get_redis_client, init_db
+from .group_routes import router as group_router
 from .platform_ops import CloudPipelineWorker
 from .machine_routes import router as machine_router
 from .scan_routes import router as scan_router
@@ -32,9 +34,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 install_cloud_security(app)
+install_metrics(app, "cloud_core")
 
 app.include_router(machine_router)
 app.include_router(scan_router)
+app.include_router(group_router)
 
 
 @app.on_event("startup")
@@ -128,17 +132,32 @@ async def health() -> dict[str, Any]:
 
 @app.post("/auth/login", response_model=TokenResponse)
 async def admin_login(payload: LoginRequest) -> TokenResponse:
-    if not validate_admin_credentials(payload.username, payload.password):
+    user = authenticate_user(payload.username, payload.password)
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin credentials.",
+            detail="Invalid credentials.",
         )
 
-    token = create_admin_access_token(subject=payload.username)
+    token, key_id = create_access_token(subject=user.username, role=user.role)
     return TokenResponse(
         access_token=token,
         token_type="bearer",
         expires_in=JWT_EXPIRE_MINUTES * 60,
+        role=user.role,
+        key_id=key_id,
+    )
+
+
+@app.post("/auth/rotate-token", response_model=TokenResponse)
+async def rotate_token(user: dict[str, str] = Depends(get_current_user)) -> TokenResponse:
+    token, key_id = create_access_token(subject=user["subject"], role=user["role"])
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=JWT_EXPIRE_MINUTES * 60,
+        role=user["role"],
+        key_id=key_id,
     )
 
 

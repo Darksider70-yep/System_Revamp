@@ -21,6 +21,7 @@ from common.api import (
     health_payload,
     success_payload,
 )
+from common.metrics import install_metrics, observe_scan_duration
 from common.offline_packages import create_offline_package
 from cloud_core.patch_orchestrator import PatchOrchestrator
 
@@ -43,6 +44,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 apply_standard_api_controls(app, SERVICE_NAME)
+install_metrics(app, SERVICE_NAME)
 PATCH_ORCHESTRATOR = PatchOrchestrator()
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -225,8 +227,10 @@ def health() -> Dict[str, Any]:
 @app.get("/scan")
 def scan_system(request: Request) -> Dict[str, Any]:
     """Scan installed applications for the current OS."""
+    started_at = time.perf_counter()
     try:
         apps = get_installed_apps()
+        observe_scan_duration(SERVICE_NAME, "full", time.perf_counter() - started_at)
         return success_payload(
             SERVICE_NAME,
             {"apps": apps},
@@ -234,6 +238,7 @@ def scan_system(request: Request) -> Dict[str, Any]:
             apps=apps,
         )
     except Exception as exc:
+        observe_scan_duration(SERVICE_NAME, "full_failed", time.perf_counter() - started_at)
         LOGGER.exception("Scan failed: %s", exc)
         raise HTTPException(status_code=500, detail="System scan failed.") from exc
 

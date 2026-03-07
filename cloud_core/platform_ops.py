@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -19,7 +20,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .audit import write_audit_log
 from .database import SessionLocal
 from .models import App, Driver, Machine, MachineCommand, ScanResult, SecurityEvent
+from .policy_playbook import evaluate_policies_and_playbooks
 from .schemas import MachineCommandItem, RiskScoreBreakdown, ScanUploadRequest
+from common.metrics import observe_scan_duration
 
 LOGGER = logging.getLogger("cloud_core.platform_ops")
 
@@ -29,6 +32,7 @@ CACHE_TTL_MACHINES = max(5, int(os.getenv("CLOUD_CACHE_TTL_MACHINES", "15")))
 CACHE_TTL_MACHINE_DETAIL = max(5, int(os.getenv("CLOUD_CACHE_TTL_MACHINE_DETAIL", "20")))
 
 SCAN_QUEUE_NAME = "system_revamp:scan_ingestion"
+SCAN_INGESTION_BATCH_SIZE = max(1, int(os.getenv("CLOUD_SCAN_INGESTION_BATCH_SIZE", "50")))
 
 
 def _to_utc(dt: datetime) -> datetime:
@@ -209,6 +213,7 @@ async def enqueue_scan(redis_client: object | None, payload: ScanUploadRequest) 
 
 
 async def persist_scan_payload(payload: ScanUploadRequest, app: FastAPI, queue_id: str | None = None) -> dict[str, Any]:
+    started_at = time.perf_counter()
     async with SessionLocal() as db:
         machine = await db.get(Machine, payload.machine_id)
         if machine is None:
@@ -294,7 +299,13 @@ async def persist_scan_payload(payload: ScanUploadRequest, app: FastAPI, queue_i
             await db.commit()
         except SQLAlchemyError:
             await db.rollback()
+            observe_scan_duration("cloud_core", "ingestion_failed", time.perf_counter() - started_at)
             raise
+
+        try:
+            await evaluate_policies_and_playbooks(app, machine.id, int(scan.id))
+        except Exception:
+            LOGGER.exception("Policy/playbook evaluation failed for machine %s", machine.id)
 
         redis_client = getattr(app.state, "redis", None)
         await invalidate_dashboard_cache(redis_client, machine_id=machine.id)
@@ -355,6 +366,7 @@ async def persist_scan_payload(payload: ScanUploadRequest, app: FastAPI, queue_i
                         details=alert_payload,
                     )
 
+        observe_scan_duration("cloud_core", "ingestion", time.perf_counter() - started_at)
         return {"scan_id": int(scan.id), "machine_id": machine.id, "timestamp": scan_timestamp}
 
 
@@ -530,10 +542,18 @@ class CloudPipelineWorker:
                 item = await self._redis.brpop(SCAN_QUEUE_NAME, timeout=5)
                 if not item:
                     continue
-                _, raw_payload = item
-                envelope = json.loads(raw_payload)
-                payload = ScanUploadRequest.model_validate(envelope.get("payload", {}))
-                await persist_scan_payload(payload, self._app, queue_id=str(envelope.get("queue_id", "")))
+
+                batch_payloads: list[str] = [item[1]]
+                for _ in range(SCAN_INGESTION_BATCH_SIZE - 1):
+                    raw_payload = await self._redis.rpop(SCAN_QUEUE_NAME)
+                    if not raw_payload:
+                        break
+                    batch_payloads.append(raw_payload)
+
+                for raw_payload in batch_payloads:
+                    envelope = json.loads(raw_payload)
+                    payload = ScanUploadRequest.model_validate(envelope.get("payload", {}))
+                    await persist_scan_payload(payload, self._app, queue_id=str(envelope.get("queue_id", "")))
             except asyncio.CancelledError:
                 raise
             except Exception:

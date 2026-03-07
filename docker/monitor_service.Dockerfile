@@ -6,6 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pciutils \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY backend/scanner_service/requirements.txt /tmp/requirements-scanner.txt
 COPY backend/version_service/requirements.txt /tmp/requirements-version.txt
 COPY backend/drivers_service/requirements.txt /tmp/requirements-drivers.txt
@@ -17,6 +21,9 @@ RUN pip install --no-cache-dir \
     -r /tmp/requirements-monitor.txt
 
 COPY . /app
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import sys,urllib.request;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8003/health', timeout=3).status == 200 else 1)"
 
 EXPOSE 8003
 CMD ["uvicorn", "system_monitor_service.main:app", "--host", "0.0.0.0", "--port", "8003"]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
@@ -10,7 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .auth import get_current_admin, get_machine_api_key, verify_machine_api_key
+from ml_engine.risk_engine import predict_machine_risk
+
+from .auth import get_machine_api_key, require_roles, verify_machine_api_key
 from .database import get_db
 from .models import App, Driver, Machine, MachineCommand, ScanResult, SecurityEvent
 from .platform_ops import (
@@ -32,10 +35,13 @@ from .platform_ops import (
     risk_score_formula,
     serialize_command,
 )
+from .vulnerability_intel import collect_software_vulnerabilities, vulnerability_response_payload
 from .schemas import (
     AppRecord,
     DashboardOverviewResponse,
     DriverRecord,
+    HeatmapMachinePoint,
+    HeatmapResponse,
     MachineCommandPollResponse,
     MachineCommandQueueResponse,
     MachineCommandResultRequest,
@@ -49,14 +55,19 @@ from .schemas import (
     PatchInstallResponse,
     PatchStatusItem,
     PatchStatusResponse,
+    RiskPredictionResponse,
     RiskScoreResponse,
     ScanUploadRequest,
     ScanUploadResponse,
     SecurityEventRecord,
     SecurityEventsResponse,
+    VulnerabilityIntelligenceResponse,
+    VulnerabilityFindingRecord,
 )
 
 router = APIRouter(tags=["scans"])
+READ_ACCESS = require_roles("admin", "analyst", "operator")
+COMMAND_ACCESS = require_roles("admin", "operator")
 
 
 def _is_outdated(app: AppRecord) -> bool:
@@ -91,7 +102,7 @@ async def upload_scan(
 @router.get("/dashboard/overview", response_model=DashboardOverviewResponse)
 async def dashboard_overview(
     request: Request,
-    _: str = Depends(get_current_admin),
+    _: str = Depends(READ_ACCESS),
     db: AsyncSession = Depends(get_db),
 ) -> DashboardOverviewResponse:
     cache_key = "dashboard:overview"
@@ -164,7 +175,7 @@ async def list_machines(
     request: Request,
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-    _: str = Depends(get_current_admin),
+    _: str = Depends(READ_ACCESS),
     db: AsyncSession = Depends(get_db),
 ) -> MachineListResponse:
     cache_key = f"dashboard:machines:{limit}:{offset}"
@@ -229,7 +240,7 @@ async def machine_detail(
     request: Request,
     events_limit: int = Query(default=100, ge=10, le=1000),
     history_points: int = Query(default=120, ge=20, le=1000),
-    _: str = Depends(get_current_admin),
+    _: str = Depends(READ_ACCESS),
     db: AsyncSession = Depends(get_db),
 ) -> MachineDetailResponse:
     cache_key = f"dashboard:machine:{machine_id}:{events_limit}:{history_points}"
@@ -376,7 +387,7 @@ async def machine_detail(
 @router.get("/risk-score/{machine_id}", response_model=RiskScoreResponse)
 async def machine_risk_score(
     machine_id: UUID,
-    _: str = Depends(get_current_admin),
+    _: str = Depends(READ_ACCESS),
     db: AsyncSession = Depends(get_db),
 ) -> RiskScoreResponse:
     machine = await db.get(Machine, machine_id)
@@ -393,12 +404,222 @@ async def machine_risk_score(
     return RiskScoreResponse(machine_id=machine_id, risk_score=score, breakdown=breakdown)
 
 
+@router.get("/predict-risk/{machine_id}", response_model=RiskPredictionResponse)
+async def predict_risk(
+    machine_id: UUID,
+    _: str = Depends(READ_ACCESS),
+    db: AsyncSession = Depends(get_db),
+) -> RiskPredictionResponse:
+    machine = await db.get(Machine, machine_id)
+    if machine is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found.")
+
+    try:
+        payload = await predict_machine_risk(db, machine_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    return RiskPredictionResponse(**payload)
+
+
+@router.get("/machines/{machine_id}/vulnerabilities", response_model=VulnerabilityIntelligenceResponse)
+async def machine_vulnerabilities(
+    machine_id: UUID,
+    request: Request,
+    limit: int = Query(default=15, ge=1, le=50),
+    _: str = Depends(READ_ACCESS),
+    db: AsyncSession = Depends(get_db),
+) -> VulnerabilityIntelligenceResponse:
+    machine = await db.get(Machine, machine_id)
+    if machine is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found.")
+
+    latest_scan = (
+        (
+            await db.execute(
+                select(ScanResult)
+                .where(ScanResult.machine_id == machine_id)
+                .order_by(ScanResult.timestamp.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if latest_scan is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Machine has no scan history.")
+
+    apps = (
+        (
+            await db.execute(
+                select(App)
+                .where(App.scan_id == latest_scan.id)
+                .order_by(App.risk_level.desc(), App.name.asc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not apps:
+        return VulnerabilityIntelligenceResponse(
+            machine_id=machine_id,
+            machine_os=machine.os,
+            queried_software=[],
+            findings_count=0,
+            findings=[],
+            generated_at=datetime.now(timezone.utc),
+        )
+
+    redis_client = getattr(request.app.state, "redis", None)
+    semaphore = asyncio.Semaphore(4)
+
+    async def lookup(item: App) -> list[dict[str, Any]]:
+        async with semaphore:
+            return await collect_software_vulnerabilities(
+                machine_id=str(machine_id),
+                software_name=item.name,
+                current_version=item.current_version,
+                machine_os=machine.os,
+                redis_client=redis_client,
+            )
+
+    gathered = await asyncio.gather(*(lookup(item) for item in apps), return_exceptions=False)
+    combined_findings: list[dict[str, Any]] = []
+    for rows in gathered:
+        combined_findings.extend(rows)
+
+    deduped: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in combined_findings:
+        source = str(row.get("source", "")).strip()
+        cve = str(row.get("cve", "")).strip()
+        if not source or not cve:
+            continue
+        key = (source, cve)
+        existing = deduped.get(key)
+        if existing is None:
+            deduped[key] = row
+            continue
+        existing_score = existing.get("cvss_score")
+        candidate_score = row.get("cvss_score")
+        existing_val = float(existing_score) if isinstance(existing_score, (int, float)) else -1.0
+        candidate_val = float(candidate_score) if isinstance(candidate_score, (int, float)) else -1.0
+        if candidate_val > existing_val:
+            deduped[key] = row
+
+    software_rows = [{"name": item.name, "current_version": item.current_version} for item in apps]
+    payload = vulnerability_response_payload(
+        machine_id=str(machine_id),
+        machine_os=machine.os,
+        software_rows=software_rows,
+        findings=list(deduped.values()),
+    )
+    return VulnerabilityIntelligenceResponse(
+        machine_id=machine_id,
+        machine_os=payload["machine_os"],
+        queried_software=payload["queried_software"],
+        findings_count=payload["findings_count"],
+        findings=[VulnerabilityFindingRecord(**row) for row in payload["findings"]],
+        generated_at=datetime.fromisoformat(payload["generated_at"].replace("Z", "+00:00")),
+    )
+
+
+def _heatmap_cluster(score: int) -> str:
+    if score >= 85:
+        return "critical"
+    if score >= 65:
+        return "high"
+    if score >= 40:
+        return "medium"
+    return "low"
+
+
+@router.get("/dashboard/heatmap", response_model=HeatmapResponse)
+async def dashboard_heatmap(
+    _: str = Depends(READ_ACCESS),
+    db: AsyncSession = Depends(get_db),
+) -> HeatmapResponse:
+    latest_scan_ids = latest_scan_ids_subquery()
+
+    app_counts = (
+        (
+            await db.execute(
+                select(App.scan_id, func.count(App.id))
+                .where(
+                    App.scan_id.in_(select(latest_scan_ids.c.scan_id)),
+                    func.lower(App.risk_level).in_(["critical", "high", "medium"]),
+                )
+                .group_by(App.scan_id)
+            )
+        )
+        .all()
+    )
+    app_count_map = {int(scan_id): int(count) for scan_id, count in app_counts}
+
+    driver_counts = (
+        (
+            await db.execute(
+                select(Driver.scan_id, func.count(Driver.id))
+                .where(
+                    Driver.scan_id.in_(select(latest_scan_ids.c.scan_id)),
+                    func.lower(Driver.status) != "installed",
+                )
+                .group_by(Driver.scan_id)
+            )
+        )
+        .all()
+    )
+    driver_count_map = {int(scan_id): int(count) for scan_id, count in driver_counts}
+
+    latest_scans = (
+        (
+            await db.execute(
+                select(ScanResult)
+                .where(ScanResult.id.in_(select(latest_scan_ids.c.scan_id)))
+                .order_by(ScanResult.timestamp.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    latest_scan_by_machine = {scan.machine_id: scan for scan in latest_scans}
+
+    machine_rows = (await db.execute(select(Machine).order_by(Machine.hostname.asc()))).scalars().all()
+    cluster_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    points: list[HeatmapMachinePoint] = []
+    for machine in machine_rows:
+        scan = latest_scan_by_machine.get(machine.id)
+        risk_score = int(scan.risk_score) if scan is not None else int(machine.last_risk_score or 0)
+        cluster = _heatmap_cluster(risk_score)
+        cluster_counts[cluster] += 1
+        vulnerability_count = 0
+        if scan is not None:
+            vulnerability_count = app_count_map.get(scan.id, 0) + driver_count_map.get(scan.id, 0)
+
+        points.append(
+            HeatmapMachinePoint(
+                machine_id=machine.id,
+                hostname=machine.hostname,
+                risk_score=risk_score,
+                vulnerability_count=vulnerability_count,
+                health_status="online" if is_online(machine.last_seen_at) else "offline",
+                cluster=cluster,
+            )
+        )
+
+    return HeatmapResponse(
+        generated_at=datetime.now(timezone.utc),
+        total_machines=len(machine_rows),
+        clusters=cluster_counts,
+        points=points,
+    )
+
+
 @router.get("/events/{machine_id}", response_model=SecurityEventsResponse)
 @router.get("/machines/{machine_id}/events", response_model=SecurityEventsResponse)
 async def machine_events(
     machine_id: UUID,
     limit: int = Query(default=300, ge=1, le=2000),
-    _: str = Depends(get_current_admin),
+    _: str = Depends(READ_ACCESS),
     db: AsyncSession = Depends(get_db),
 ) -> SecurityEventsResponse:
     machine = await db.get(Machine, machine_id)
@@ -465,7 +686,7 @@ async def queue_manual_scan(
     machine_id: UUID,
     payload: ManualScanCommandRequest,
     request: Request,
-    admin_subject: str = Depends(get_current_admin),
+    admin_subject: str = Depends(COMMAND_ACCESS),
     db: AsyncSession = Depends(get_db),
 ) -> MachineCommandQueueResponse:
     return await _queue_command(
@@ -483,7 +704,7 @@ async def queue_machine_patch(
     machine_id: UUID,
     payload: MachinePatchCommandRequest,
     request: Request,
-    admin_subject: str = Depends(get_current_admin),
+    admin_subject: str = Depends(COMMAND_ACCESS),
     db: AsyncSession = Depends(get_db),
 ) -> MachineCommandQueueResponse:
     command_payload = {
@@ -497,7 +718,7 @@ async def queue_machine_patch(
 async def install_patch(
     payload: PatchInstallRequest,
     request: Request,
-    admin_subject: str = Depends(get_current_admin),
+    admin_subject: str = Depends(COMMAND_ACCESS),
     db: AsyncSession = Depends(get_db),
 ) -> PatchInstallResponse:
     queued = await _queue_command(
@@ -520,7 +741,7 @@ async def install_patch(
 async def patch_status(
     machine_id: UUID,
     limit: int = Query(default=50, ge=1, le=500),
-    _: str = Depends(get_current_admin),
+    _: str = Depends(READ_ACCESS),
     db: AsyncSession = Depends(get_db),
 ) -> PatchStatusResponse:
     machine = await db.get(Machine, machine_id)

@@ -19,9 +19,11 @@ from common.api import (
     health_payload,
     success_payload,
 )
+from common.metrics import install_metrics
 
 SERVICE_NAME = "driver_service"
 LOGGER = configure_logger(SERVICE_NAME)
+_LSPCI_FALLBACK_WARNED = False
 
 app = FastAPI(title="Driver Scanner Service", version="2.0.0")
 
@@ -34,6 +36,7 @@ app.add_middleware(
     allow_credentials=True,
 )
 apply_standard_api_controls(app, SERVICE_NAME)
+install_metrics(app, SERVICE_NAME)
 
 
 def _run(command: List[str], timeout: int = 45) -> subprocess.CompletedProcess[str]:
@@ -138,16 +141,59 @@ def _windows_drivers() -> Dict[str, Any]:
 
 
 def _linux_drivers() -> Dict[str, Any]:
-    installed_drivers: List[Dict[str, str]] = []
-    driver_issues: List[Dict[str, str]] = []
+    global _LSPCI_FALLBACK_WARNED
 
-    lspci_result = _run(["lspci", "-k"], timeout=30)
-    if lspci_result.returncode != 0:
+    def warn_lspci_fallback(message: str) -> None:
+        global _LSPCI_FALLBACK_WARNED
+        if _LSPCI_FALLBACK_WARNED:
+            return
+        LOGGER.warning(message)
+        _LSPCI_FALLBACK_WARNED = True
+
+    def fallback_loaded_modules() -> Dict[str, Any]:
+        modules_path = "/proc/modules"
+        installed_drivers: List[Dict[str, str]] = []
+        try:
+            with open(modules_path, "r", encoding="utf-8", errors="ignore") as handle:
+                for index, line in enumerate(handle):
+                    raw = line.strip()
+                    if not raw:
+                        continue
+                    module_name = raw.split(" ", 1)[0].strip()
+                    if not module_name:
+                        continue
+                    installed_drivers.append(
+                        {
+                            "Driver Name": module_name,
+                            "Device": "Kernel Module",
+                            "Status": "Installed",
+                            "Provider": "kernel",
+                            "Version": "Unknown",
+                        }
+                    )
+                    if index >= 250:
+                        break
+        except OSError:
+            return {"installedDrivers": [], "missingDrivers": [], "driverIssues": []}
+
         return {
-            "installedDrivers": [],
+            "installedDrivers": installed_drivers,
             "missingDrivers": [],
             "driverIssues": [],
         }
+
+    installed_drivers: List[Dict[str, str]] = []
+    driver_issues: List[Dict[str, str]] = []
+
+    try:
+        lspci_result = _run(["lspci", "-k"], timeout=30)
+    except FileNotFoundError:
+        warn_lspci_fallback("lspci not found; falling back to /proc/modules inventory")
+        return fallback_loaded_modules()
+
+    if lspci_result.returncode != 0:
+        warn_lspci_fallback(f"lspci command failed ({lspci_result.returncode}); using /proc/modules fallback")
+        return fallback_loaded_modules()
 
     current_device = ""
     current_driver = ""
