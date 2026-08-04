@@ -1,45 +1,157 @@
 {
-  "generatedAt": "2026-02-13 15:26:31",
+  "generatedAt": "2026-08-05 01:43:24",
   "apps": [
     {
-      "name": "AutoCAD Open in Desktop",
-      "version": "1.0.27.0"
+      "name": "${{arpDisplayName}}",
+      "version": "12.4"
     },
     {
-      "name": "Autodesk Access",
-      "version": "2.13.2.57"
+      "name": "${{arpDisplayName}}",
+      "version": "13.1"
     },
     {
-      "name": "Autodesk App Manager",
-      "version": "3.4.1"
+      "name": "7-Zip 26.00 (x64)",
+      "version": "26.00"
     },
     {
-      "name": "Autodesk Featured Apps",
-      "version": "3.4.1"
+      "name": "Antigravity IDE (User)",
+      "version": "2.1.1"
     },
     {
-      "name": "Autodesk Genuine Service",
-      "version": "7.5.0.226"
+      "name": "Application Verifier x64 External Package (DesktopEditions)",
+      "version": "10.1.28000.1839"
     },
     {
-      "name": "Autodesk Identity Manager",
-      "version": "1.14.0.3"
+      "name": "Application Verifier x64 External Package (OnecoreUAP)",
+      "version": "10.1.28000.1839"
     },
     {
       "name": "Autodesk Save to Web and Mobile",
       "version": "3.0.31"
     },
     {
-      "name": "AWS Command Line Interface v2",
-      "version": "2.33.18.0"
+      "name": "CMake",
+      "version": "4.3.2"
+    },
+    {
+      "name": "Compute Sanitizer",
+      "version": "13.1"
+    },
+    {
+      "name": "Copilot",
+      "version": "150.0.4078.96"
+    },
+    {
+      "name": "CRT Development",
+      "version": "13.1"
+    },
+    {
+      "name": "ctadvisor",
+      "version": "13.1"
+    },
+    {
+      "name": "CUBLAS Development",
+      "version": "13.1"
+    },
+    {
+      "name": "CUBLAS Runtime",
+      "version": "12.4"
+    },
+    {
+      "name": "CUBLAS Runtime",
+      "version": "13.1"
+    },
+    {
+      "name": "CUDA CCCL",
+      "version": "12.4"
+    },
+    {
+      "name": "CUDA CCCL",
+      "version": "13.1"
+    },
+    {
+      "name": "CUDA Profiler API",
+      "version": "13.1"
+    },
+    {
+      "name": "CUDART Runtime",
+      "version": "12.4"
+    },
+    {
+      "name": "CUDART Runtime",
+      "version": "13.1"
+    },
+    {
+      "name": "CUDART TileIR",
+      "version": "13.1"
+    },
+    {
+      "name": "CUFFT Development",
+      "version": "13.1"
+    },
+    {
+      "name": "cuobjdump",
+      "version": "13.1"
+    },
+    {
+      "name": "CUPTI",
+      "version": "13.1"
+    },
+    {
+      "name": "CURAND Development",
+      "version": "13.1"
+    },
+    {
+      "name": "CURAND Runtime",
+      "version": "12.4"
+    },
+    {
+      "name": "CURAND Runtime",
+      "version": "13.1"
+    },
+    {
+      "name": "CUSOLVER Development",
+      "version": "13.1"
+    },
+    {
+      "name": "CUSOLVER Runtime",
+      "version": "12.4"
+    },
+    {
+      "name": "CUSOLVER Runtime",
+      "version": "13.1"
+    },
+    {
+      "name": "CUSPARSE Development",
+      "version": "13.1"
+    },
+    {
+      "name": "CUSPARSE Runtime",
+      "version": "12.4"
+    },
+    {
+      "name": "CUSPARSE Runtime",
+      "version": "13.1"
+    },
+    {
+      "name": "cuxxfilt",
+      "version": "13.1"
     },
     {
       "name": "DBeaver 25.0.2 (current user)",
       "version": "25.0.2"
     },
     {
-      "name": "Dropbox",
-      "version": "241.4.4853"
+      "name": "Demo Suite",
+      "version": "12.4"
+    },
+    {
+      "name": "Disassembler",
+      "version": "13.1"
+    },
+    {
+      "name": "Docker Desktop",
+      "version": "4.84.0"
     },
     {
       "name": "Dropbox Update Helper",
@@ -79,7 +191,7 @@
     },
     {
       "name": "Google Chrome",
-      "version": "145.0.7632.68"
+      "version": "150.0.7871.188"
     },
     {
       "name": "HoYoPlay",
@@ -94,6 +206,10 @@
       "version": "21.0.6.0"
     },
     {
+      "name": "Kits Configuration Installer",
+      "version": "10.1.28000.1839"
+    },
+    {
       "name": "Launcher Prerequisites (x64)",
       "version": "1.0.0.0"
     },
@@ -103,11 +219,23 @@
     },
     {
       "name": "Lenovo Now",
-      "version": "4.5.0.24"
+      "version": "4.7.0.48"
     },
     {
       "name": "Lenovo Vantage Service",
-      "version": "4.2601.20.0"
+      "version": "5.1.2607.5"
+    },
+    {
+      "name": "libnvptxcompiler Development",
+      "version": "13.1"
+    },
+    {
+      "name": "Microsoft .NET Framework 4.8.1 SDK",
+      "version": "4.8.09032"
+    },
+    {
+      "name": "Microsoft .NET Framework 4.8.1 Targeting Pack",
+      "version": "4.8.09032"
     },
     {
       "name": "Microsoft .NET Host - 6.0.8 (x64)",
@@ -151,31 +279,27 @@
     },
     {
       "name": "Microsoft Edge",
-      "version": "144.0.3719.115"
+      "version": "151.0.4129.59"
     },
     {
       "name": "Microsoft Edge WebView2 Runtime",
-      "version": "144.0.3719.115"
+      "version": "151.0.4129.59"
     },
     {
       "name": "Microsoft GameInput",
-      "version": "10.1.26100.6879"
+      "version": "3.3.163.0"
     },
     {
       "name": "Microsoft Office Home and Student 2021 - en-us",
-      "version": "16.0.19628.20166"
+      "version": "16.0.20228.20124"
     },
     {
       "name": "Microsoft OneDrive",
-      "version": "26.007.0112.0002"
+      "version": "26.129.0706.0003"
     },
     {
       "name": "Microsoft OneNote - en-us",
-      "version": "16.0.19628.20166"
-    },
-    {
-      "name": "Microsoft Teams Meeting Add-in for Microsoft Office",
-      "version": "1.24.19202"
+      "version": "16.0.20228.20124"
     },
     {
       "name": "Microsoft Update Health Tools",
@@ -239,7 +363,7 @@
     },
     {
       "name": "Microsoft Visual Studio Code (User)",
-      "version": "1.109.3"
+      "version": "1.131.0"
     },
     {
       "name": "Microsoft Visual Studio Installer",
@@ -270,6 +394,42 @@
       "version": "8.0.0.33101"
     },
     {
+      "name": "MSI Development Tools",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "MySQL Documents",
+      "version": "8.0.45"
+    },
+    {
+      "name": "MySQL Examples and Samples",
+      "version": "8.0.45"
+    },
+    {
+      "name": "MySQL Installer",
+      "version": "1.6.16.0"
+    },
+    {
+      "name": "MySQL Router 8.0",
+      "version": "8.0.46"
+    },
+    {
+      "name": "MySQL Server 8.0",
+      "version": "8.0.46"
+    },
+    {
+      "name": "MySQL Shell",
+      "version": "8.0.46"
+    },
+    {
+      "name": "MySQL Workbench 8.0 CE",
+      "version": "8.0.47"
+    },
+    {
+      "name": "ninja",
+      "version": "1.13.2"
+    },
+    {
       "name": "Node.js",
       "version": "22.14.0"
     },
@@ -278,48 +438,96 @@
       "version": "8.7.5"
     },
     {
+      "name": "NPP Development",
+      "version": "13.1"
+    },
+    {
+      "name": "NPP Runtime",
+      "version": "12.4"
+    },
+    {
+      "name": "NPP Runtime",
+      "version": "13.1"
+    },
+    {
+      "name": "nvcc",
+      "version": "13.1"
+    },
+    {
       "name": "NvCpl",
       "version": "1.0"
     },
     {
-      "name": "NVIDIA AIUser Container",
-      "version": "1.44"
+      "name": "NVFATBIN Runtime",
+      "version": "12.4"
     },
     {
-      "name": "NVIDIA App 11.0.5.245",
-      "version": "11.0.5.245"
+      "name": "NVFATBIN Runtime",
+      "version": "13.1"
+    },
+    {
+      "name": "NVIDIA AIUser Container",
+      "version": "1.48"
+    },
+    {
+      "name": "NVIDIA App 11.0.6.383",
+      "version": "11.0.6.383"
     },
     {
       "name": "NVIDIA Backend",
-      "version": "11.0.5.245"
+      "version": "11.0.6.383"
     },
     {
       "name": "NVIDIA Container",
-      "version": "1.44"
+      "version": "1.48"
     },
     {
-      "name": "NVIDIA FrameView SDK 1.5.11504.36206172",
-      "version": "1.5.11504.36206172"
+      "name": "NVIDIA CUDA Development 12.4",
+      "version": "12.4"
     },
     {
-      "name": "NVIDIA Graphics Driver 581.86",
-      "version": "581.86"
+      "name": "NVIDIA CUDA Development 13.1",
+      "version": "13.1"
     },
     {
-      "name": "NVIDIA HD Audio Driver 1.4.5.0",
-      "version": "1.4.5.0"
+      "name": "NVIDIA CUDA Runtime 12.4",
+      "version": "12.4"
+    },
+    {
+      "name": "NVIDIA CUDA Runtime 13.1",
+      "version": "13.1"
+    },
+    {
+      "name": "NVIDIA CUDA Toolkit 12.4",
+      "version": "12.4"
+    },
+    {
+      "name": "NVIDIA CUDA Toolkit 13.1",
+      "version": "13.1"
+    },
+    {
+      "name": "NVIDIA FrameView SDK 1.5.11821.36727370",
+      "version": "1.5.11821.36727370"
+    },
+    {
+      "name": "NVIDIA Graphics Driver 595.97",
+      "version": "595.97"
+    },
+    {
+      "name": "NVIDIA HD Audio Driver 1.4.5.7",
+      "version": "1.4.5.7"
     },
     {
       "name": "NVIDIA Install Application",
-      "version": "2.1002.438.0"
+      "version": "2.1002.439.0"
     },
     {
       "name": "NVIDIA LocalSystem Container",
-      "version": "1.44"
+      "version": "1.48"
     },
     {
       "name": "NVIDIA MessageBus 3 for NvApp",
-      "version": "3.16"
+      "version": "3.20"
     },
     {
       "name": "NVIDIA NvDLISR",
@@ -331,19 +539,15 @@
     },
     {
       "name": "NVIDIA Platform Controllers and Framework",
-      "version": "580.79"
+      "version": "595.31"
     },
     {
-      "name": "NVIDIA Session Container",
-      "version": "1.44"
-    },
-    {
-      "name": "NVIDIA ShadowPlay 11.0.5.0",
-      "version": "11.0.5.0"
+      "name": "NVIDIA ShadowPlay 11.0.6.0",
+      "version": "11.0.6.0"
     },
     {
       "name": "NVIDIA Telemetry Client",
-      "version": "19.4.29.0"
+      "version": "19.5.6.0"
     },
     {
       "name": "NVIDIA USBC Driver 1.52.831.832",
@@ -351,27 +555,119 @@
     },
     {
       "name": "NVIDIA User Container",
-      "version": "1.44"
+      "version": "1.48"
     },
     {
-      "name": "NVIDIA Virtual Audio 4.65.0.3",
-      "version": "4.65.0.3"
+      "name": "NVIDIA Virtual Audio 4.65.0.12",
+      "version": "4.65.0.12"
     },
     {
       "name": "NVIDIA Watchdog Plugin for NvContainer",
-      "version": "1.44"
+      "version": "1.48"
+    },
+    {
+      "name": "NVJITLINK Runtime",
+      "version": "12.4"
+    },
+    {
+      "name": "NVJITLINK Runtime",
+      "version": "13.1"
+    },
+    {
+      "name": "NVJPEG Development",
+      "version": "13.1"
+    },
+    {
+      "name": "NVJPEG Runtime",
+      "version": "12.4"
+    },
+    {
+      "name": "NVJPEG Runtime",
+      "version": "13.1"
+    },
+    {
+      "name": "NVML Development",
+      "version": "13.1"
+    },
+    {
+      "name": "nvprune",
+      "version": "13.1"
+    },
+    {
+      "name": "NVRTC Development",
+      "version": "13.1"
+    },
+    {
+      "name": "NVRTC Runtime",
+      "version": "12.4"
+    },
+    {
+      "name": "NVRTC Runtime",
+      "version": "13.1"
+    },
+    {
+      "name": "NVTX Development",
+      "version": "13.1"
+    },
+    {
+      "name": "NVVM Development",
+      "version": "13.1"
     },
     {
       "name": "Office 16 Click-to-Run Extensibility Component",
-      "version": "16.0.19426.20170"
+      "version": "16.0.20131.20112"
     },
     {
-      "name": "Office 16 Click-to-Run Licensing Component",
-      "version": "16.0.19029.20208"
+      "name": "OPENCL Runtime",
+      "version": "12.4"
+    },
+    {
+      "name": "OPENCL Runtime",
+      "version": "13.1"
     },
     {
       "name": "Pokemon: Sword/Shield",
       "version": "Unknown"
+    },
+    {
+      "name": "Python 3.10.11 (64-bit)",
+      "version": "3.10.11150.0"
+    },
+    {
+      "name": "Python 3.10.11 Core Interpreter (64-bit)",
+      "version": "3.10.11150.0"
+    },
+    {
+      "name": "Python 3.10.11 Development Libraries (64-bit)",
+      "version": "3.10.11150.0"
+    },
+    {
+      "name": "Python 3.10.11 Documentation (64-bit)",
+      "version": "3.10.11150.0"
+    },
+    {
+      "name": "Python 3.10.11 Executables (64-bit)",
+      "version": "3.10.11150.0"
+    },
+    {
+      "name": "Python 3.10.11 pip Bootstrap (64-bit)",
+      "version": "3.10.11150.0"
+    },
+    {
+      "name": "Python 3.10.11 Standard Library (64-bit)",
+      "version": "3.10.11150.0"
+    },
+    {
+      "name": "Python 3.10.11 Tcl/Tk Support (64-bit)",
+      "version": "3.10.11150.0"
+    },
+    {
+      "name": "Python 3.10.11 Test Suite (64-bit)",
+      "version": "3.10.11150.0"
+    },
+    {
+      "name": "Python 3.10.11 Utility Scripts (64-bit)",
+      "version": "3.10.11150.0"
     },
     {
       "name": "Python 3.13.3 (64-bit)",
@@ -410,12 +706,40 @@
       "version": "3.13.3150.0"
     },
     {
+      "name": "Python Launcher",
+      "version": "3.10.11150.0"
+    },
+    {
       "name": "qBittorrent",
       "version": "4.6.7"
     },
     {
       "name": "Red Dead Redemption",
       "version": "Unknown"
+    },
+    {
+      "name": "Roblox Player for Daksh Gehlot",
+      "version": "Unknown"
+    },
+    {
+      "name": "Safe Exam Browser",
+      "version": "3.10.1.864"
+    },
+    {
+      "name": "Safe Exam Browser (x64)",
+      "version": "3.10.1.864"
+    },
+    {
+      "name": "SDK ARM64 Additions",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "SDK ARM64 Redistributables",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "SDK Debuggers",
+      "version": "10.1.28000.1839"
     },
     {
       "name": "SoundWire Server version 2.5",
@@ -430,12 +754,36 @@
       "version": "2.10.91.91"
     },
     {
+      "name": "Universal CRT Extension SDK",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Universal CRT Headers Libraries and Sources",
+      "version": "10.1.28000.1839"
+    },
+    {
       "name": "Universal CRT Redistributable",
       "version": "10.0.26624"
     },
     {
-      "name": "Unstop SmartHire 2.0.0",
-      "version": "2.0.0"
+      "name": "Universal CRT Redistributable",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Universal CRT Tools x64",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Universal CRT Tools x86",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Universal General MIDI DLS Extension SDK",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Unstop SmartHire 3.0.5",
+      "version": "3.0.5"
     },
     {
       "name": "vcpp_crt.redist.clickonce",
@@ -447,7 +795,7 @@
     },
     {
       "name": "VLC media player",
-      "version": "3.0.21"
+      "version": "3.0.23"
     },
     {
       "name": "vs_FileTracker_Singleton",
@@ -455,7 +803,247 @@
     },
     {
       "name": "WebAdvisor by McAfee",
-      "version": "4.1.1.1086"
+      "version": "4.1.1.1088"
+    },
+    {
+      "name": "WinAppDeploy",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows App Certification Kit Native Components",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows App Certification Kit SupportedApiList x86",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows App Certification Kit x64",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows App Certification Kit x64 (OnecoreUAP)",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows Desktop Extension SDK",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows Desktop Extension SDK Contracts",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows IoT Extension SDK",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows IoT Extension SDK Contracts",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows IP Over USB",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows Mobile Extension SDK",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows Mobile Extension SDK Contracts",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK AddOn",
+      "version": "10.1.0.0"
+    },
+    {
+      "name": "Windows SDK ARM64 Desktop Tools",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Desktop Headers arm64",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Desktop Headers x64",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Desktop Headers x86",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Desktop Libs arm64",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Desktop Libs x64",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Desktop Libs x86",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Desktop Tools arm64",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Desktop Tools x64",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Desktop Tools x86",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK DirectX x64 Remote",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK DirectX x86 Remote",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK EULA",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Facade Windows WinMD Versioned",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK for Windows Store Apps",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK for Windows Store Apps Contracts",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK for Windows Store Apps DirectX x86 Remote",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK for Windows Store Apps Headers",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK for Windows Store Apps Headers OnecoreUap",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK for Windows Store Apps Libs",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK for Windows Store Apps Metadata",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK for Windows Store Apps Tools",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK for Windows Store Managed Apps Libs",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Modern Non-Versioned Developer Tools",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Modern Versioned Developer Tools",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK OnecoreUap Headers arm64",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK OnecoreUap Headers x64",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK OnecoreUap Headers x86",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Redistributables",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows SDK Signing Tools",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows Software Development Kit - Windows 10.0.28000.1839",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows Subsystem for Linux",
+      "version": "2.6.3.0"
+    },
+    {
+      "name": "Windows Team Extension SDK",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "Windows Team Extension SDK Contracts",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WinRT Intellisense Desktop - en-us",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WinRT Intellisense Desktop - Other Languages",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WinRT Intellisense IoT - en-us",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WinRT Intellisense IoT - Other Languages",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WinRT Intellisense Mobile - en-us",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WinRT Intellisense PPI - en-us",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WinRT Intellisense PPI - Other Languages",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WinRT Intellisense UAP - en-us",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WinRT Intellisense UAP - Other Languages",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WPT Redistributables",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WPTx64 (DesktopEditions)",
+      "version": "10.1.28000.1839"
+    },
+    {
+      "name": "WPTx64 (OnecoreUAP)",
+      "version": "10.1.28000.1839"
     }
   ]
 }
