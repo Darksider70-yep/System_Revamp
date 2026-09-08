@@ -1,20 +1,42 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Query
-from fastapi.responses import StreamingResponse
-from fastapi.responses import Response
-from utils.scanner import get_installed_apps
-from pathlib import Path
 import io
 import json
+from pathlib import Path
+import sys
 import time
-import zipfile
 from typing import Dict, List
+import zipfile
+
+from fastapi import FastAPI, Query, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+
+_SERVICE_DIR = Path(__file__).resolve().parent
+_BACKEND_ROOT = _SERVICE_DIR.parent
+if str(_SERVICE_DIR) not in sys.path:
+    sys.path.insert(0, str(_SERVICE_DIR))
+if str(_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_ROOT))
+
+try:
+    from utils.scanner import get_installed_apps
+except ModuleNotFoundError:
+    from backend.scanner_service.utils.scanner import get_installed_apps
+
+try:
+    from routes.simulate_attack import router as simulate_attack_router
+except ModuleNotFoundError:
+    try:
+        from backend.routes.simulate_attack import router as simulate_attack_router
+    except Exception:
+        simulate_attack_router = None
 
 app = FastAPI(
     title="System Scanner Service",
     version="1.0.0"
 )
+
+if simulate_attack_router:
+    app.include_router(simulate_attack_router)
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 OFFLINE_CACHE_DIR = BACKEND_ROOT / "cache" / "offline_packages"
