@@ -19,10 +19,10 @@ import {
 } from "@mui/icons-material";
 
 const impactConfig = {
-  Critical: { color: "#f43f5e", bg: "rgba(244, 63, 94, 0.12)", border: "rgba(244, 63, 94, 0.4)", glow: "0 0 10px rgba(244, 63, 94, 0.4)" },
-  High: { color: "#f97316", bg: "rgba(249, 115, 22, 0.12)", border: "rgba(249, 115, 22, 0.4)", glow: "0 0 10px rgba(249, 115, 22, 0.4)" },
-  Medium: { color: "#f59e0b", bg: "rgba(245, 158, 11, 0.12)", border: "rgba(245, 158, 11, 0.4)", glow: "0 0 10px rgba(245, 158, 11, 0.4)" },
-  Low: { color: "#38bdf8", bg: "rgba(56, 189, 248, 0.12)", border: "rgba(56, 189, 248, 0.4)", glow: "0 0 10px rgba(56, 189, 248, 0.4)" },
+  Critical: { color: "#ef4444", bg: "rgba(239, 68, 68, 0.1)", border: "rgba(239, 68, 68, 0.3)" },
+  High: { color: "#f97316", bg: "rgba(249, 115, 22, 0.1)", border: "rgba(249, 115, 22, 0.3)" },
+  Medium: { color: "#f59e0b", bg: "rgba(245, 158, 11, 0.1)", border: "rgba(245, 158, 11, 0.3)" },
+  Low: { color: "#10b981", bg: "rgba(16, 185, 129, 0.1)", border: "rgba(16, 185, 129, 0.3)" },
 };
 
 const MissingDrivers = ({
@@ -44,50 +44,45 @@ const MissingDrivers = ({
       <Card
         key={key}
         sx={{
-          p: 2.5,
-          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(13, 20, 38, 0.6) 100%)",
-          borderRadius: "14px",
-          border: `1px solid ${isMissing ? cfg.border : "rgba(16, 185, 129, 0.25)"}`,
-          boxShadow: isMissing ? "0 8px 24px rgba(2, 6, 23, 0.4)" : "none",
+          p: 2,
+          backgroundColor: "#121824",
+          borderRadius: "10px",
+          border: `1px solid ${isMissing ? cfg.border : "rgba(255, 255, 255, 0.08)"}`,
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
           alignItems: { xs: "flex-start", sm: "center" },
-          gap: 2,
-          transition: "all 0.25s ease",
+          gap: 1.5,
+          transition: "all 0.15s ease",
           "&:hover": {
-            transform: "translateY(-2px)",
-            boxShadow: `0 12px 30px rgba(2, 6, 23, 0.6), 0 0 15px ${isMissing ? cfg.color + "33" : "rgba(16, 185, 129, 0.2)"}`,
-            borderColor: isMissing ? cfg.color : "#10b981",
+            borderColor: isMissing ? cfg.color : "rgba(16, 185, 129, 0.4)",
           },
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box
             sx={{
-              width: 44,
-              height: 44,
-              borderRadius: "12px",
-              background: isMissing
-                ? "linear-gradient(135deg, rgba(244, 63, 94, 0.2) 0%, rgba(249, 115, 22, 0.15) 100%)"
-                : "linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(56, 189, 248, 0.15) 100%)",
-              border: `1px solid ${isMissing ? "rgba(244, 63, 94, 0.4)" : "rgba(16, 185, 129, 0.4)"}`,
+              width: 38,
+              height: 38,
+              borderRadius: "8px",
+              backgroundColor: isMissing ? "rgba(239, 68, 68, 0.12)" : "rgba(16, 185, 129, 0.12)",
+              border: `1px solid ${isMissing ? "rgba(239, 68, 68, 0.25)" : "rgba(16, 185, 129, 0.25)"}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: isMissing ? "#fb7185" : "#34d399",
+              color: isMissing ? "#ef4444" : "#10b981",
               flexShrink: 0,
             }}
           >
-            <Memory sx={{ fontSize: 24 }} />
+            <Memory sx={{ fontSize: 20 }} />
           </Box>
 
           <Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Typography
                 sx={{
-                  fontWeight: 800,
-                  fontSize: "0.98rem",
+                  fontWeight: 600,
+                  fontSize: "0.92rem",
                   color: "#f8fafc",
                   fontFamily: "'JetBrains Mono', monospace",
                 }}
@@ -98,54 +93,56 @@ const MissingDrivers = ({
                 label={driver.Device || "Hardware"}
                 size="small"
                 sx={{
-                  backgroundColor: "rgba(15, 23, 42, 0.8)",
+                  backgroundColor: "#161f2e",
                   color: "#94a3b8",
-                  fontSize: "0.72rem",
-                  border: "1px solid rgba(148, 163, 184, 0.15)",
+                  fontSize: "0.7rem",
+                  border: "1px solid rgba(255, 255, 255, 0.06)",
+                  height: 20,
                 }}
               />
             </Box>
 
             {isMissing ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 0.5 }}>
-                <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.3 }}>
+                <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8" }}>
                   Risk Score: <strong style={{ color: cfg.color }}>{riskScore}/100</strong>
                 </Typography>
-                <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>•</Typography>
-                <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8" }}>
-                  Hardware impact: <strong style={{ color: cfg.color }}>{impact}</strong>
+                <Typography sx={{ fontSize: "0.75rem", color: "#64748b" }}>•</Typography>
+                <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                  Impact: <strong style={{ color: cfg.color }}>{impact}</strong>
                 </Typography>
               </Box>
             ) : (
-              <Typography sx={{ fontSize: "0.78rem", color: "#34d399", mt: 0.5, display: "flex", alignItems: "center", gap: 0.5 }}>
-                <CheckCircle sx={{ fontSize: 13 }} /> Driver operating normally
+              <Typography sx={{ fontSize: "0.75rem", color: "#10b981", mt: 0.3, display: "flex", alignItems: "center", gap: 0.4 }}>
+                <CheckCircle sx={{ fontSize: 12 }} /> Operating normally
               </Typography>
             )}
           </Box>
         </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, alignSelf: { xs: "flex-end", sm: "center" } }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, alignSelf: { xs: "flex-end", sm: "center" } }}>
           {isMissing && (
             <Chip
               label={`${impact} Impact`}
               sx={{
-                fontWeight: 800,
+                fontWeight: 600,
                 color: cfg.color,
                 backgroundColor: cfg.bg,
                 border: `1px solid ${cfg.border}`,
-                boxShadow: cfg.glow,
-                fontSize: "0.75rem",
+                fontSize: "0.72rem",
+                height: 24,
               }}
             />
           )}
           <Chip
             label={isMissing ? "Missing" : "Installed"}
             sx={{
-              fontWeight: 800,
+              fontWeight: 600,
               color: isMissing ? "#ffffff" : "#34d399",
-              backgroundColor: isMissing ? "rgba(220, 38, 38, 0.9)" : "rgba(16, 185, 129, 0.15)",
-              border: isMissing ? "1px solid #ef4444" : "1px solid rgba(16, 185, 129, 0.4)",
-              fontSize: "0.75rem",
+              backgroundColor: isMissing ? "#dc2626" : "rgba(16, 185, 129, 0.12)",
+              border: isMissing ? "1px solid #ef4444" : "1px solid rgba(16, 185, 129, 0.3)",
+              fontSize: "0.72rem",
+              height: 24,
             }}
           />
         </Box>
@@ -154,16 +151,14 @@ const MissingDrivers = ({
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {/* Top Driver Risk Banner */}
       <Card
         sx={{
-          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(13, 20, 38, 0.75) 100%)",
-          border: "1px solid rgba(56, 189, 248, 0.25)",
-          borderRadius: "16px",
-          p: 3,
-          boxShadow: "0 16px 40px rgba(2, 6, 23, 0.6)",
-          backdropFilter: "blur(12px)",
+          backgroundColor: "#121824",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          borderRadius: "12px",
+          p: 2.5,
         }}
       >
         <Box
@@ -173,16 +168,16 @@ const MissingDrivers = ({
             alignItems: "center",
             flexWrap: "wrap",
             gap: 2,
-            mb: 2.5,
+            mb: 2,
           }}
         >
           <Box>
-            <Typography sx={{ color: "#f8fafc", fontWeight: 800, fontSize: "1.2rem", display: "flex", alignItems: "center", gap: 1 }}>
-              <BuildCircle sx={{ color: "#38bdf8" }} />
+            <Typography sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "1.1rem", display: "flex", alignItems: "center", gap: 0.8 }}>
+              <BuildCircle sx={{ color: "#10b981" }} />
               Driver Risk Intelligence
             </Typography>
-            <Typography sx={{ color: "#94a3b8", fontSize: "0.85rem", mt: 0.3 }}>
-              Scans PCI/USB hardware device tree against verified Windows WHQL repository.
+            <Typography sx={{ color: "#94a3b8", fontSize: "0.82rem", mt: 0.2 }}>
+              Verifies local PCI/USB devices against Microsoft WHQL driver catalog.
             </Typography>
           </Box>
 
@@ -190,113 +185,112 @@ const MissingDrivers = ({
             variant="contained"
             onClick={onDownloadDrivers}
             disabled={downloadingDrivers || missing.length === 0 || !onDownloadDrivers}
-            startIcon={downloadingDrivers ? <CircularProgress size={18} sx={{ color: "#ffffff" }} /> : <Download />}
+            startIcon={downloadingDrivers ? <CircularProgress size={16} sx={{ color: "#ffffff" }} /> : <Download />}
             sx={{
-              background: "linear-gradient(135deg, #10b981 0%, #0284c7 100%)",
+              backgroundColor: "#10b981",
               color: "#ffffff",
-              fontWeight: 800,
-              fontSize: "0.88rem",
-              px: 3,
-              py: 1.1,
-              borderRadius: "10px",
-              boxShadow: "0 4px 20px rgba(16, 185, 129, 0.35)",
-              border: "1px solid rgba(56, 189, 248, 0.4)",
-              transition: "all 0.25s ease",
+              fontWeight: 600,
+              fontSize: "0.85rem",
+              px: 2.5,
+              py: 0.9,
+              borderRadius: "8px",
+              textTransform: "none",
+              boxShadow: "none",
               "&:hover": {
-                background: "linear-gradient(135deg, #059669 0%, #0369a1 100%)",
-                boxShadow: "0 6px 25px rgba(16, 185, 129, 0.5)",
-                transform: "translateY(-1px)",
+                backgroundColor: "#059669",
+                boxShadow: "none",
               },
               "&:disabled": {
-                background: "rgba(30, 41, 59, 0.5)",
+                backgroundColor: "rgba(255, 255, 255, 0.08)",
                 color: "#64748b",
               },
             }}
           >
-            {downloadingDrivers ? "Deploying Drivers..." : `Update ${missing.length} Missing Drivers`}
+            {downloadingDrivers ? "Updating Drivers..." : `Update ${missing.length} Missing Drivers`}
           </Button>
         </Box>
 
         {/* Driver Risk Level Indicators */}
-        <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           <Chip
             label={`Critical: ${riskSummary.critical || 0}`}
             sx={{
-              backgroundColor: "rgba(244, 63, 94, 0.14)",
-              color: "#fb7185",
-              border: "1px solid rgba(244, 63, 94, 0.4)",
-              fontWeight: 700,
-              boxShadow: (riskSummary.critical || 0) > 0 ? "0 0 10px rgba(244, 63, 94, 0.3)" : "none",
+              backgroundColor: "rgba(239, 68, 68, 0.12)",
+              color: "#f87171",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+              fontWeight: 600,
+              fontSize: "0.75rem",
             }}
           />
           <Chip
             label={`High: ${riskSummary.high || 0}`}
             sx={{
-              backgroundColor: "rgba(249, 115, 22, 0.14)",
+              backgroundColor: "rgba(249, 115, 22, 0.12)",
               color: "#fb923c",
-              border: "1px solid rgba(249, 115, 22, 0.4)",
-              fontWeight: 700,
+              border: "1px solid rgba(249, 115, 22, 0.3)",
+              fontWeight: 600,
+              fontSize: "0.75rem",
             }}
           />
           <Chip
             label={`Medium: ${riskSummary.medium || 0}`}
             sx={{
-              backgroundColor: "rgba(245, 158, 11, 0.14)",
+              backgroundColor: "rgba(245, 158, 11, 0.12)",
               color: "#fbbf24",
-              border: "1px solid rgba(245, 158, 11, 0.4)",
-              fontWeight: 700,
+              border: "1px solid rgba(245, 158, 11, 0.3)",
+              fontWeight: 600,
+              fontSize: "0.75rem",
             }}
           />
           <Chip
             label={`Low: ${riskSummary.low || 0}`}
             sx={{
-              backgroundColor: "rgba(56, 189, 248, 0.14)",
-              color: "#7dd3fc",
-              border: "1px solid rgba(56, 189, 248, 0.4)",
-              fontWeight: 700,
+              backgroundColor: "rgba(16, 185, 129, 0.12)",
+              color: "#34d399",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              fontWeight: 600,
+              fontSize: "0.75rem",
             }}
           />
         </Box>
       </Card>
 
       {/* Tabs for Missing vs Installed */}
-      <Box sx={{ borderBottom: 1, borderColor: "rgba(56, 189, 248, 0.2)" }}>
+      <Box sx={{ borderBottom: 1, borderColor: "rgba(255, 255, 255, 0.08)" }}>
         <Tabs
           value={activeTab}
           onChange={(e, v) => setActiveTab(v)}
           sx={{
             "& .MuiTabs-indicator": {
-              backgroundColor: "#38bdf8",
-              height: 3,
-              borderRadius: "3px 3px 0 0",
-              boxShadow: "0 0 10px #38bdf8",
+              backgroundColor: "#10b981",
+              height: 2,
             },
             "& .MuiTab-root": {
               color: "#94a3b8",
-              fontWeight: 700,
-              fontSize: "0.92rem",
+              fontWeight: 600,
+              fontSize: "0.88rem",
               textTransform: "none",
-              minHeight: 48,
+              minHeight: 44,
               "&.Mui-selected": {
-                color: "#38bdf8",
+                color: "#10b981",
               },
             },
           }}
         >
           <Tab
             label={
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Warning sx={{ fontSize: 18, color: missing.length ? "#fbbf24" : "#94a3b8" }} />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                <Warning sx={{ fontSize: 16, color: missing.length ? "#fbbf24" : "#94a3b8" }} />
                 <span>Missing Drivers</span>
                 <Chip
                   label={missing.length}
                   size="small"
                   sx={{
-                    height: 20,
-                    fontSize: "0.72rem",
-                    backgroundColor: missing.length ? "rgba(244, 63, 94, 0.2)" : "rgba(148, 163, 184, 0.1)",
-                    color: missing.length ? "#fb7185" : "#94a3b8",
-                    fontWeight: 800,
+                    height: 18,
+                    fontSize: "0.7rem",
+                    backgroundColor: missing.length ? "rgba(239, 68, 68, 0.2)" : "rgba(255, 255, 255, 0.08)",
+                    color: missing.length ? "#f87171" : "#94a3b8",
+                    fontWeight: 600,
                   }}
                 />
               </Box>
@@ -304,18 +298,18 @@ const MissingDrivers = ({
           />
           <Tab
             label={
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <CheckCircle sx={{ fontSize: 18, color: "#34d399" }} />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                <CheckCircle sx={{ fontSize: 16, color: "#10b981" }} />
                 <span>Installed & Verified</span>
                 <Chip
                   label={installed.length}
                   size="small"
                   sx={{
-                    height: 20,
-                    fontSize: "0.72rem",
+                    height: 18,
+                    fontSize: "0.7rem",
                     backgroundColor: "rgba(16, 185, 129, 0.15)",
                     color: "#34d399",
-                    fontWeight: 800,
+                    fontWeight: 600,
                   }}
                 />
               </Box>
@@ -326,25 +320,25 @@ const MissingDrivers = ({
 
       {/* Driver List Display */}
       {activeTab === 0 && (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {missing.length > 0 ? (
             missing.map((driver, idx) => renderDriverCard(driver, `missing-${idx}`))
           ) : (
             <Card
               sx={{
-                p: 5,
+                p: 4,
                 textAlign: "center",
-                background: "linear-gradient(135deg, rgba(15, 23, 42, 0.5) 0%, rgba(13, 20, 38, 0.4) 100%)",
+                backgroundColor: "#121824",
                 border: "1px dashed rgba(16, 185, 129, 0.3)",
-                borderRadius: "16px",
+                borderRadius: "12px",
               }}
             >
-              <CheckCircle sx={{ fontSize: 44, color: "#10b981", mb: 1 }} />
-              <Typography sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "1.1rem" }}>
-                All Hardware Drivers are Installed & Up-to-Date
+              <CheckCircle sx={{ fontSize: 36, color: "#10b981", mb: 1 }} />
+              <Typography sx={{ color: "#f8fafc", fontWeight: 600, fontSize: "1rem" }}>
+                All Hardware Drivers are Installed & Verified
               </Typography>
-              <Typography sx={{ color: "#94a3b8", fontSize: "0.85rem", mt: 0.5 }}>
-                No missing kernel or device drivers detected on this machine.
+              <Typography sx={{ color: "#94a3b8", fontSize: "0.82rem", mt: 0.3 }}>
+                No missing drivers found on this system.
               </Typography>
             </Card>
           )}
@@ -352,22 +346,22 @@ const MissingDrivers = ({
       )}
 
       {activeTab === 1 && (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {installed.length > 0 ? (
             installed.map((driver, idx) => renderDriverCard(driver, `installed-${idx}`))
           ) : (
             <Card
               sx={{
-                p: 5,
+                p: 4,
                 textAlign: "center",
-                background: "linear-gradient(135deg, rgba(15, 23, 42, 0.5) 0%, rgba(13, 20, 38, 0.4) 100%)",
-                border: "1px dashed rgba(148, 163, 184, 0.2)",
-                borderRadius: "16px",
+                backgroundColor: "#121824",
+                border: "1px dashed rgba(255, 255, 255, 0.1)",
+                borderRadius: "12px",
               }}
             >
-              <ErrorOutline sx={{ fontSize: 44, color: "#94a3b8", mb: 1 }} />
-              <Typography sx={{ color: "#94a3b8", fontWeight: 600 }}>
-                No active driver listings found in registry cache.
+              <ErrorOutline sx={{ fontSize: 36, color: "#94a3b8", mb: 1 }} />
+              <Typography sx={{ color: "#94a3b8", fontWeight: 500 }}>
+                No driver listings detected in active cache.
               </Typography>
             </Card>
           )}

@@ -30,20 +30,19 @@ const CustomTooltip = ({ active, payload }) => {
     return (
       <Box
         sx={{
-          background: "rgba(15, 23, 42, 0.95)",
-          border: "1px solid rgba(56, 189, 248, 0.4)",
-          padding: "10px 14px",
-          borderRadius: "10px",
+          backgroundColor: "#161f2e",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          padding: "8px 12px",
+          borderRadius: "8px",
           color: "#f8fafc",
-          boxShadow: "0 10px 25px rgba(2, 6, 23, 0.7)",
-          backdropFilter: "blur(12px)",
+          boxShadow: "0 6px 18px rgba(0, 0, 0, 0.4)",
         }}
       >
-        <Typography sx={{ fontSize: "0.82rem", color: "#94a3b8", mb: 0.25 }}>
+        <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", mb: 0.2 }}>
           {data.name}
         </Typography>
-        <Typography sx={{ fontSize: "1.1rem", fontWeight: 800, color: data.payload.fill || "#38bdf8" }}>
-          {data.value} <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "#cbd5e1" }}>applications</span>
+        <Typography sx={{ fontSize: "1rem", fontWeight: 700, color: data.payload.fill || "#10b981" }}>
+          {data.value} <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "#94a3b8" }}>apps</span>
         </Typography>
       </Box>
     );
@@ -101,7 +100,7 @@ const InstalledAppsTable = ({ data = [] }) => {
   const handleAttack = useCallback((appName) => {
     if (eventSourceRef.current) eventSourceRef.current.close();
     setAttackingApp(appName);
-    setAttackLogs([`[INIT] Target selected: ${appName}`, "[INFO] Establishing simulated sandboxed connection..."]);
+    setAttackLogs([`[INIT] Target selected: ${appName}`, "[INFO] Initializing sandboxed simulation environment..."]);
     setIsAttacking(true);
 
     const es = new EventSource(`http://localhost:8000/simulate-attack/${encodeURIComponent(appName)}`);
@@ -116,7 +115,7 @@ const InstalledAppsTable = ({ data = [] }) => {
     };
 
     es.onerror = () => {
-      setAttackLogs((prev) => [...prev, "[ERROR] Target simulator connection terminated."]);
+      setAttackLogs((prev) => [...prev, "[ERROR] Simulation connection ended."]);
       setIsAttacking(false);
       es.close();
     };
@@ -145,69 +144,60 @@ const InstalledAppsTable = ({ data = [] }) => {
   const { globalFilter, pageIndex, pageSize } = state;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
-      {/* Visual Analytics & Metric Cards */}
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      {/* Analytics & Metric Cards */}
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "1.2fr 2fr" },
-          gap: 3,
+          gridTemplateColumns: { xs: "1fr", lg: "1.1fr 2fr" },
+          gap: 2.5,
         }}
       >
         {/* Status Doughnut Chart */}
         <Box
           sx={{
-            background: "linear-gradient(145deg, rgba(15, 23, 42, 0.75) 0%, rgba(13, 20, 38, 0.65) 100%)",
-            border: "1px solid rgba(56, 189, 248, 0.2)",
-            borderRadius: "16px",
-            p: 3,
-            boxShadow: "0 12px 32px rgba(2, 6, 23, 0.5)",
-            backdropFilter: "blur(12px)",
+            backgroundColor: "#121824",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: "12px",
+            p: 2.5,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             position: "relative",
           }}
         >
-          <Box sx={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-            <Typography sx={{ color: "#f8fafc", fontWeight: 800, fontSize: "1.05rem" }}>
-              Application Integrity
+          <Box sx={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+            <Typography sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "0.95rem" }}>
+              Application Health
             </Typography>
             <Chip
               label={`${data.length} Total`}
               size="small"
               sx={{
-                background: "rgba(56, 189, 248, 0.12)",
-                color: "#7dd3fc",
-                border: "1px solid rgba(56, 189, 248, 0.3)",
-                fontWeight: 700,
-                fontSize: "0.75rem",
+                backgroundColor: "rgba(16, 185, 129, 0.12)",
+                color: "#10b981",
+                border: "1px solid rgba(16, 185, 129, 0.25)",
+                fontWeight: 600,
+                fontSize: "0.72rem",
               }}
             />
           </Box>
 
-          <Box sx={{ width: "100%", height: 210, position: "relative" }}>
+          <Box sx={{ width: "100%", height: 190, position: "relative" }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={chartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={62}
-                  outerRadius={90}
-                  paddingAngle={4}
+                  innerRadius={55}
+                  outerRadius={78}
+                  paddingAngle={3}
                   dataKey="value"
                   stroke="transparent"
                 >
                   {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS[index]}
-                      style={{
-                        filter: `drop-shadow(0 0 8px ${CHART_COLORS[index]}66)`,
-                        transition: "all 0.3s ease",
-                      }}
-                    />
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index]} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
@@ -225,26 +215,26 @@ const InstalledAppsTable = ({ data = [] }) => {
                 pointerEvents: "none",
               }}
             >
-              <Typography sx={{ fontSize: "1.4rem", fontWeight: 800, color: "#f8fafc", lineHeight: 1 }}>
+              <Typography sx={{ fontSize: "1.3rem", fontWeight: 700, color: "#f8fafc", lineHeight: 1 }}>
                 {data.length ? Math.round((upToDateCount / data.length) * 100) : 0}%
               </Typography>
-              <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, mt: 0.3 }}>
-                Healthy
+              <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", fontWeight: 500, mt: 0.2 }}>
+                Up to Date
               </Typography>
             </Box>
           </Box>
 
           {/* Chart Legend */}
-          <Box sx={{ display: "flex", gap: 3, mt: 1 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 8px #10b981" }} />
-              <Typography sx={{ fontSize: "0.8rem", color: "#cbd5e1", fontWeight: 600 }}>
+          <Box sx={{ display: "flex", gap: 2.5, mt: 0.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#10b981" }} />
+              <Typography sx={{ fontSize: "0.78rem", color: "#cbd5e1", fontWeight: 500 }}>
                 Up-to-Date ({upToDateCount})
               </Typography>
             </Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#f59e0b", boxShadow: "0 0 8px #f59e0b" }} />
-              <Typography sx={{ fontSize: "0.8rem", color: "#cbd5e1", fontWeight: 600 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#f59e0b" }} />
+              <Typography sx={{ fontSize: "0.78rem", color: "#cbd5e1", fontWeight: 500 }}>
                 Updates ({outdatedCount})
               </Typography>
             </Box>
@@ -254,24 +244,22 @@ const InstalledAppsTable = ({ data = [] }) => {
         {/* Quick Insights Banner */}
         <Box
           sx={{
-            background: "linear-gradient(145deg, rgba(15, 23, 42, 0.75) 0%, rgba(13, 20, 38, 0.65) 100%)",
-            border: "1px solid rgba(56, 189, 248, 0.2)",
-            borderRadius: "16px",
-            p: 3,
-            boxShadow: "0 12px 32px rgba(2, 6, 23, 0.5)",
-            backdropFilter: "blur(12px)",
+            backgroundColor: "#121824",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: "12px",
+            p: 2.5,
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
           }}
         >
           <Box>
-            <Typography sx={{ color: "#f8fafc", fontWeight: 800, fontSize: "1.05rem", mb: 0.5 }}>
-              Security & Patch Posture
+            <Typography sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "0.95rem", mb: 0.4 }}>
+              Patch Posture & Security Verification
             </Typography>
-            <Typography sx={{ color: "#94a3b8", fontSize: "0.85rem", lineHeight: 1.5 }}>
-              Keeping applications patched mitigates up to 85% of standard vulnerability attack vectors.
-              Use the automated simulation module below to verify exploit resistance on running processes.
+            <Typography sx={{ color: "#94a3b8", fontSize: "0.82rem", lineHeight: 1.5 }}>
+              Keeping all system applications updated protects against known CVE vulnerability vectors.
+              Use the simulation tool in the inventory below to inspect process behaviors.
             </Typography>
           </Box>
 
@@ -279,42 +267,42 @@ const InstalledAppsTable = ({ data = [] }) => {
             sx={{
               display: "grid",
               gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 2,
+              gap: 1.5,
               mt: 2,
             }}
           >
             <Box
               sx={{
-                p: 2,
-                borderRadius: "12px",
-                background: "rgba(16, 185, 129, 0.08)",
-                border: "1px solid rgba(16, 185, 129, 0.25)",
+                p: 1.5,
+                borderRadius: "8px",
+                backgroundColor: "rgba(16, 185, 129, 0.06)",
+                border: "1px solid rgba(16, 185, 129, 0.2)",
               }}
             >
-              <Typography sx={{ fontSize: "0.75rem", color: "#34d399", fontWeight: 700 }}>VERIFIED SAFE</Typography>
-              <Typography sx={{ fontSize: "1.5rem", fontWeight: 800, color: "#f8fafc", mt: 0.5 }}>{upToDateCount}</Typography>
+              <Typography sx={{ fontSize: "0.7rem", color: "#10b981", fontWeight: 600 }}>CURRENT APPS</Typography>
+              <Typography sx={{ fontSize: "1.35rem", fontWeight: 700, color: "#f8fafc", mt: 0.3 }}>{upToDateCount}</Typography>
             </Box>
             <Box
               sx={{
-                p: 2,
-                borderRadius: "12px",
-                background: "rgba(245, 158, 11, 0.08)",
-                border: "1px solid rgba(245, 158, 11, 0.25)",
+                p: 1.5,
+                borderRadius: "8px",
+                backgroundColor: "rgba(245, 158, 11, 0.06)",
+                border: "1px solid rgba(245, 158, 11, 0.2)",
               }}
             >
-              <Typography sx={{ fontSize: "0.75rem", color: "#fbbf24", fontWeight: 700 }}>UPDATES PENDING</Typography>
-              <Typography sx={{ fontSize: "1.5rem", fontWeight: 800, color: "#f8fafc", mt: 0.5 }}>{outdatedCount}</Typography>
+              <Typography sx={{ fontSize: "0.7rem", color: "#f59e0b", fontWeight: 600 }}>PATCHES PENDING</Typography>
+              <Typography sx={{ fontSize: "1.35rem", fontWeight: 700, color: "#f8fafc", mt: 0.3 }}>{outdatedCount}</Typography>
             </Box>
             <Box
               sx={{
-                p: 2,
-                borderRadius: "12px",
-                background: "rgba(244, 63, 94, 0.08)",
-                border: "1px solid rgba(244, 63, 94, 0.25)",
+                p: 1.5,
+                borderRadius: "8px",
+                backgroundColor: "rgba(239, 68, 68, 0.06)",
+                border: "1px solid rgba(239, 68, 68, 0.2)",
               }}
             >
-              <Typography sx={{ fontSize: "0.75rem", color: "#fb7185", fontWeight: 700 }}>HIGH RISK APPS</Typography>
-              <Typography sx={{ fontSize: "1.5rem", fontWeight: 800, color: "#f8fafc", mt: 0.5 }}>
+              <Typography sx={{ fontSize: "0.7rem", color: "#ef4444", fontWeight: 600 }}>HIGH RISK</Typography>
+              <Typography sx={{ fontSize: "1.35rem", fontWeight: 700, color: "#f8fafc", mt: 0.3 }}>
                 {data.filter((a) => a.riskLevel === "High").length}
               </Typography>
             </Box>
@@ -329,15 +317,15 @@ const InstalledAppsTable = ({ data = [] }) => {
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: 2,
+          gap: 1.5,
         }}
       >
         {/* Quick Filter Chips */}
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           {[
-            { id: "all", label: `All Apps (${data.length})` },
-            { id: "outdated", label: `Updates Needed (${outdatedCount})` },
-            { id: "uptodate", label: `Up-to-Date (${upToDateCount})` },
+            { id: "all", label: `All (${data.length})` },
+            { id: "outdated", label: `Needs Update (${outdatedCount})` },
+            { id: "uptodate", label: `Up to Date (${upToDateCount})` },
             { id: "highrisk", label: `High Risk (${data.filter((a) => a.riskLevel === "High").length})` },
           ].map((tab) => {
             const active = filterType === tab.id;
@@ -348,19 +336,14 @@ const InstalledAppsTable = ({ data = [] }) => {
                 onClick={() => setFilterType(tab.id)}
                 clickable
                 sx={{
-                  background: active
-                    ? "linear-gradient(135deg, #6366f1 0%, #0ea5e9 100%)"
-                    : "rgba(15, 23, 42, 0.6)",
-                  color: active ? "#ffffff" : "#94a3b8",
-                  border: `1px solid ${active ? "rgba(56, 189, 248, 0.6)" : "rgba(148, 163, 184, 0.15)"}`,
-                  fontWeight: active ? 700 : 500,
-                  fontSize: "0.82rem",
-                  boxShadow: active ? "0 0 14px rgba(56, 189, 248, 0.35)" : "none",
-                  transition: "all 0.2s ease",
+                  backgroundColor: active ? "rgba(16, 185, 129, 0.15)" : "#121824",
+                  color: active ? "#10b981" : "#94a3b8",
+                  border: `1px solid ${active ? "rgba(16, 185, 129, 0.4)" : "rgba(255, 255, 255, 0.08)"}`,
+                  fontWeight: active ? 600 : 500,
+                  fontSize: "0.8rem",
+                  transition: "all 0.15s ease",
                   "&:hover": {
-                    background: active
-                      ? "linear-gradient(135deg, #4f46e5 0%, #0284c7 100%)"
-                      : "rgba(30, 41, 59, 0.8)",
+                    backgroundColor: active ? "rgba(16, 185, 129, 0.2)" : "#1a2232",
                     color: "#f8fafc",
                   },
                 }}
@@ -371,7 +354,7 @@ const InstalledAppsTable = ({ data = [] }) => {
 
         {/* Search Field */}
         <TextField
-          placeholder="Search application by name..."
+          placeholder="Search applications..."
           variant="outlined"
           size="small"
           value={globalFilter || ""}
@@ -379,27 +362,27 @@ const InstalledAppsTable = ({ data = [] }) => {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <Search sx={{ color: "#38bdf8", fontSize: 20 }} />
+                <Search sx={{ color: "#94a3b8", fontSize: 18 }} />
               </InputAdornment>
             ),
             endAdornment: globalFilter ? (
               <InputAdornment position="end">
                 <IconButton size="small" onClick={() => setGlobalFilter("")} sx={{ color: "#94a3b8" }}>
-                  <Clear sx={{ fontSize: 16 }} />
+                  <Clear sx={{ fontSize: 14 }} />
                 </IconButton>
               </InputAdornment>
             ) : null,
           }}
           sx={{
-            width: { xs: "100%", sm: 300 },
+            width: { xs: "100%", sm: 280 },
             "& .MuiOutlinedInput-root": {
               color: "#f8fafc",
-              backgroundColor: "rgba(15, 23, 42, 0.85)",
-              borderRadius: "10px",
-              fontSize: "0.88rem",
-              "& fieldset": { borderColor: "rgba(56, 189, 248, 0.25)" },
-              "&:hover fieldset": { borderColor: "rgba(56, 189, 248, 0.5)" },
-              "&.Mui-focused fieldset": { borderColor: "#38bdf8", boxShadow: "0 0 12px rgba(56, 189, 248, 0.25)" },
+              backgroundColor: "#121824",
+              borderRadius: "8px",
+              fontSize: "0.85rem",
+              "& fieldset": { borderColor: "rgba(255, 255, 255, 0.1)" },
+              "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+              "&.Mui-focused fieldset": { borderColor: "#10b981" },
             },
           }}
         />
@@ -409,11 +392,10 @@ const InstalledAppsTable = ({ data = [] }) => {
       <TableContainer
         component={Paper}
         sx={{
-          background: "linear-gradient(145deg, rgba(13, 20, 38, 0.85) 0%, rgba(10, 16, 32, 0.85) 100%)",
-          borderRadius: "16px",
-          border: "1px solid rgba(56, 189, 248, 0.2)",
-          boxShadow: "0 18px 36px rgba(2, 6, 23, 0.55)",
-          backdropFilter: "blur(12px)",
+          backgroundColor: "#121824",
+          borderRadius: "12px",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
           overflow: "hidden",
         }}
       >
@@ -426,20 +408,20 @@ const InstalledAppsTable = ({ data = [] }) => {
                     {...column.getHeaderProps(column.getSortByToggleProps())}
                     key={column.id}
                     sx={{
-                      fontWeight: 800,
-                      fontSize: "0.82rem",
+                      fontWeight: 600,
+                      fontSize: "0.78rem",
                       textTransform: "uppercase",
-                      letterSpacing: "0.6px",
-                      color: "#7dd3fc",
-                      borderBottom: "1px solid rgba(56, 189, 248, 0.25)",
-                      background: "rgba(15, 23, 42, 0.95)",
-                      py: 1.8,
+                      letterSpacing: "0.5px",
+                      color: "#94a3b8",
+                      borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                      backgroundColor: "#0e131f",
+                      py: 1.5,
                     }}
                   >
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       {column.render("Header")}
                       {column.isSorted ? (
-                        <span style={{ color: "#38bdf8", fontSize: "0.9rem" }}>
+                        <span style={{ color: "#10b981", fontSize: "0.85rem" }}>
                           {column.isSortedDesc ? " ↓" : " ↑"}
                         </span>
                       ) : null}
@@ -452,8 +434,8 @@ const InstalledAppsTable = ({ data = [] }) => {
           <TableBody {...getTableBodyProps()}>
             {page.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} sx={{ textAlign: "center", py: 5, color: "#94a3b8" }}>
-                  <Typography sx={{ fontStyle: "italic", fontSize: "0.95rem" }}>
+                <TableCell colSpan={columns.length} sx={{ textAlign: "center", py: 4, color: "#94a3b8" }}>
+                  <Typography sx={{ fontSize: "0.9rem" }}>
                     No matching applications found.
                   </Typography>
                 </TableCell>
@@ -468,13 +450,13 @@ const InstalledAppsTable = ({ data = [] }) => {
                     key={row.id}
                     sx={{
                       backgroundColor: isCurrentAttacking
-                        ? "rgba(99, 102, 241, 0.18)"
+                        ? "rgba(16, 185, 129, 0.08)"
                         : "transparent",
-                      borderLeft: isCurrentAttacking ? "3px solid #38bdf8" : "3px solid transparent",
+                      borderLeft: isCurrentAttacking ? "3px solid #10b981" : "3px solid transparent",
                       "&:hover": {
-                        backgroundColor: "rgba(56, 189, 248, 0.06)",
+                        backgroundColor: "rgba(255, 255, 255, 0.02)",
                       },
-                      transition: "all 0.2s ease",
+                      transition: "background-color 0.15s ease",
                     }}
                   >
                     {row.cells.map((cell) => (
@@ -483,8 +465,8 @@ const InstalledAppsTable = ({ data = [] }) => {
                         key={cell.column.id}
                         sx={{
                           color: "#e2e8f0",
-                          borderBottom: "1px solid rgba(148, 163, 184, 0.08)",
-                          py: 1.6,
+                          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                          py: 1.4,
                         }}
                       >
                         {cell.render("Cell")}
@@ -508,26 +490,25 @@ const InstalledAppsTable = ({ data = [] }) => {
           rowsPerPageOptions={[5, 10, 20, 50]}
           sx={{
             color: "#94a3b8",
-            borderTop: "1px solid rgba(148, 163, 184, 0.1)",
+            borderTop: "1px solid rgba(255, 255, 255, 0.06)",
             "& .MuiTablePagination-actions button": {
-              color: "#38bdf8",
+              color: "#10b981",
               "&:disabled": { color: "#475569" },
             },
             "& .MuiTablePagination-select": { color: "#f8fafc" },
-            "& .MuiTablePagination-selectIcon": { color: "#7dd3fc" },
+            "& .MuiTablePagination-selectIcon": { color: "#94a3b8" },
           }}
         />
       </TableContainer>
 
-      {/* Cyber Attack Simulation Console */}
+      {/* Attack Simulation Console */}
       {attackingApp && (
         <Paper
           sx={{
-            mt: 2,
-            background: "rgba(7, 11, 20, 0.95)",
-            border: "1px solid rgba(56, 189, 248, 0.4)",
-            boxShadow: "0 20px 50px rgba(0, 0, 0, 0.8), 0 0 20px rgba(56, 189, 248, 0.2)",
-            borderRadius: "16px",
+            mt: 1,
+            backgroundColor: "#0d1117",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
+            borderRadius: "10px",
             overflow: "hidden",
           }}
         >
@@ -537,30 +518,30 @@ const InstalledAppsTable = ({ data = [] }) => {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              px: 2.5,
-              py: 1.5,
-              background: "linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.8) 100%)",
-              borderBottom: "1px solid rgba(56, 189, 248, 0.25)",
+              px: 2,
+              py: 1.2,
+              backgroundColor: "#161b22",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Box sx={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: "#ef4444" }} />
-              <Box sx={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: "#f59e0b" }} />
-              <Box sx={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: "#10b981" }} />
+              <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#ef4444" }} />
+              <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#f59e0b" }} />
+              <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#10b981" }} />
               <Typography
                 sx={{
-                  ml: 1.5,
-                  fontSize: "0.85rem",
+                  ml: 1,
+                  fontSize: "0.8rem",
                   fontFamily: "'JetBrains Mono', monospace",
-                  fontWeight: 700,
-                  color: "#38bdf8",
+                  fontWeight: 600,
+                  color: "#10b981",
                   display: "flex",
                   alignItems: "center",
-                  gap: 1,
+                  gap: 0.8,
                 }}
               >
-                <Terminal sx={{ fontSize: 18 }} />
-                sandbox-attack-sim://{attackingApp.toLowerCase().replace(/\s+/g, "-")}
+                <Terminal sx={{ fontSize: 16 }} />
+                simulation://{attackingApp.toLowerCase().replace(/\s+/g, "-")}
               </Typography>
             </Box>
 
@@ -573,28 +554,28 @@ const InstalledAppsTable = ({ data = [] }) => {
               }}
               sx={{
                 color: "#94a3b8",
-                borderColor: "rgba(148, 163, 184, 0.3)",
-                fontSize: "0.75rem",
+                borderColor: "rgba(255, 255, 255, 0.12)",
+                fontSize: "0.72rem",
                 textTransform: "none",
-                fontWeight: 600,
-                "&:hover": { color: "#f8fafc", backgroundColor: "rgba(244, 63, 94, 0.15)", borderColor: "#f43f5e" },
+                fontWeight: 500,
+                "&:hover": { color: "#f8fafc", backgroundColor: "rgba(239, 68, 68, 0.1)", borderColor: "#ef4444" },
               }}
               variant="outlined"
             >
-              Terminate Session
+              Close Terminal
             </Button>
           </Box>
 
           {/* Terminal Console Content */}
           <Box
             sx={{
-              p: 2.5,
-              maxHeight: 280,
+              p: 2,
+              maxHeight: 250,
               overflowY: "auto",
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: "0.85rem",
-              lineHeight: 1.7,
-              backgroundColor: "#050811",
+              fontSize: "0.82rem",
+              lineHeight: 1.6,
+              backgroundColor: "#0b0f17",
             }}
           >
             {attackLogs.map((log, idx) => {
@@ -603,10 +584,10 @@ const InstalledAppsTable = ({ data = [] }) => {
               const isWarning = log.includes("WARN");
 
               let color = "#94a3b8";
-              if (isComplete) color = "#34d399";
+              if (isComplete) color = "#10b981";
               else if (isError) color = "#f87171";
               else if (isWarning) color = "#fbbf24";
-              else if (log.startsWith("[INIT]") || log.startsWith("[INFO]")) color = "#38bdf8";
+              else if (log.startsWith("[INIT]") || log.startsWith("[INFO]")) color = "#34d399";
 
               return (
                 <Box key={idx} sx={{ color, display: "flex", gap: 1 }}>
@@ -616,8 +597,8 @@ const InstalledAppsTable = ({ data = [] }) => {
               );
             })}
             {isAttacking && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 1, color: "#38bdf8" }}>
-                <CircularProgress size={14} sx={{ color: "#38bdf8" }} />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.8, color: "#10b981" }}>
+                <CircularProgress size={12} sx={{ color: "#10b981" }} />
                 <span>Simulating exploit vectors against local process...</span>
                 <span className="terminal-cursor" />
               </Box>

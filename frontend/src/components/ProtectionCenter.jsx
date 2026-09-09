@@ -12,11 +12,11 @@ import {
 } from "@mui/icons-material";
 
 const statusColors = {
-  Malicious: { color: "#f43f5e", bg: "rgba(244, 63, 94, 0.14)", border: "rgba(244, 63, 94, 0.45)", icon: <BugReport sx={{ fontSize: 16 }} /> },
-  Suspicious: { color: "#f97316", bg: "rgba(249, 115, 22, 0.14)", border: "rgba(249, 115, 22, 0.45)", icon: <WarningAmber sx={{ fontSize: 16 }} /> },
-  Clean: { color: "#10b981", bg: "rgba(16, 185, 129, 0.14)", border: "rgba(16, 185, 129, 0.45)", icon: <CheckCircle sx={{ fontSize: 16 }} /> },
-  Unknown: { color: "#38bdf8", bg: "rgba(56, 189, 248, 0.14)", border: "rgba(56, 189, 248, 0.45)", icon: <HelpOutline sx={{ fontSize: 16 }} /> },
-  Error: { color: "#94a3b8", bg: "rgba(148, 163, 184, 0.14)", border: "rgba(148, 163, 184, 0.3)", icon: <HelpOutline sx={{ fontSize: 16 }} /> },
+  Malicious: { color: "#ef4444", bg: "rgba(239, 68, 68, 0.12)", border: "rgba(239, 68, 68, 0.3)", icon: <BugReport sx={{ fontSize: 15 }} /> },
+  Suspicious: { color: "#f97316", bg: "rgba(249, 115, 22, 0.12)", border: "rgba(249, 115, 22, 0.3)", icon: <WarningAmber sx={{ fontSize: 15 }} /> },
+  Clean: { color: "#10b981", bg: "rgba(16, 185, 129, 0.12)", border: "rgba(16, 185, 129, 0.3)", icon: <CheckCircle sx={{ fontSize: 15 }} /> },
+  Unknown: { color: "#94a3b8", bg: "rgba(148, 163, 184, 0.1)", border: "rgba(148, 163, 184, 0.25)", icon: <HelpOutline sx={{ fontSize: 15 }} /> },
+  Error: { color: "#64748b", bg: "rgba(100, 116, 139, 0.1)", border: "rgba(100, 116, 139, 0.2)", icon: <HelpOutline sx={{ fontSize: 15 }} /> },
 };
 
 const ProtectionCenter = ({
@@ -26,16 +26,14 @@ const ProtectionCenter = ({
   scanning = false,
   lastScanTime = null,
 }) => (
-  <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
+  <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
     {/* Protection Header & Scanner Card */}
     <Card
       sx={{
-        background: "linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(13, 20, 38, 0.75) 100%)",
-        border: "1px solid rgba(56, 189, 248, 0.25)",
-        borderRadius: "16px",
-        p: 3,
-        boxShadow: "0 16px 40px rgba(2, 6, 23, 0.6)",
-        backdropFilter: "blur(12px)",
+        backgroundColor: "#121824",
+        border: "1px solid rgba(255, 255, 255, 0.08)",
+        borderRadius: "12px",
+        p: 2.5,
       }}
     >
       <Box
@@ -47,29 +45,28 @@ const ProtectionCenter = ({
           flexWrap: "wrap",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box
             sx={{
-              width: 48,
-              height: 48,
-              borderRadius: "14px",
-              background: "linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(99, 102, 241, 0.3) 100%)",
-              border: "1px solid rgba(56, 189, 248, 0.4)",
+              width: 40,
+              height: 40,
+              borderRadius: "10px",
+              backgroundColor: "rgba(16, 185, 129, 0.12)",
+              border: "1px solid rgba(16, 185, 129, 0.25)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#38bdf8",
-              boxShadow: "0 0 20px rgba(56, 189, 248, 0.25)",
+              color: "#10b981",
             }}
           >
-            <Security sx={{ fontSize: 28 }} />
+            <Security sx={{ fontSize: 22 }} />
           </Box>
           <Box>
-            <Typography sx={{ color: "#f8fafc", fontWeight: 800, fontSize: "1.25rem", letterSpacing: 0.3 }}>
+            <Typography sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "1.1rem" }}>
               Software Protection & Threat Shield
             </Typography>
-            <Typography sx={{ color: "#94a3b8", fontSize: "0.85rem", mt: 0.2 }}>
-              {lastScanTime ? `Last signature verification: ${lastScanTime}` : "No threat scan performed yet this session"}
+            <Typography sx={{ color: "#94a3b8", fontSize: "0.82rem", mt: 0.2 }}>
+              {lastScanTime ? `Last signature verification: ${lastScanTime}` : "No threat scan executed yet"}
             </Typography>
           </Box>
         </Box>
@@ -78,24 +75,23 @@ const ProtectionCenter = ({
           variant="contained"
           onClick={onScan}
           disabled={scanning || !onScan}
-          startIcon={scanning ? <CircularProgress size={18} sx={{ color: "#ffffff" }} /> : <Radar />}
+          startIcon={scanning ? <CircularProgress size={16} sx={{ color: "#ffffff" }} /> : <Radar />}
           sx={{
-            background: "linear-gradient(135deg, #0284c7 0%, #6366f1 100%)",
-            fontWeight: 800,
-            fontSize: "0.88rem",
-            px: 3.2,
-            py: 1.1,
-            borderRadius: "10px",
-            boxShadow: "0 4px 20px rgba(56, 189, 248, 0.35)",
-            border: "1px solid rgba(56, 189, 248, 0.5)",
-            transition: "all 0.25s ease",
+            backgroundColor: "#10b981",
+            color: "#ffffff",
+            fontWeight: 600,
+            fontSize: "0.85rem",
+            px: 2.5,
+            py: 0.9,
+            borderRadius: "8px",
+            textTransform: "none",
+            boxShadow: "none",
             "&:hover": {
-              background: "linear-gradient(135deg, #0369a1 0%, #4f46e5 100%)",
-              boxShadow: "0 6px 25px rgba(56, 189, 248, 0.5)",
-              transform: "translateY(-1px)",
+              backgroundColor: "#059669",
+              boxShadow: "none",
             },
             "&:disabled": {
-              background: "rgba(30, 41, 59, 0.5)",
+              backgroundColor: "rgba(255, 255, 255, 0.08)",
               color: "#64748b",
             },
           }}
@@ -105,55 +101,59 @@ const ProtectionCenter = ({
       </Box>
 
       {/* Threat Summary Pills */}
-      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 3, pt: 2, borderTop: "1px solid rgba(148, 163, 184, 0.1)" }}>
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 2.5, pt: 2, borderTop: "1px solid rgba(255, 255, 255, 0.06)" }}>
         <Chip
-          icon={<BugReport sx={{ color: "#fb7185 !important", fontSize: 16 }} />}
+          icon={<BugReport sx={{ color: "#f87171 !important", fontSize: 15 }} />}
           label={`Malicious: ${summary.malicious || 0}`}
           sx={{
-            backgroundColor: "rgba(244, 63, 94, 0.12)",
-            color: "#fb7185",
-            border: "1px solid rgba(244, 63, 94, 0.4)",
-            fontWeight: 700,
-            boxShadow: (summary.malicious || 0) > 0 ? "0 0 12px rgba(244, 63, 94, 0.4)" : "none",
+            backgroundColor: "rgba(239, 68, 68, 0.1)",
+            color: "#f87171",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            fontWeight: 600,
+            fontSize: "0.75rem",
           }}
         />
         <Chip
-          icon={<WarningAmber sx={{ color: "#fb923c !important", fontSize: 16 }} />}
+          icon={<WarningAmber sx={{ color: "#fb923c !important", fontSize: 15 }} />}
           label={`Suspicious: ${summary.suspicious || 0}`}
           sx={{
-            backgroundColor: "rgba(249, 115, 22, 0.12)",
+            backgroundColor: "rgba(249, 115, 22, 0.1)",
             color: "#fb923c",
-            border: "1px solid rgba(249, 115, 22, 0.4)",
-            fontWeight: 700,
+            border: "1px solid rgba(249, 115, 22, 0.3)",
+            fontWeight: 600,
+            fontSize: "0.75rem",
           }}
         />
         <Chip
-          icon={<CheckCircle sx={{ color: "#34d399 !important", fontSize: 16 }} />}
+          icon={<CheckCircle sx={{ color: "#34d399 !important", fontSize: 15 }} />}
           label={`Clean: ${summary.clean || 0}`}
           sx={{
-            backgroundColor: "rgba(16, 185, 129, 0.12)",
+            backgroundColor: "rgba(16, 185, 129, 0.1)",
             color: "#34d399",
-            border: "1px solid rgba(16, 185, 129, 0.4)",
-            fontWeight: 700,
+            border: "1px solid rgba(16, 185, 129, 0.3)",
+            fontWeight: 600,
+            fontSize: "0.75rem",
           }}
         />
         <Chip
-          icon={<HelpOutline sx={{ color: "#7dd3fc !important", fontSize: 16 }} />}
+          icon={<HelpOutline sx={{ color: "#94a3b8 !important", fontSize: 15 }} />}
           label={`Unknown: ${summary.unknown || 0}`}
           sx={{
-            backgroundColor: "rgba(56, 189, 248, 0.12)",
-            color: "#7dd3fc",
-            border: "1px solid rgba(56, 189, 248, 0.4)",
-            fontWeight: 700,
+            backgroundColor: "rgba(148, 163, 184, 0.08)",
+            color: "#94a3b8",
+            border: "1px solid rgba(148, 163, 184, 0.2)",
+            fontWeight: 600,
+            fontSize: "0.75rem",
           }}
         />
         <Chip
           label={`Errors: ${summary.error || 0}`}
           sx={{
-            backgroundColor: "rgba(148, 163, 184, 0.1)",
-            color: "#94a3b8",
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            fontWeight: 600,
+            backgroundColor: "rgba(255, 255, 255, 0.04)",
+            color: "#64748b",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            fontWeight: 500,
+            fontSize: "0.75rem",
           }}
         />
       </Box>
@@ -162,61 +162,54 @@ const ProtectionCenter = ({
     {/* Threat Findings List */}
     <Card
       sx={{
-        background: "linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(13, 20, 38, 0.7) 100%)",
-        border: "1px solid rgba(56, 189, 248, 0.2)",
-        borderRadius: "16px",
-        p: 3,
-        boxShadow: "0 16px 40px rgba(2, 6, 23, 0.55)",
-        backdropFilter: "blur(12px)",
+        backgroundColor: "#121824",
+        border: "1px solid rgba(255, 255, 255, 0.08)",
+        borderRadius: "12px",
+        p: 2.5,
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Typography sx={{ fontWeight: 800, color: "#f8fafc", fontSize: "1.1rem" }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+        <Typography sx={{ fontWeight: 700, color: "#f8fafc", fontSize: "1rem" }}>
           Threat Inspection Findings
         </Typography>
         <Chip
-          label={`${results.length} Scanned Objects`}
+          label={`${results.length} Objects`}
           size="small"
           sx={{
-            backgroundColor: "rgba(56, 189, 248, 0.12)",
-            color: "#7dd3fc",
-            border: "1px solid rgba(56, 189, 248, 0.3)",
-            fontWeight: 700,
+            backgroundColor: "rgba(16, 185, 129, 0.1)",
+            color: "#10b981",
+            border: "1px solid rgba(16, 185, 129, 0.25)",
+            fontWeight: 600,
+            fontSize: "0.72rem",
           }}
         />
       </Box>
 
       {results.length > 0 ? (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {results.map((item, idx) => {
             const statusConfig = statusColors[item.threatStatus] || statusColors.Unknown;
             return (
               <Card
                 key={`${item.name}-${idx}`}
                 sx={{
-                  p: 2.5,
-                  backgroundColor: "rgba(15, 23, 42, 0.65)",
-                  borderRadius: "12px",
+                  p: 2,
+                  backgroundColor: "#0e131f",
+                  borderRadius: "8px",
                   border: `1px solid ${statusConfig.border}`,
-                  transition: "all 0.2s ease",
-                  "&:hover": {
-                    backgroundColor: "rgba(20, 30, 55, 0.8)",
-                    transform: "translateY(-1px)",
-                    boxShadow: "0 10px 24px rgba(2, 6, 23, 0.5)",
-                  },
                 }}
               >
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
                   <Box>
-                    <Typography sx={{ fontWeight: 800, fontSize: "1rem", color: "#f8fafc" }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: "0.92rem", color: "#f8fafc" }}>
                       {item.name}
                     </Typography>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
-                      <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 0.3 }}>
+                      <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
                         v{item.version || "N/A"}
                       </Typography>
-                      <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>•</Typography>
-                      <Typography sx={{ fontSize: "0.82rem", color: "#cbd5e1" }}>
+                      <Typography sx={{ fontSize: "0.75rem", color: "#64748b" }}>•</Typography>
+                      <Typography sx={{ fontSize: "0.78rem", color: "#cbd5e1" }}>
                         {item.summary || "No behavioral anomalies flagged."}
                       </Typography>
                     </Box>
@@ -226,33 +219,34 @@ const ProtectionCenter = ({
                     icon={statusConfig.icon}
                     label={item.threatStatus}
                     sx={{
-                      fontWeight: 800,
+                      fontWeight: 600,
                       color: statusConfig.color,
                       backgroundColor: statusConfig.bg,
                       border: `1px solid ${statusConfig.border}`,
-                      fontSize: "0.78rem",
+                      fontSize: "0.72rem",
+                      height: 24,
                     }}
                   />
                 </Box>
 
                 {item.vtLink && (
-                  <Box sx={{ mt: 2, pt: 1.5, borderTop: "1px solid rgba(148, 163, 184, 0.1)" }}>
+                  <Box sx={{ mt: 1.5, pt: 1, borderTop: "1px solid rgba(255, 255, 255, 0.05)" }}>
                     <Link
                       href={item.vtLink}
                       target="_blank"
                       rel="noreferrer"
                       sx={{
-                        fontSize: "0.8rem",
-                        color: "#38bdf8",
+                        fontSize: "0.78rem",
+                        color: "#10b981",
                         textDecoration: "none",
-                        fontWeight: 700,
+                        fontWeight: 600,
                         display: "inline-flex",
                         alignItems: "center",
-                        gap: 0.5,
-                        "&:hover": { color: "#7dd3fc", textDecoration: "underline" },
+                        gap: 0.4,
+                        "&:hover": { color: "#34d399", textDecoration: "underline" },
                       }}
                     >
-                      <OpenInNew sx={{ fontSize: 14 }} />
+                      <OpenInNew sx={{ fontSize: 13 }} />
                       View VirusTotal Analysis Report
                     </Link>
                   </Box>
@@ -264,19 +258,19 @@ const ProtectionCenter = ({
       ) : (
         <Box
           sx={{
-            py: 6,
+            py: 5,
             textAlign: "center",
-            background: "rgba(15, 23, 42, 0.3)",
-            border: "1px dashed rgba(56, 189, 248, 0.2)",
-            borderRadius: "14px",
+            backgroundColor: "#0e131f",
+            border: "1px dashed rgba(255, 255, 255, 0.1)",
+            borderRadius: "10px",
           }}
         >
-          <Shield sx={{ fontSize: 48, color: "rgba(56, 189, 248, 0.4)", mb: 1 }} />
-          <Typography sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "1.05rem" }}>
+          <Shield sx={{ fontSize: 40, color: "rgba(16, 185, 129, 0.4)", mb: 1 }} />
+          <Typography sx={{ color: "#f8fafc", fontWeight: 600, fontSize: "0.95rem" }}>
             Ready for Threat Scanning
           </Typography>
-          <Typography sx={{ color: "#94a3b8", fontSize: "0.85rem", mt: 0.5, maxWidth: 420, mx: "auto" }}>
-            Click "Execute Threat Scan" above to query known hashes and analyze behavioral heuristics against security threat databases.
+          <Typography sx={{ color: "#94a3b8", fontSize: "0.8rem", mt: 0.3, maxWidth: 380, mx: "auto" }}>
+            Click "Execute Threat Scan" to inspect installed applications against verified threat databases.
           </Typography>
         </Box>
       )}

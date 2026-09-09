@@ -43,20 +43,18 @@ import {
 } from "recharts";
 
 const panelHover = {
-  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+  transition: "all 0.2s ease-in-out",
   "&:hover": {
-    boxShadow: "0 20px 40px rgba(2, 6, 23, 0.65), 0 0 20px rgba(56, 189, 248, 0.15)",
-    transform: "translateY(-2px)",
-    borderColor: "rgba(56, 189, 248, 0.45)",
+    borderColor: "rgba(16, 185, 129, 0.35)",
+    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
   },
 };
 
 const glassCard = {
-  background: "linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(13, 20, 38, 0.7) 100%)",
-  border: "1px solid rgba(56, 189, 248, 0.2)",
-  borderRadius: "16px",
-  backdropFilter: "blur(14px)",
-  boxShadow: "0 14px 34px rgba(2, 6, 23, 0.55)",
+  backgroundColor: "#121824",
+  border: "1px solid rgba(255, 255, 255, 0.08)",
+  borderRadius: "12px",
+  boxShadow: "0 4px 16px rgba(0, 0, 0, 0.3)",
 };
 
 const CustomBarTooltip = ({ active, payload, label }) => {
@@ -64,20 +62,19 @@ const CustomBarTooltip = ({ active, payload, label }) => {
     return (
       <Box
         sx={{
-          background: "rgba(15, 23, 42, 0.95)",
-          border: "1px solid rgba(56, 189, 248, 0.4)",
-          padding: "10px 14px",
-          borderRadius: "10px",
+          backgroundColor: "#161f2e",
+          border: "1px solid rgba(16, 185, 129, 0.3)",
+          padding: "8px 12px",
+          borderRadius: "8px",
           color: "#f8fafc",
-          boxShadow: "0 10px 25px rgba(2, 6, 23, 0.7)",
-          backdropFilter: "blur(12px)",
+          boxShadow: "0 8px 20px rgba(0, 0, 0, 0.5)",
         }}
       >
-        <Typography sx={{ fontSize: "0.82rem", color: "#94a3b8", mb: 0.25 }}>
-          Risk Level: <strong style={{ color: "#f8fafc" }}>{label}</strong>
+        <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", mb: 0.2 }}>
+          {label}
         </Typography>
-        <Typography sx={{ fontSize: "1.1rem", fontWeight: 800, color: payload[0].payload.fill || "#38bdf8" }}>
-          {payload[0].value} <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "#cbd5e1" }}>score units</span>
+        <Typography sx={{ fontSize: "1rem", fontWeight: 700, color: payload[0].payload.fill || "#10b981" }}>
+          {payload[0].value} <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "#94a3b8" }}>risk units</span>
         </Typography>
       </Box>
     );
@@ -161,9 +158,9 @@ function App() {
   const outdatedAppsCount = normalizedApps.filter((app) => app.updateRequired).length;
 
   const riskData = [
-    { name: "Critical Driver Risk", risk: missingDrivers.length * 3, fill: "#f43f5e" },
-    { name: "Application Updates", risk: outdatedAppsCount * 2, fill: "#f59e0b" },
-    { name: "Identified Threats", risk: (protectionSummary.malicious * 4) + (protectionSummary.suspicious * 2), fill: "#8b5cf6" },
+    { name: "Critical Drivers", risk: missingDrivers.length * 3, fill: "#ef4444" },
+    { name: "Outdated Apps", risk: outdatedAppsCount * 2, fill: "#f59e0b" },
+    { name: "Threat Flags", risk: (protectionSummary.malicious * 4) + (protectionSummary.suspicious * 2), fill: "#10b981" },
   ];
 
   // Fetch drivers (missing + installed)
@@ -362,14 +359,13 @@ function App() {
     }
   };
 
-  // Calculate overall system health index (0 to 100)
   const healthDeficit = (outdatedAppsCount * 8) + (missingDrivers.length * 15) + (protectionSummary.malicious * 25);
   const systemHealthScore = Math.max(15, Math.min(100, Math.round(100 - healthDeficit)));
 
   const menuItems = [
     { id: "overview", label: "Overview", icon: <Dashboard /> },
     { id: "installed", label: "Installed Apps", icon: <Storage />, count: apps.length },
-    { id: "drivers", label: "Kernel & Drivers", icon: <Build />, count: missingDrivers.length, badgeColor: "#f43f5e" },
+    { id: "drivers", label: "Kernel & Drivers", icon: <Build />, count: missingDrivers.length, badgeColor: "#ef4444" },
     { id: "protection", label: "Software Protection", icon: <Security /> },
   ];
 
@@ -378,52 +374,48 @@ function App() {
       sx={{
         display: "flex",
         minHeight: "100vh",
-        background:
-          "radial-gradient(ellipse 80% 50% at 20% -10%, rgba(56, 189, 248, 0.12), transparent), radial-gradient(ellipse 60% 40% at 80% 10%, rgba(99, 102, 241, 0.14), transparent), linear-gradient(160deg, #070b14 0%, #0a1020 50%, #060b18 100%)",
-        color: "#f8fafc",
+        backgroundColor: "#0b0f17",
+        color: "#f1f5f9",
         fontFamily: "'Plus Jakarta Sans', sans-serif",
       }}
     >
-      {/* Sleek Sidebar */}
+      {/* Sidebar */}
       <Box
         sx={{
-          width: 280,
+          width: 270,
           flexShrink: 0,
-          borderRight: "1px solid rgba(56, 189, 248, 0.15)",
-          background: "linear-gradient(180deg, rgba(8, 13, 27, 0.92) 0%, rgba(6, 10, 22, 0.95) 100%)",
-          py: 3.5,
-          px: 2.2,
+          borderRight: "1px solid rgba(255, 255, 255, 0.08)",
+          backgroundColor: "#0e131f",
+          py: 3,
+          px: 2,
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          backdropFilter: "blur(20px)",
-          boxShadow: "10px 0 40px rgba(0, 0, 0, 0.6)",
         }}
       >
         <Box>
           {/* Brand Logo & Tag */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.5, mb: 3 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1, mb: 3 }}>
             <Box
               sx={{
-                width: 42,
-                height: 42,
-                borderRadius: "12px",
-                background: "linear-gradient(135deg, #38bdf8 0%, #6366f1 100%)",
+                width: 38,
+                height: 38,
+                borderRadius: "10px",
+                backgroundColor: "#10b981",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 0 20px rgba(56, 189, 248, 0.4)",
               }}
             >
-              <Computer sx={{ color: "#ffffff", fontSize: 24 }} />
+              <Computer sx={{ color: "#ffffff", fontSize: 22 }} />
             </Box>
             <Box>
               <Typography
                 sx={{
                   color: "#f8fafc",
-                  fontWeight: 800,
-                  fontSize: "1.1rem",
-                  letterSpacing: 0.4,
+                  fontWeight: 700,
+                  fontSize: "1.05rem",
+                  letterSpacing: 0.2,
                   lineHeight: 1.1,
                 }}
               >
@@ -431,12 +423,12 @@ function App() {
               </Typography>
               <Typography
                 sx={{
-                  color: "#38bdf8",
+                  color: "#10b981",
                   fontSize: "0.72rem",
-                  fontWeight: 700,
-                  letterSpacing: 1.2,
+                  fontWeight: 600,
+                  letterSpacing: 0.8,
                   textTransform: "uppercase",
-                  mt: 0.3,
+                  mt: 0.2,
                 }}
               >
                 Security Core
@@ -444,48 +436,43 @@ function App() {
             </Box>
           </Box>
 
-          <Divider sx={{ borderColor: "rgba(56, 189, 248, 0.12)", mb: 2.5 }} />
+          <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.06)", mb: 2 }} />
 
           {/* Navigation Menu */}
           <List sx={{ p: 0 }}>
             {menuItems.map((item) => {
               const isSelected = selectedMenu === item.id;
               return (
-                <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
+                <ListItem key={item.id} disablePadding sx={{ mb: 0.8 }}>
                   <ListItemButton
                     onClick={() => setSelectedMenu(item.id)}
                     sx={{
-                      borderRadius: "12px",
+                      borderRadius: "10px",
                       px: 2,
-                      py: 1.2,
-                      background: isSelected
-                        ? "linear-gradient(135deg, rgba(56, 189, 248, 0.16) 0%, rgba(99, 102, 241, 0.22) 100%)"
-                        : "transparent",
+                      py: 1.1,
+                      backgroundColor: isSelected ? "rgba(16, 185, 129, 0.12)" : "transparent",
                       border: "1px solid",
-                      borderColor: isSelected ? "rgba(56, 189, 248, 0.45)" : "transparent",
-                      boxShadow: isSelected ? "0 4px 20px rgba(56, 189, 248, 0.2)" : "none",
-                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                      borderColor: isSelected ? "rgba(16, 185, 129, 0.3)" : "transparent",
+                      transition: "all 0.15s ease-in-out",
                       "&:hover": {
-                        backgroundColor: "rgba(56, 189, 248, 0.08)",
-                        borderColor: "rgba(56, 189, 248, 0.25)",
+                        backgroundColor: isSelected ? "rgba(16, 185, 129, 0.16)" : "rgba(255, 255, 255, 0.04)",
                       },
                     }}
                   >
                     {React.cloneElement(item.icon, {
                       sx: {
-                        color: isSelected ? "#38bdf8" : "#94a3b8",
-                        mr: 1.75,
-                        fontSize: 22,
-                        filter: isSelected ? "drop-shadow(0 0 8px rgba(56, 189, 248, 0.5))" : "none",
+                        color: isSelected ? "#10b981" : "#94a3b8",
+                        mr: 1.5,
+                        fontSize: 20,
                       },
                     })}
                     <ListItemText
                       primary={item.label}
                       primaryTypographyProps={{
                         sx: {
-                          color: isSelected ? "#f8fafc" : "#94a3b8",
-                          fontWeight: isSelected ? 700 : 500,
-                          fontSize: "0.9rem",
+                          color: isSelected ? "#ffffff" : "#94a3b8",
+                          fontWeight: isSelected ? 600 : 500,
+                          fontSize: "0.88rem",
                         },
                       }}
                     />
@@ -496,12 +483,12 @@ function App() {
                         sx={{
                           height: 20,
                           fontSize: "0.72rem",
-                          fontWeight: 800,
+                          fontWeight: 700,
                           backgroundColor: item.badgeColor
-                            ? "rgba(244, 63, 94, 0.25)"
-                            : "rgba(56, 189, 248, 0.18)",
-                          color: item.badgeColor ? "#fb7185" : "#7dd3fc",
-                          border: `1px solid ${item.badgeColor ? "rgba(244, 63, 94, 0.4)" : "rgba(56, 189, 248, 0.3)"}`,
+                            ? "rgba(239, 68, 68, 0.2)"
+                            : "rgba(16, 185, 129, 0.2)",
+                          color: item.badgeColor ? "#f87171" : "#34d399",
+                          border: `1px solid ${item.badgeColor ? "rgba(239, 68, 68, 0.35)" : "rgba(16, 185, 129, 0.35)"}`,
                         }}
                       />
                     )}
@@ -517,20 +504,20 @@ function App() {
           <Card
             sx={{
               ...glassCard,
-              p: 2.2,
+              p: 2,
               mb: 2,
-              background: "linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(10, 16, 32, 0.85) 100%)",
+              backgroundColor: "#121824",
             }}
           >
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-              <Typography sx={{ color: "#94a3b8", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase" }}>
+              <Typography sx={{ color: "#94a3b8", fontSize: "0.72rem", fontWeight: 600, textTransform: "uppercase" }}>
                 Security Score
               </Typography>
               <Typography
                 sx={{
-                  color: systemHealthScore >= 80 ? "#34d399" : systemHealthScore >= 60 ? "#fbbf24" : "#fb7185",
-                  fontWeight: 800,
-                  fontSize: "0.9rem",
+                  color: systemHealthScore >= 80 ? "#10b981" : systemHealthScore >= 60 ? "#f59e0b" : "#ef4444",
+                  fontWeight: 700,
+                  fontSize: "0.88rem",
                 }}
               >
                 {systemHealthScore}/100
@@ -540,33 +527,30 @@ function App() {
               variant="determinate"
               value={systemHealthScore}
               sx={{
-                height: 6,
-                borderRadius: 4,
-                backgroundColor: "rgba(15, 23, 42, 0.8)",
+                height: 5,
+                borderRadius: 3,
+                backgroundColor: "rgba(255, 255, 255, 0.08)",
                 "& .MuiLinearProgress-bar": {
-                  background:
-                    systemHealthScore >= 80
-                      ? "linear-gradient(90deg, #10b981, #38bdf8)"
-                      : "linear-gradient(90deg, #f43f5e, #f59e0b)",
+                  backgroundColor: systemHealthScore >= 80 ? "#10b981" : systemHealthScore >= 60 ? "#f59e0b" : "#ef4444",
                 },
               }}
             />
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2, pt: 1.5, borderTop: "1px solid rgba(148, 163, 184, 0.1)" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1.8, pt: 1.5, borderTop: "1px solid rgba(255, 255, 255, 0.06)" }}>
               <Box>
-                <Typography sx={{ color: "#64748b", fontSize: "0.7rem", fontWeight: 600 }}>APPS</Typography>
-                <Typography sx={{ color: "#f8fafc", fontWeight: 800, fontSize: "0.95rem" }}>{apps.length}</Typography>
+                <Typography sx={{ color: "#64748b", fontSize: "0.68rem", fontWeight: 600 }}>APPS</Typography>
+                <Typography sx={{ color: "#f1f5f9", fontWeight: 700, fontSize: "0.9rem" }}>{apps.length}</Typography>
               </Box>
               <Box>
-                <Typography sx={{ color: "#64748b", fontSize: "0.7rem", fontWeight: 600 }}>DRIVERS</Typography>
-                <Typography sx={{ color: missingDrivers.length ? "#fb7185" : "#34d399", fontWeight: 800, fontSize: "0.95rem" }}>
-                  {missingDrivers.length ? `${missingDrivers.length} Need Fix` : "OK"}
+                <Typography sx={{ color: "#64748b", fontSize: "0.68rem", fontWeight: 600 }}>DRIVERS</Typography>
+                <Typography sx={{ color: missingDrivers.length ? "#ef4444" : "#10b981", fontWeight: 700, fontSize: "0.9rem" }}>
+                  {missingDrivers.length ? `${missingDrivers.length} Missing` : "OK"}
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={{ color: "#64748b", fontSize: "0.7rem", fontWeight: 600 }}>SYNC</Typography>
-                <Typography sx={{ color: "#7dd3fc", fontWeight: 800, fontSize: "0.8rem", mt: 0.2 }}>
-                  {lastScanTime ? lastScanTime.split(" ")[0] : "Idle"}
+                <Typography sx={{ color: "#64748b", fontSize: "0.68rem", fontWeight: 600 }}>STATUS</Typography>
+                <Typography sx={{ color: "#10b981", fontWeight: 700, fontSize: "0.8rem", mt: 0.2 }}>
+                  Active
                 </Typography>
               </Box>
             </Box>
@@ -575,28 +559,21 @@ function App() {
           <Button
             fullWidth
             variant="outlined"
-            startIcon={
-              <Refresh
-                sx={{
-                  animation: refreshing ? "radarSpin 1s linear infinite" : "none",
-                }}
-              />
-            }
+            startIcon={<Refresh sx={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />}
             onClick={handleRefresh}
             disabled={refreshing}
             sx={{
-              color: "#38bdf8",
-              borderColor: "rgba(56, 189, 248, 0.4)",
-              borderRadius: "10px",
-              py: 1,
-              fontWeight: 700,
-              fontSize: "0.85rem",
+              color: "#10b981",
+              borderColor: "rgba(16, 185, 129, 0.3)",
+              borderRadius: "8px",
+              py: 0.9,
+              fontWeight: 600,
+              fontSize: "0.82rem",
               textTransform: "none",
-              background: "rgba(56, 189, 248, 0.04)",
+              backgroundColor: "rgba(16, 185, 129, 0.04)",
               "&:hover": {
-                borderColor: "#38bdf8",
-                backgroundColor: "rgba(56, 189, 248, 0.12)",
-                boxShadow: "0 0 15px rgba(56, 189, 248, 0.25)",
+                borderColor: "#10b981",
+                backgroundColor: "rgba(16, 185, 129, 0.1)",
               },
             }}
           >
@@ -606,29 +583,29 @@ function App() {
       </Box>
 
       {/* Main Content Area */}
-      <Box sx={{ flex: 1, p: { xs: 2.5, md: 4.5 }, overflowY: "auto", minWidth: 0 }}>
+      <Box sx={{ flex: 1, p: { xs: 2.5, md: 4 }, overflowY: "auto", minWidth: 0 }}>
         {/* Top Header Bar */}
         <Box
           sx={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            mb: 4,
-            pb: 2.5,
-            borderBottom: "1px solid rgba(56, 189, 248, 0.12)",
+            mb: 3.5,
+            pb: 2,
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
             flexWrap: "wrap",
             gap: 2,
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: "0.8rem", color: "#38bdf8", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+            <Typography sx={{ fontSize: "0.78rem", color: "#10b981", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8 }}>
               Dashboard / {menuItems.find((m) => m.id === selectedMenu)?.label || "Overview"}
             </Typography>
-            <Typography variant="h4" sx={{ color: "#f8fafc", fontWeight: 800, letterSpacing: -0.5, mt: 0.2 }}>
-              {selectedMenu === "overview" && "System Health & Security Telemetry"}
-              {selectedMenu === "installed" && "Application Repository & Integrity"}
+            <Typography variant="h5" sx={{ color: "#f8fafc", fontWeight: 700, letterSpacing: -0.3, mt: 0.2 }}>
+              {selectedMenu === "overview" && "System Health & Security Overview"}
+              {selectedMenu === "installed" && "Installed Applications"}
               {selectedMenu === "drivers" && "Kernel Hardware & Device Drivers"}
-              {selectedMenu === "protection" && "Threat Defense & Software Verification"}
+              {selectedMenu === "protection" && "Software Protection Center"}
             </Typography>
           </Box>
 
@@ -638,30 +615,29 @@ function App() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 1,
-                px: 1.75,
-                py: 0.6,
+                px: 1.5,
+                py: 0.5,
                 borderRadius: "999px",
-                background: "rgba(16, 185, 129, 0.1)",
-                border: "1px solid rgba(16, 185, 129, 0.35)",
+                backgroundColor: "rgba(16, 185, 129, 0.1)",
+                border: "1px solid rgba(16, 185, 129, 0.25)",
               }}
             >
               <Box
                 sx={{
-                  width: 8,
-                  height: 8,
+                  width: 7,
+                  height: 7,
                   borderRadius: "50%",
                   backgroundColor: "#10b981",
-                  boxShadow: "0 0 10px #10b981",
                 }}
               />
-              <Typography sx={{ color: "#34d399", fontSize: "0.78rem", fontWeight: 700, letterSpacing: 0.5 }}>
+              <Typography sx={{ color: "#34d399", fontSize: "0.75rem", fontWeight: 600 }}>
                 DAEMON ONLINE
               </Typography>
             </Box>
 
             {lastScanTime && (
-              <Typography sx={{ color: "#64748b", fontSize: "0.8rem", fontWeight: 500 }}>
-                Synced: {lastScanTime}
+              <Typography sx={{ color: "#64748b", fontSize: "0.78rem" }}>
+                Last Synced: {lastScanTime}
               </Typography>
             )}
           </Box>
@@ -674,142 +650,142 @@ function App() {
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              height: "60vh",
+              height: "55vh",
               gap: 2,
             }}
           >
-            <CircularProgress size={48} sx={{ color: "#38bdf8" }} />
-            <Typography sx={{ color: "#94a3b8", fontWeight: 600, fontSize: "1rem" }}>
-              Deep scanning local registry and analyzing system status...
+            <CircularProgress size={40} sx={{ color: "#10b981" }} />
+            <Typography sx={{ color: "#94a3b8", fontWeight: 500, fontSize: "0.95rem" }}>
+              Scanning local registry and verifying system status...
             </Typography>
           </Box>
         ) : (
-          <Fade in timeout={400}>
+          <Fade in timeout={300}>
             <Box>
               {/* Overview View */}
               {selectedMenu === "overview" && (
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   {/* Top 4 KPI Cards Grid */}
                   <Box
                     sx={{
                       display: "grid",
                       gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" },
-                      gap: 2.5,
+                      gap: 2,
                     }}
                   >
                     {/* Card 1: Total Apps */}
-                    <Card sx={{ ...glassCard, p: 2.5, ...panelHover }}>
+                    <Card sx={{ ...glassCard, p: 2.2, ...panelHover }}>
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <Typography sx={{ color: "#94a3b8", fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase" }}>
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" }}>
                           Monitored Apps
                         </Typography>
                         <Box
                           sx={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: "10px",
-                            backgroundColor: "rgba(56, 189, 248, 0.15)",
+                            width: 32,
+                            height: 32,
+                            borderRadius: "8px",
+                            backgroundColor: "rgba(16, 185, 129, 0.12)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            color: "#38bdf8",
+                            color: "#10b981",
                           }}
                         >
-                          <Storage sx={{ fontSize: 20 }} />
+                          <Storage sx={{ fontSize: 18 }} />
                         </Box>
                       </Box>
-                      <Typography sx={{ color: "#f8fafc", fontSize: "2rem", fontWeight: 800, mt: 1 }}>
+                      <Typography sx={{ color: "#f8fafc", fontSize: "1.75rem", fontWeight: 700, mt: 0.8 }}>
                         {apps.length}
                       </Typography>
-                      <Typography sx={{ color: "#34d399", fontSize: "0.78rem", fontWeight: 600, mt: 0.5, display: "flex", alignItems: "center", gap: 0.5 }}>
-                        <CheckCircle sx={{ fontSize: 13 }} /> System catalog active
+                      <Typography sx={{ color: "#10b981", fontSize: "0.75rem", fontWeight: 500, mt: 0.4, display: "flex", alignItems: "center", gap: 0.4 }}>
+                        <CheckCircle sx={{ fontSize: 12 }} /> Inventory verified
                       </Typography>
                     </Card>
 
                     {/* Card 2: Outdated Apps */}
-                    <Card sx={{ ...glassCard, p: 2.5, ...panelHover }}>
+                    <Card sx={{ ...glassCard, p: 2.2, ...panelHover }}>
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <Typography sx={{ color: "#94a3b8", fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase" }}>
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" }}>
                           Pending Updates
                         </Typography>
                         <Box
                           sx={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: "10px",
-                            backgroundColor: "rgba(245, 158, 11, 0.15)",
+                            width: 32,
+                            height: 32,
+                            borderRadius: "8px",
+                            backgroundColor: "rgba(245, 158, 11, 0.12)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            color: "#fbbf24",
+                            color: "#f59e0b",
                           }}
                         >
-                          <WarningAmber sx={{ fontSize: 20 }} />
+                          <WarningAmber sx={{ fontSize: 18 }} />
                         </Box>
                       </Box>
-                      <Typography sx={{ color: outdatedAppsCount > 0 ? "#fbbf24" : "#f8fafc", fontSize: "2rem", fontWeight: 800, mt: 1 }}>
+                      <Typography sx={{ color: outdatedAppsCount > 0 ? "#f59e0b" : "#f8fafc", fontSize: "1.75rem", fontWeight: 700, mt: 0.8 }}>
                         {outdatedAppsCount}
                       </Typography>
-                      <Typography sx={{ color: outdatedAppsCount > 0 ? "#fbbf24" : "#34d399", fontSize: "0.78rem", fontWeight: 600, mt: 0.5 }}>
-                        {outdatedAppsCount > 0 ? "Patches available for install" : "All apps up-to-date"}
+                      <Typography sx={{ color: outdatedAppsCount > 0 ? "#f59e0b" : "#10b981", fontSize: "0.75rem", fontWeight: 500, mt: 0.4 }}>
+                        {outdatedAppsCount > 0 ? "Updates available" : "All apps up to date"}
                       </Typography>
                     </Card>
 
                     {/* Card 3: Missing Drivers */}
-                    <Card sx={{ ...glassCard, p: 2.5, ...panelHover }}>
+                    <Card sx={{ ...glassCard, p: 2.2, ...panelHover }}>
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <Typography sx={{ color: "#94a3b8", fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase" }}>
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" }}>
                           Missing Drivers
                         </Typography>
                         <Box
                           sx={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: "10px",
-                            backgroundColor: "rgba(244, 63, 94, 0.15)",
+                            width: 32,
+                            height: 32,
+                            borderRadius: "8px",
+                            backgroundColor: "rgba(239, 68, 68, 0.12)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            color: "#fb7185",
+                            color: "#ef4444",
                           }}
                         >
-                          <Build sx={{ fontSize: 20 }} />
+                          <Build sx={{ fontSize: 18 }} />
                         </Box>
                       </Box>
-                      <Typography sx={{ color: missingDrivers.length > 0 ? "#fb7185" : "#f8fafc", fontSize: "2rem", fontWeight: 800, mt: 1 }}>
+                      <Typography sx={{ color: missingDrivers.length > 0 ? "#ef4444" : "#f8fafc", fontSize: "1.75rem", fontWeight: 700, mt: 0.8 }}>
                         {missingDrivers.length}
                       </Typography>
-                      <Typography sx={{ color: missingDrivers.length > 0 ? "#fb7185" : "#34d399", fontSize: "0.78rem", fontWeight: 600, mt: 0.5 }}>
-                        {missingDrivers.length > 0 ? "Hardware risk detected" : "All drivers verified"}
+                      <Typography sx={{ color: missingDrivers.length > 0 ? "#ef4444" : "#10b981", fontSize: "0.75rem", fontWeight: 500, mt: 0.4 }}>
+                        {missingDrivers.length > 0 ? "Hardware risk flagged" : "All drivers verified"}
                       </Typography>
                     </Card>
 
                     {/* Card 4: Security Health */}
-                    <Card sx={{ ...glassCard, p: 2.5, ...panelHover }}>
+                    <Card sx={{ ...glassCard, p: 2.2, ...panelHover }}>
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <Typography sx={{ color: "#94a3b8", fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase" }}>
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" }}>
                           Security Index
                         </Typography>
                         <Box
                           sx={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: "10px",
-                            backgroundColor: "rgba(99, 102, 241, 0.15)",
+                            width: 32,
+                            height: 32,
+                            borderRadius: "8px",
+                            backgroundColor: "rgba(16, 185, 129, 0.12)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            color: "#818cf8",
+                            color: "#10b981",
                           }}
                         >
-                          <ShieldOutlined sx={{ fontSize: 20 }} />
+                          <ShieldOutlined sx={{ fontSize: 18 }} />
                         </Box>
                       </Box>
-                      <Typography sx={{ color: "#f8fafc", fontSize: "2rem", fontWeight: 800, mt: 1 }}>
+                      <Typography sx={{ color: "#f8fafc", fontSize: "1.75rem", fontWeight: 700, mt: 0.8 }}>
                         {systemHealthScore}%
                       </Typography>
-                      <Typography sx={{ color: "#38bdf8", fontSize: "0.78rem", fontWeight: 600, mt: 0.5 }}>
-                        {systemHealthScore >= 80 ? "Shield status: Optimal" : "Attention recommended"}
+                      <Typography sx={{ color: systemHealthScore >= 80 ? "#10b981" : "#f59e0b", fontSize: "0.75rem", fontWeight: 500, mt: 0.4 }}>
+                        {systemHealthScore >= 80 ? "Status: Optimal" : "Attention needed"}
                       </Typography>
                     </Card>
                   </Box>
@@ -818,41 +794,36 @@ function App() {
                   <Card sx={{ ...glassCard, p: 3, ...panelHover }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                       <Box>
-                        <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 800, fontSize: "1.15rem" }}>
+                        <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "1.05rem" }}>
                           Security & Vulnerability Risk Vector
                         </Typography>
-                        <Typography sx={{ color: "#94a3b8", fontSize: "0.85rem", mt: 0.2 }}>
-                          Weighted risk distribution aggregated from unpatched applications and unverified kernel drivers.
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.82rem", mt: 0.2 }}>
+                          Calculated from unpatched applications, missing kernel drivers, and protection flags.
                         </Typography>
                       </Box>
                       <Chip
-                        label="Live Telemetry"
+                        label="Live Status"
                         size="small"
                         sx={{
-                          backgroundColor: "rgba(56, 189, 248, 0.12)",
-                          color: "#7dd3fc",
-                          border: "1px solid rgba(56, 189, 248, 0.3)",
-                          fontWeight: 700,
+                          backgroundColor: "rgba(16, 185, 129, 0.1)",
+                          color: "#10b981",
+                          border: "1px solid rgba(16, 185, 129, 0.25)",
+                          fontWeight: 600,
+                          fontSize: "0.72rem",
                         }}
                       />
                     </Box>
 
-                    <Box sx={{ width: "100%", height: 280, mt: 2 }}>
+                    <Box sx={{ width: "100%", height: 260, mt: 1 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={riskData} margin={{ top: 10, right: 20, left: -10, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" vertical={false} />
-                          <XAxis dataKey="name" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 600 }} />
-                          <YAxis stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+                          <XAxis dataKey="name" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 500 }} />
+                          <YAxis stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12 }} />
                           <Tooltip content={<CustomBarTooltip />} />
-                          <Bar dataKey="risk" radius={[8, 8, 0, 0]} barSize={44}>
+                          <Bar dataKey="risk" radius={[6, 6, 0, 0]} barSize={38}>
                             {riskData.map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={entry.fill}
-                                style={{
-                                  filter: `drop-shadow(0 0 10px ${entry.fill}66)`,
-                                }}
-                              />
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
                             ))}
                           </Bar>
                         </BarChart>
@@ -861,42 +832,41 @@ function App() {
                   </Card>
 
                   {/* Offline Environment Synchronization Card */}
-                  <Card sx={{ ...glassCard, p: 3.5, ...panelHover }}>
-                    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2.5, flexWrap: "wrap", mb: 2.5 }}>
+                  <Card sx={{ ...glassCard, p: 3, ...panelHover }}>
+                    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, flexWrap: "wrap", mb: 2 }}>
                       <Box
                         sx={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: "14px",
-                          background: "linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(99, 102, 241, 0.25) 100%)",
-                          border: "1px solid rgba(56, 189, 248, 0.4)",
+                          width: 40,
+                          height: 40,
+                          borderRadius: "10px",
+                          backgroundColor: "rgba(16, 185, 129, 0.12)",
+                          border: "1px solid rgba(16, 185, 129, 0.25)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          color: "#38bdf8",
+                          color: "#10b981",
                           flexShrink: 0,
-                          boxShadow: "0 0 20px rgba(56, 189, 248, 0.25)",
                         }}
                       >
-                        <FolderZip sx={{ fontSize: 26 }} />
+                        <FolderZip sx={{ fontSize: 22 }} />
                       </Box>
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 800, fontSize: "1.15rem" }}>
+                        <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "1.05rem" }}>
                           Air-Gapped & Offline Environment Sync
                         </Typography>
-                        <Typography sx={{ color: "#94a3b8", fontSize: "0.85rem", mt: 0.3, maxWidth: 650 }}>
-                          Generate offline portable deployment archives and remediation scripts for isolated, air-gapped, or restricted intranet workstations.
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.82rem", mt: 0.2, maxWidth: 650 }}>
+                          Download portable offline deployment packages and remediation scripts for air-gapped or restricted workstations.
                         </Typography>
                       </Box>
                     </Box>
 
                     {downloading ? (
-                      <Box sx={{ p: 2.5, borderRadius: "12px", background: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(56, 189, 248, 0.3)" }}>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-                          <Typography sx={{ color: "#38bdf8", fontWeight: 700, fontSize: "0.9rem" }}>
-                            Generating & Downloading {downloadLabel}...
+                      <Box sx={{ p: 2, borderRadius: "8px", backgroundColor: "#0e131f", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                          <Typography sx={{ color: "#10b981", fontWeight: 600, fontSize: "0.85rem" }}>
+                            Downloading {downloadLabel}...
                           </Typography>
-                          <Typography sx={{ color: "#f8fafc", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>
+                          <Typography sx={{ color: "#f8fafc", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
                             {Math.round(downloadProgress)}%
                           </Typography>
                         </Box>
@@ -904,12 +874,11 @@ function App() {
                           variant="determinate"
                           value={downloadProgress}
                           sx={{
-                            height: 10,
-                            borderRadius: 6,
-                            backgroundColor: "rgba(15, 23, 42, 0.9)",
+                            height: 6,
+                            borderRadius: 3,
+                            backgroundColor: "rgba(255, 255, 255, 0.08)",
                             "& .MuiLinearProgress-bar": {
-                              background: "linear-gradient(90deg, #6366f1, #38bdf8, #10b981)",
-                              boxShadow: "0 0 12px rgba(56, 189, 248, 0.6)",
+                              backgroundColor: "#10b981",
                             },
                           }}
                         />
@@ -921,20 +890,18 @@ function App() {
                           startIcon={<CloudDownload />}
                           onClick={() => handleDownloadZip("full")}
                           sx={{
-                            background: "linear-gradient(135deg, #6366f1 0%, #0284c7 100%)",
+                            backgroundColor: "#10b981",
                             color: "#ffffff",
-                            px: 3,
-                            py: 1.2,
-                            fontWeight: 800,
-                            fontSize: "0.88rem",
-                            borderRadius: "10px",
-                            boxShadow: "0 4px 20px rgba(99, 102, 241, 0.35)",
-                            border: "1px solid rgba(56, 189, 248, 0.4)",
-                            transition: "all 0.25s ease",
+                            px: 2.5,
+                            py: 1,
+                            fontWeight: 600,
+                            fontSize: "0.85rem",
+                            borderRadius: "8px",
+                            textTransform: "none",
+                            boxShadow: "none",
                             "&:hover": {
-                              background: "linear-gradient(135deg, #4f46e5 0%, #0369a1 100%)",
-                              boxShadow: "0 6px 25px rgba(99, 102, 241, 0.5)",
-                              transform: "translateY(-1px)",
+                              backgroundColor: "#059669",
+                              boxShadow: "none",
                             },
                           }}
                         >
@@ -946,19 +913,18 @@ function App() {
                           startIcon={<CloudDownload />}
                           onClick={() => handleDownloadZip("delta")}
                           sx={{
-                            color: "#7dd3fc",
-                            borderColor: "rgba(56, 189, 248, 0.4)",
-                            px: 3,
-                            py: 1.2,
-                            fontWeight: 700,
-                            fontSize: "0.88rem",
-                            borderRadius: "10px",
-                            background: "rgba(56, 189, 248, 0.05)",
+                            color: "#10b981",
+                            borderColor: "rgba(16, 185, 129, 0.35)",
+                            px: 2.5,
+                            py: 1,
+                            fontWeight: 600,
+                            fontSize: "0.85rem",
+                            borderRadius: "8px",
+                            textTransform: "none",
+                            backgroundColor: "rgba(16, 185, 129, 0.04)",
                             "&:hover": {
-                              borderColor: "#38bdf8",
-                              backgroundColor: "rgba(56, 189, 248, 0.12)",
-                              boxShadow: "0 0 16px rgba(56, 189, 248, 0.25)",
-                              transform: "translateY(-1px)",
+                              borderColor: "#10b981",
+                              backgroundColor: "rgba(16, 185, 129, 0.1)",
                             },
                           }}
                         >
@@ -971,22 +937,23 @@ function App() {
                           onClick={handleExportRemediationScript}
                           disabled={scriptDownloading}
                           sx={{
-                            color: "#cbd5e1",
-                            borderColor: "rgba(148, 163, 184, 0.3)",
-                            px: 3,
-                            py: 1.2,
-                            fontWeight: 700,
-                            fontSize: "0.88rem",
-                            borderRadius: "10px",
-                            background: "rgba(15, 23, 42, 0.6)",
+                            color: "#94a3b8",
+                            borderColor: "rgba(255, 255, 255, 0.12)",
+                            px: 2.5,
+                            py: 1,
+                            fontWeight: 600,
+                            fontSize: "0.85rem",
+                            borderRadius: "8px",
+                            textTransform: "none",
+                            backgroundColor: "transparent",
                             "&:hover": {
-                              borderColor: "#f8fafc",
-                              backgroundColor: "rgba(30, 41, 59, 0.6)",
-                              transform: "translateY(-1px)",
+                              borderColor: "rgba(255, 255, 255, 0.25)",
+                              color: "#f1f5f9",
+                              backgroundColor: "rgba(255, 255, 255, 0.04)",
                             },
                           }}
                         >
-                          {scriptDownloading ? "Exporting PowerShell..." : "Export Remediation Script (.ps1)"}
+                          {scriptDownloading ? "Exporting Script..." : "Export Remediation Script (.ps1)"}
                         </Button>
                       </Box>
                     )}
