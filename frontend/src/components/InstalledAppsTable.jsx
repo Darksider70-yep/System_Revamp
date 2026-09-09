@@ -50,6 +50,9 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
+const isNeedsUpdate = (app) => app?.status === "Update Available" || Boolean(app?.updateRequired);
+const isUpToDate = (app) => app?.status === "Up-to-date" || (!isNeedsUpdate(app) && app?.status !== "Unknown");
+
 const InstalledAppsTable = ({ data = [] }) => {
   const [attackLogs, setAttackLogs] = useState([]);
   const [attackingApp, setAttackingApp] = useState(null);
@@ -61,9 +64,6 @@ const InstalledAppsTable = ({ data = [] }) => {
   const columns = useMemo(() => columnsData, []);
 
   // Filter data based on quick tabs
-  const isNeedsUpdate = (app) => app.status === "Update Available" || Boolean(app.updateRequired);
-  const isUpToDate = (app) => app.status === "Up-to-date" || (!isNeedsUpdate(app) && app.status !== "Unknown");
-
   const filteredData = useMemo(() => {
     if (filterType === "outdated") {
       return data.filter(isNeedsUpdate);

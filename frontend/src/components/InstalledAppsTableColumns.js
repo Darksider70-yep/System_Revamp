@@ -101,7 +101,6 @@ const columns = [
     accessor: "status",
     Cell: ({ value }) => {
       const isNeedsUpdate = value === "Update Available";
-      const isUpToDate = value === "Up-to-date" || !isNeedsUpdate;
       return (
         <Box
           sx={{
