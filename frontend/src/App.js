@@ -15,24 +15,74 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
+  Chip,
 } from "@mui/material";
-import { CloudDownload, Refresh, Computer, Dashboard, Storage, Build, Security } from "@mui/icons-material";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  CloudDownload,
+  Refresh,
+  Computer,
+  Dashboard,
+  Storage,
+  Build,
+  Security,
+  ShieldOutlined,
+  Code,
+  CheckCircle,
+  WarningAmber,
+  FolderZip,
+} from "@mui/icons-material";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  Cell,
+} from "recharts";
 
 const panelHover = {
-  transition: "box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease",
+  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
   "&:hover": {
-    boxShadow: "0 22px 44px rgba(5, 10, 28, 0.52)",
+    boxShadow: "0 20px 40px rgba(2, 6, 23, 0.65), 0 0 20px rgba(56, 189, 248, 0.15)",
     transform: "translateY(-2px)",
-    borderColor: "rgba(56, 189, 248, 0.52)",
+    borderColor: "rgba(56, 189, 248, 0.45)",
   },
 };
 
 const glassCard = {
-  background: "linear-gradient(140deg, rgba(12, 20, 45, 0.86), rgba(15, 30, 66, 0.76))",
-  border: "1px solid rgba(99, 102, 241, 0.34)",
-  borderRadius: 3,
-  backdropFilter: "blur(8px)",
+  background: "linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(13, 20, 38, 0.7) 100%)",
+  border: "1px solid rgba(56, 189, 248, 0.2)",
+  borderRadius: "16px",
+  backdropFilter: "blur(14px)",
+  boxShadow: "0 14px 34px rgba(2, 6, 23, 0.55)",
+};
+
+const CustomBarTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <Box
+        sx={{
+          background: "rgba(15, 23, 42, 0.95)",
+          border: "1px solid rgba(56, 189, 248, 0.4)",
+          padding: "10px 14px",
+          borderRadius: "10px",
+          color: "#f8fafc",
+          boxShadow: "0 10px 25px rgba(2, 6, 23, 0.7)",
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        <Typography sx={{ fontSize: "0.82rem", color: "#94a3b8", mb: 0.25 }}>
+          Risk Level: <strong style={{ color: "#f8fafc" }}>{label}</strong>
+        </Typography>
+        <Typography sx={{ fontSize: "1.1rem", fontWeight: 800, color: payload[0].payload.fill || "#38bdf8" }}>
+          {payload[0].value} <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "#cbd5e1" }}>score units</span>
+        </Typography>
+      </Box>
+    );
+  }
+  return null;
 };
 
 function App() {
@@ -73,32 +123,27 @@ function App() {
     setLoading(true);
 
     try {
-      // Call scanner service (8000)
       const scanRes = await fetch("http://127.0.0.1:8000/scan");
       const scanData = await scanRes.json();
 
       if (!scanData.apps) throw new Error("Scan failed");
 
-      // Convert array to dictionary
       const installedDict = {};
-      scanData.apps.forEach(app => {
+      scanData.apps.forEach((app) => {
         installedDict[app.name] = app.version;
       });
 
-      // Call version service (8002)
       const versionRes = await fetch("http://127.0.0.1:8002/check-versions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(installedDict)
+        body: JSON.stringify(installedDict),
       });
 
       const versionData = await versionRes.json();
-
       if (!versionData.apps) throw new Error("Version check failed");
 
       setApps(versionData.apps);
-      setLastScanTime(new Date().toLocaleString());
-
+      setLastScanTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch (err) {
       console.error(err);
       setApps([]);
@@ -108,14 +153,17 @@ function App() {
     setRefreshing(false);
   };
 
-  const normalizedApps = apps.map(app => ({
+  const normalizedApps = apps.map((app) => ({
     ...app,
     updateRequired: app.status?.includes("Update Available"),
   }));
 
+  const outdatedAppsCount = normalizedApps.filter((app) => app.updateRequired).length;
+
   const riskData = [
-    { name: "Critical", risk: missingDrivers.length * 3 },
-    { name: "Moderate", risk: normalizedApps.filter(app => app.updateRequired).length },
+    { name: "Critical Driver Risk", risk: missingDrivers.length * 3, fill: "#f43f5e" },
+    { name: "Application Updates", risk: outdatedAppsCount * 2, fill: "#f59e0b" },
+    { name: "Identified Threats", risk: (protectionSummary.malicious * 4) + (protectionSummary.suspicious * 2), fill: "#8b5cf6" },
   ];
 
   // Fetch drivers (missing + installed)
@@ -133,7 +181,6 @@ function App() {
     }
   };
 
-  // Initial fetch
   useEffect(() => {
     fetchApps();
     fetchDrivers();
@@ -305,7 +352,7 @@ function App() {
 
       setProtectionResults(Array.isArray(data.results) ? data.results : []);
       setProtectionSummary(data.summary || { malicious: 0, suspicious: 0, clean: 0, unknown: 0, error: 0 });
-      setLastProtectionScan(new Date().toLocaleString());
+      setLastProtectionScan(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch (err) {
       alert(toFriendlyFetchError(err, "Protection service", "http://127.0.0.1:8003"));
       setProtectionResults([]);
@@ -315,6 +362,16 @@ function App() {
     }
   };
 
+  // Calculate overall system health index (0 to 100)
+  const healthDeficit = (outdatedAppsCount * 8) + (missingDrivers.length * 15) + (protectionSummary.malicious * 25);
+  const systemHealthScore = Math.max(15, Math.min(100, Math.round(100 - healthDeficit)));
+
+  const menuItems = [
+    { id: "overview", label: "Overview", icon: <Dashboard /> },
+    { id: "installed", label: "Installed Apps", icon: <Storage />, count: apps.length },
+    { id: "drivers", label: "Kernel & Drivers", icon: <Build />, count: missingDrivers.length, badgeColor: "#f43f5e" },
+    { id: "protection", label: "Software Protection", icon: <Security /> },
+  ];
 
   return (
     <Box
@@ -322,243 +379,625 @@ function App() {
         display: "flex",
         minHeight: "100vh",
         background:
-          "radial-gradient(circle at 10% 0%, rgba(30, 64, 175, 0.42), rgba(2, 6, 23, 1) 35%), radial-gradient(circle at 90% 20%, rgba(14, 116, 144, 0.24), rgba(2, 6, 23, 0.8) 45%), linear-gradient(140deg, #020617 0%, #020b2a 55%, #03143a 100%)",
-        color: "#e2e8f0",
+          "radial-gradient(ellipse 80% 50% at 20% -10%, rgba(56, 189, 248, 0.12), transparent), radial-gradient(ellipse 60% 40% at 80% 10%, rgba(99, 102, 241, 0.14), transparent), linear-gradient(160deg, #070b14 0%, #0a1020 50%, #060b18 100%)",
+        color: "#f8fafc",
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
       }}
     >
-      {/* Sidebar */}
+      {/* Sleek Sidebar */}
       <Box
         sx={{
-          width: 260,
-          borderRight: "1px solid rgba(59, 130, 246, 0.28)",
-          background: "linear-gradient(180deg, rgba(4, 9, 30, 0.9), rgba(4, 12, 34, 0.92))",
-          py: 4,
-          px: 2,
-          backdropFilter: "blur(10px)",
-          boxShadow: "14px 0 30px rgba(2, 6, 23, 0.5)",
+          width: 280,
+          flexShrink: 0,
+          borderRight: "1px solid rgba(56, 189, 248, 0.15)",
+          background: "linear-gradient(180deg, rgba(8, 13, 27, 0.92) 0%, rgba(6, 10, 22, 0.95) 100%)",
+          py: 3.5,
+          px: 2.2,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          backdropFilter: "blur(20px)",
+          boxShadow: "10px 0 40px rgba(0, 0, 0, 0.6)",
         }}
       >
-        <Typography variant="h5" sx={{ color: "#dbeafe", fontWeight: 800, mb: 3, textAlign: "center", letterSpacing: 0.6 }}>
-          Dashboard
-        </Typography>
-        <Divider sx={{ borderColor: "rgba(56, 189, 248, 0.28)", mb: 2 }} />
-        <List>
-          {[
-            { id: "overview", label: "Overview", icon: <Dashboard /> },
-            { id: "installed", label: "Installed Apps", icon: <Storage /> },
-            { id: "drivers", label: "Drivers", icon: <Build /> },
-            { id: "protection", label: "Software Protection", icon: <Security /> },
-          ].map((item) => (
-            <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
-              <ListItemButton
-                onClick={() => setSelectedMenu(item.id)}
+        <Box>
+          {/* Brand Logo & Tag */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.5, mb: 3 }}>
+            <Box
+              sx={{
+                width: 42,
+                height: 42,
+                borderRadius: "12px",
+                background: "linear-gradient(135deg, #38bdf8 0%, #6366f1 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 0 20px rgba(56, 189, 248, 0.4)",
+              }}
+            >
+              <Computer sx={{ color: "#ffffff", fontSize: 24 }} />
+            </Box>
+            <Box>
+              <Typography
                 sx={{
-                  borderRadius: 2.5,
-                  px: 2,
-                  py: 1,
-                  background:
-                    selectedMenu === item.id
-                      ? "linear-gradient(120deg, rgba(67, 56, 202, 0.38), rgba(14, 165, 233, 0.25))"
-                      : "transparent",
-                  border: "1px solid",
-                  borderColor: selectedMenu === item.id ? "rgba(56, 189, 248, 0.48)" : "transparent",
-                  "&:hover": {
-                    backgroundColor: "rgba(30, 64, 175, 0.3)",
-                    borderColor: "rgba(56, 189, 248, 0.3)",
-                  },
+                  color: "#f8fafc",
+                  fontWeight: 800,
+                  fontSize: "1.1rem",
+                  letterSpacing: 0.4,
+                  lineHeight: 1.1,
                 }}
               >
-                {React.cloneElement(item.icon, { sx: { color: "#7dd3fc", mr: 2 } })}
-                <ListItemText
-                  primary={item.label}
-                  sx={{ color: "#cbd5e1", "& .MuiTypography-root": { fontWeight: selectedMenu === item.id ? 700 : 500 } }}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
+                System Revamp
+              </Typography>
+              <Typography
+                sx={{
+                  color: "#38bdf8",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  letterSpacing: 1.2,
+                  textTransform: "uppercase",
+                  mt: 0.3,
+                }}
+              >
+                Security Core
+              </Typography>
+            </Box>
+          </Box>
 
-        {/* Sidebar Stats */}
-        <Box sx={{ mt: 4 }}>
-          <Card sx={{ ...glassCard, p: 2, mb: 2, ...panelHover }}>
-            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Total Apps</Typography>
-            <Typography sx={{ color: "#f8fafc", fontSize: 24, fontWeight: 700 }}>{apps.length}</Typography>
-          </Card>
-          <Card sx={{ ...glassCard, p: 2, mb: 2, ...panelHover }}>
-            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Missing Drivers</Typography>
-            <Typography sx={{ color: "#f8fafc", fontSize: 24, fontWeight: 700 }}>{missingDrivers.length}</Typography>
-          </Card>
-          <Card sx={{ ...glassCard, p: 2, ...panelHover }}>
-            <Typography sx={{ color: "#7dd3fc", fontWeight: 700 }}>Last Scan</Typography>
-            <Typography sx={{ color: "#94a3b8", fontSize: 13, fontWeight: 500 }}>{lastScanTime || "N/A"}</Typography>
-          </Card>
+          <Divider sx={{ borderColor: "rgba(56, 189, 248, 0.12)", mb: 2.5 }} />
+
+          {/* Navigation Menu */}
+          <List sx={{ p: 0 }}>
+            {menuItems.map((item) => {
+              const isSelected = selectedMenu === item.id;
+              return (
+                <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
+                  <ListItemButton
+                    onClick={() => setSelectedMenu(item.id)}
+                    sx={{
+                      borderRadius: "12px",
+                      px: 2,
+                      py: 1.2,
+                      background: isSelected
+                        ? "linear-gradient(135deg, rgba(56, 189, 248, 0.16) 0%, rgba(99, 102, 241, 0.22) 100%)"
+                        : "transparent",
+                      border: "1px solid",
+                      borderColor: isSelected ? "rgba(56, 189, 248, 0.45)" : "transparent",
+                      boxShadow: isSelected ? "0 4px 20px rgba(56, 189, 248, 0.2)" : "none",
+                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                      "&:hover": {
+                        backgroundColor: "rgba(56, 189, 248, 0.08)",
+                        borderColor: "rgba(56, 189, 248, 0.25)",
+                      },
+                    }}
+                  >
+                    {React.cloneElement(item.icon, {
+                      sx: {
+                        color: isSelected ? "#38bdf8" : "#94a3b8",
+                        mr: 1.75,
+                        fontSize: 22,
+                        filter: isSelected ? "drop-shadow(0 0 8px rgba(56, 189, 248, 0.5))" : "none",
+                      },
+                    })}
+                    <ListItemText
+                      primary={item.label}
+                      primaryTypographyProps={{
+                        sx: {
+                          color: isSelected ? "#f8fafc" : "#94a3b8",
+                          fontWeight: isSelected ? 700 : 500,
+                          fontSize: "0.9rem",
+                        },
+                      }}
+                    />
+                    {item.count !== undefined && item.count > 0 && (
+                      <Chip
+                        label={item.count}
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: "0.72rem",
+                          fontWeight: 800,
+                          backgroundColor: item.badgeColor
+                            ? "rgba(244, 63, 94, 0.25)"
+                            : "rgba(56, 189, 248, 0.18)",
+                          color: item.badgeColor ? "#fb7185" : "#7dd3fc",
+                          border: `1px solid ${item.badgeColor ? "rgba(244, 63, 94, 0.4)" : "rgba(56, 189, 248, 0.3)"}`,
+                        }}
+                      />
+                    )}
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </List>
         </Box>
 
-        <Box sx={{ mt: 4, textAlign: "center" }}>
-          <Button
-            variant="outlined"
-            startIcon={<Refresh />}
-            onClick={handleRefresh}
+        {/* Sidebar Telemetry & Refresh */}
+        <Box>
+          <Card
             sx={{
-              color: "#bfdbfe",
-              borderColor: "rgba(56, 189, 248, 0.55)",
-              borderRadius: 20,
-              px: 3,
+              ...glassCard,
+              p: 2.2,
+              mb: 2,
+              background: "linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(10, 16, 32, 0.85) 100%)",
+            }}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+              <Typography sx={{ color: "#94a3b8", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase" }}>
+                Security Score
+              </Typography>
+              <Typography
+                sx={{
+                  color: systemHealthScore >= 80 ? "#34d399" : systemHealthScore >= 60 ? "#fbbf24" : "#fb7185",
+                  fontWeight: 800,
+                  fontSize: "0.9rem",
+                }}
+              >
+                {systemHealthScore}/100
+              </Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={systemHealthScore}
+              sx={{
+                height: 6,
+                borderRadius: 4,
+                backgroundColor: "rgba(15, 23, 42, 0.8)",
+                "& .MuiLinearProgress-bar": {
+                  background:
+                    systemHealthScore >= 80
+                      ? "linear-gradient(90deg, #10b981, #38bdf8)"
+                      : "linear-gradient(90deg, #f43f5e, #f59e0b)",
+                },
+              }}
+            />
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2, pt: 1.5, borderTop: "1px solid rgba(148, 163, 184, 0.1)" }}>
+              <Box>
+                <Typography sx={{ color: "#64748b", fontSize: "0.7rem", fontWeight: 600 }}>APPS</Typography>
+                <Typography sx={{ color: "#f8fafc", fontWeight: 800, fontSize: "0.95rem" }}>{apps.length}</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ color: "#64748b", fontSize: "0.7rem", fontWeight: 600 }}>DRIVERS</Typography>
+                <Typography sx={{ color: missingDrivers.length ? "#fb7185" : "#34d399", fontWeight: 800, fontSize: "0.95rem" }}>
+                  {missingDrivers.length ? `${missingDrivers.length} Need Fix` : "OK"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ color: "#64748b", fontSize: "0.7rem", fontWeight: 600 }}>SYNC</Typography>
+                <Typography sx={{ color: "#7dd3fc", fontWeight: 800, fontSize: "0.8rem", mt: 0.2 }}>
+                  {lastScanTime ? lastScanTime.split(" ")[0] : "Idle"}
+                </Typography>
+              </Box>
+            </Box>
+          </Card>
+
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={
+              <Refresh
+                sx={{
+                  animation: refreshing ? "radarSpin 1s linear infinite" : "none",
+                }}
+              />
+            }
+            onClick={handleRefresh}
+            disabled={refreshing}
+            sx={{
+              color: "#38bdf8",
+              borderColor: "rgba(56, 189, 248, 0.4)",
+              borderRadius: "10px",
+              py: 1,
               fontWeight: 700,
+              fontSize: "0.85rem",
+              textTransform: "none",
+              background: "rgba(56, 189, 248, 0.04)",
               "&:hover": {
-                borderColor: "#67e8f9",
-                backgroundColor: "rgba(8, 47, 73, 0.5)",
+                borderColor: "#38bdf8",
+                backgroundColor: "rgba(56, 189, 248, 0.12)",
+                boxShadow: "0 0 15px rgba(56, 189, 248, 0.25)",
               },
             }}
-            disabled={refreshing}
           >
-            {refreshing ? "Refreshing..." : "Refresh"}
+            {refreshing ? "Scanning System..." : "Rescan System"}
           </Button>
         </Box>
       </Box>
 
-      {/* Main Content */}
-      <Box sx={{ flex: 1, p: 4 }}>
-        <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
-          <Computer sx={{ fontSize: 48, color: "#7dd3fc", mr: 1.2, filter: "drop-shadow(0 4px 12px rgba(56, 189, 248, 0.38))" }} />
-          <Typography variant="h3" sx={{ color: "#e2e8f0", fontWeight: 800, letterSpacing: 0.5 }}>
-            System Revamp
-          </Typography>
+      {/* Main Content Area */}
+      <Box sx={{ flex: 1, p: { xs: 2.5, md: 4.5 }, overflowY: "auto", minWidth: 0 }}>
+        {/* Top Header Bar */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 4,
+            pb: 2.5,
+            borderBottom: "1px solid rgba(56, 189, 248, 0.12)",
+            flexWrap: "wrap",
+            gap: 2,
+          }}
+        >
+          <Box>
+            <Typography sx={{ fontSize: "0.8rem", color: "#38bdf8", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+              Dashboard / {menuItems.find((m) => m.id === selectedMenu)?.label || "Overview"}
+            </Typography>
+            <Typography variant="h4" sx={{ color: "#f8fafc", fontWeight: 800, letterSpacing: -0.5, mt: 0.2 }}>
+              {selectedMenu === "overview" && "System Health & Security Telemetry"}
+              {selectedMenu === "installed" && "Application Repository & Integrity"}
+              {selectedMenu === "drivers" && "Kernel Hardware & Device Drivers"}
+              {selectedMenu === "protection" && "Threat Defense & Software Verification"}
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 1,
+                px: 1.75,
+                py: 0.6,
+                borderRadius: "999px",
+                background: "rgba(16, 185, 129, 0.1)",
+                border: "1px solid rgba(16, 185, 129, 0.35)",
+              }}
+            >
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  backgroundColor: "#10b981",
+                  boxShadow: "0 0 10px #10b981",
+                }}
+              />
+              <Typography sx={{ color: "#34d399", fontSize: "0.78rem", fontWeight: 700, letterSpacing: 0.5 }}>
+                DAEMON ONLINE
+              </Typography>
+            </Box>
+
+            {lastScanTime && (
+              <Typography sx={{ color: "#64748b", fontSize: "0.8rem", fontWeight: 500 }}>
+                Synced: {lastScanTime}
+              </Typography>
+            )}
+          </Box>
         </Box>
 
         {loading ? (
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "70vh", color: "#bae6fd" }}>
-            <CircularProgress sx={{ color: "#38bdf8", mb: 2 }} />
-            <Typography sx={{ animation: "pulse 1.5s infinite", "@keyframes pulse": { "0%": { opacity: 0.5 }, "50%": { opacity: 1 }, "100%": { opacity: 0.5 } }, fontWeight: 600 }}>
-              Scanning system for installed apps...
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "60vh",
+              gap: 2,
+            }}
+          >
+            <CircularProgress size={48} sx={{ color: "#38bdf8" }} />
+            <Typography sx={{ color: "#94a3b8", fontWeight: 600, fontSize: "1rem" }}>
+              Deep scanning local registry and analyzing system status...
             </Typography>
           </Box>
         ) : (
-          <Fade in timeout={500}>
-            <Box className="space-y-6">
-              {/* Overview */}
+          <Fade in timeout={400}>
+            <Box>
+              {/* Overview View */}
               {selectedMenu === "overview" && (
-                <>
-                  <Card sx={{ ...glassCard, p: 3, mb: 4, ...panelHover }}>
-                    <Typography variant="h5" sx={{ color: "#e0e7ff", mb: 1, fontWeight: 800 }}>
-                      Security Risk Overview
-                    </Typography>
-                    <Typography sx={{ color: "#94a3b8", mb: 3, fontWeight: 500 }}>
-                      Total risk based on missing drivers and updates required.
-                    </Typography>
-                    <Box sx={{ width: "100%", height: 300 }}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
+                  {/* Top 4 KPI Cards Grid */}
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" },
+                      gap: 2.5,
+                    }}
+                  >
+                    {/* Card 1: Total Apps */}
+                    <Card sx={{ ...glassCard, p: 2.5, ...panelHover }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase" }}>
+                          Monitored Apps
+                        </Typography>
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: "10px",
+                            backgroundColor: "rgba(56, 189, 248, 0.15)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#38bdf8",
+                          }}
+                        >
+                          <Storage sx={{ fontSize: 20 }} />
+                        </Box>
+                      </Box>
+                      <Typography sx={{ color: "#f8fafc", fontSize: "2rem", fontWeight: 800, mt: 1 }}>
+                        {apps.length}
+                      </Typography>
+                      <Typography sx={{ color: "#34d399", fontSize: "0.78rem", fontWeight: 600, mt: 0.5, display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <CheckCircle sx={{ fontSize: 13 }} /> System catalog active
+                      </Typography>
+                    </Card>
+
+                    {/* Card 2: Outdated Apps */}
+                    <Card sx={{ ...glassCard, p: 2.5, ...panelHover }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase" }}>
+                          Pending Updates
+                        </Typography>
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: "10px",
+                            backgroundColor: "rgba(245, 158, 11, 0.15)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#fbbf24",
+                          }}
+                        >
+                          <WarningAmber sx={{ fontSize: 20 }} />
+                        </Box>
+                      </Box>
+                      <Typography sx={{ color: outdatedAppsCount > 0 ? "#fbbf24" : "#f8fafc", fontSize: "2rem", fontWeight: 800, mt: 1 }}>
+                        {outdatedAppsCount}
+                      </Typography>
+                      <Typography sx={{ color: outdatedAppsCount > 0 ? "#fbbf24" : "#34d399", fontSize: "0.78rem", fontWeight: 600, mt: 0.5 }}>
+                        {outdatedAppsCount > 0 ? "Patches available for install" : "All apps up-to-date"}
+                      </Typography>
+                    </Card>
+
+                    {/* Card 3: Missing Drivers */}
+                    <Card sx={{ ...glassCard, p: 2.5, ...panelHover }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase" }}>
+                          Missing Drivers
+                        </Typography>
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: "10px",
+                            backgroundColor: "rgba(244, 63, 94, 0.15)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#fb7185",
+                          }}
+                        >
+                          <Build sx={{ fontSize: 20 }} />
+                        </Box>
+                      </Box>
+                      <Typography sx={{ color: missingDrivers.length > 0 ? "#fb7185" : "#f8fafc", fontSize: "2rem", fontWeight: 800, mt: 1 }}>
+                        {missingDrivers.length}
+                      </Typography>
+                      <Typography sx={{ color: missingDrivers.length > 0 ? "#fb7185" : "#34d399", fontSize: "0.78rem", fontWeight: 600, mt: 0.5 }}>
+                        {missingDrivers.length > 0 ? "Hardware risk detected" : "All drivers verified"}
+                      </Typography>
+                    </Card>
+
+                    {/* Card 4: Security Health */}
+                    <Card sx={{ ...glassCard, p: 2.5, ...panelHover }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase" }}>
+                          Security Index
+                        </Typography>
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: "10px",
+                            backgroundColor: "rgba(99, 102, 241, 0.15)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#818cf8",
+                          }}
+                        >
+                          <ShieldOutlined sx={{ fontSize: 20 }} />
+                        </Box>
+                      </Box>
+                      <Typography sx={{ color: "#f8fafc", fontSize: "2rem", fontWeight: 800, mt: 1 }}>
+                        {systemHealthScore}%
+                      </Typography>
+                      <Typography sx={{ color: "#38bdf8", fontSize: "0.78rem", fontWeight: 600, mt: 0.5 }}>
+                        {systemHealthScore >= 80 ? "Shield status: Optimal" : "Attention recommended"}
+                      </Typography>
+                    </Card>
+                  </Box>
+
+                  {/* Security Risk Bar Chart Card */}
+                  <Card sx={{ ...glassCard, p: 3, ...panelHover }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                      <Box>
+                        <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 800, fontSize: "1.15rem" }}>
+                          Security & Vulnerability Risk Vector
+                        </Typography>
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.85rem", mt: 0.2 }}>
+                          Weighted risk distribution aggregated from unpatched applications and unverified kernel drivers.
+                        </Typography>
+                      </Box>
+                      <Chip
+                        label="Live Telemetry"
+                        size="small"
+                        sx={{
+                          backgroundColor: "rgba(56, 189, 248, 0.12)",
+                          color: "#7dd3fc",
+                          border: "1px solid rgba(56, 189, 248, 0.3)",
+                          fontWeight: 700,
+                        }}
+                      />
+                    </Box>
+
+                    <Box sx={{ width: "100%", height: 280, mt: 2 }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={riskData}>
-                          <XAxis dataKey="name" stroke="#93c5fd" />
-                          <YAxis stroke="#93c5fd" />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "#020617",
-                              border: "1px solid rgba(56, 189, 248, 0.36)",
-                              borderRadius: 8,
-                              color: "#dbeafe",
-                            }}
-                          />
-                          <Bar dataKey="risk" fill="#38bdf8" barSize={40} radius={[8, 8, 0, 0]} />
+                        <BarChart data={riskData} margin={{ top: 10, right: 20, left: -10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" vertical={false} />
+                          <XAxis dataKey="name" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 600 }} />
+                          <YAxis stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                          <Tooltip content={<CustomBarTooltip />} />
+                          <Bar dataKey="risk" radius={[8, 8, 0, 0]} barSize={44}>
+                            {riskData.map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={entry.fill}
+                                style={{
+                                  filter: `drop-shadow(0 0 10px ${entry.fill}66)`,
+                                }}
+                              />
+                            ))}
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </Box>
                   </Card>
 
-                  <Card sx={{ ...glassCard, p: 3, ...panelHover }}>
-                    <Typography variant="h5" sx={{ color: "#e0e7ff", mb: 1.2, fontWeight: 800 }}>
-                      Offline Environment Sync
-                    </Typography>
-                    <Typography sx={{ color: "#94a3b8", mb: 2.2, fontWeight: 500 }}>
-                      Download the offline update ZIP package for secure or air-gapped environments.
-                    </Typography>
-                    {downloading ? (
-                      <Box>
-                        <Typography sx={{ color: "#bae6fd", mb: 1, fontWeight: 600 }}>
-                          Downloading {downloadLabel}... {Math.round(downloadProgress)}%
+                  {/* Offline Environment Synchronization Card */}
+                  <Card sx={{ ...glassCard, p: 3.5, ...panelHover }}>
+                    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2.5, flexWrap: "wrap", mb: 2.5 }}>
+                      <Box
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: "14px",
+                          background: "linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(99, 102, 241, 0.25) 100%)",
+                          border: "1px solid rgba(56, 189, 248, 0.4)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#38bdf8",
+                          flexShrink: 0,
+                          boxShadow: "0 0 20px rgba(56, 189, 248, 0.25)",
+                        }}
+                      >
+                        <FolderZip sx={{ fontSize: 26 }} />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 800, fontSize: "1.15rem" }}>
+                          Air-Gapped & Offline Environment Sync
                         </Typography>
+                        <Typography sx={{ color: "#94a3b8", fontSize: "0.85rem", mt: 0.3, maxWidth: 650 }}>
+                          Generate offline portable deployment archives and remediation scripts for isolated, air-gapped, or restricted intranet workstations.
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {downloading ? (
+                      <Box sx={{ p: 2.5, borderRadius: "12px", background: "rgba(15, 23, 42, 0.6)", border: "1px solid rgba(56, 189, 248, 0.3)" }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+                          <Typography sx={{ color: "#38bdf8", fontWeight: 700, fontSize: "0.9rem" }}>
+                            Generating & Downloading {downloadLabel}...
+                          </Typography>
+                          <Typography sx={{ color: "#f8fafc", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>
+                            {Math.round(downloadProgress)}%
+                          </Typography>
+                        </Box>
                         <LinearProgress
                           variant="determinate"
                           value={downloadProgress}
                           sx={{
                             height: 10,
                             borderRadius: 6,
-                            backgroundColor: "rgba(15, 23, 42, 0.85)",
+                            backgroundColor: "rgba(15, 23, 42, 0.9)",
                             "& .MuiLinearProgress-bar": {
-                              background: "linear-gradient(90deg, #4f46e5, #22d3ee)",
+                              background: "linear-gradient(90deg, #6366f1, #38bdf8, #10b981)",
+                              boxShadow: "0 0 12px rgba(56, 189, 248, 0.6)",
                             },
                           }}
                         />
                       </Box>
                     ) : (
-                      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+                      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 1 }}>
                         <Button
                           variant="contained"
                           startIcon={<CloudDownload />}
                           onClick={() => handleDownloadZip("full")}
                           sx={{
-                            background: "linear-gradient(120deg, #4f46e5, #0284c7)",
-                            px: 3.2,
-                            py: 1.1,
-                            fontWeight: 700,
-                            borderRadius: 6,
-                            boxShadow: "0 12px 26px rgba(37, 99, 235, 0.4)",
+                            background: "linear-gradient(135deg, #6366f1 0%, #0284c7 100%)",
+                            color: "#ffffff",
+                            px: 3,
+                            py: 1.2,
+                            fontWeight: 800,
+                            fontSize: "0.88rem",
+                            borderRadius: "10px",
+                            boxShadow: "0 4px 20px rgba(99, 102, 241, 0.35)",
+                            border: "1px solid rgba(56, 189, 248, 0.4)",
+                            transition: "all 0.25s ease",
                             "&:hover": {
-                              background: "linear-gradient(120deg, #4338ca, #0369a1)",
-                              boxShadow: "0 16px 30px rgba(30, 64, 175, 0.5)",
+                              background: "linear-gradient(135deg, #4f46e5 0%, #0369a1 100%)",
+                              boxShadow: "0 6px 25px rgba(99, 102, 241, 0.5)",
+                              transform: "translateY(-1px)",
                             },
                           }}
                         >
                           Download Full Package
                         </Button>
+
                         <Button
                           variant="outlined"
                           startIcon={<CloudDownload />}
                           onClick={() => handleDownloadZip("delta")}
                           sx={{
-                            color: "#bae6fd",
-                            borderColor: "rgba(56, 189, 248, 0.55)",
-                            px: 3.2,
-                            py: 1.1,
+                            color: "#7dd3fc",
+                            borderColor: "rgba(56, 189, 248, 0.4)",
+                            px: 3,
+                            py: 1.2,
                             fontWeight: 700,
-                            borderRadius: 6,
+                            fontSize: "0.88rem",
+                            borderRadius: "10px",
+                            background: "rgba(56, 189, 248, 0.05)",
                             "&:hover": {
-                              borderColor: "#67e8f9",
-                              backgroundColor: "rgba(8, 47, 73, 0.5)",
+                              borderColor: "#38bdf8",
+                              backgroundColor: "rgba(56, 189, 248, 0.12)",
+                              boxShadow: "0 0 16px rgba(56, 189, 248, 0.25)",
+                              transform: "translateY(-1px)",
                             },
                           }}
                         >
                           Download Delta Pack
                         </Button>
+
                         <Button
                           variant="outlined"
+                          startIcon={<Code />}
                           onClick={handleExportRemediationScript}
                           disabled={scriptDownloading}
                           sx={{
-                            color: "#bfdbfe",
-                            borderColor: "rgba(148, 163, 184, 0.5)",
-                            px: 3.2,
-                            py: 1.1,
+                            color: "#cbd5e1",
+                            borderColor: "rgba(148, 163, 184, 0.3)",
+                            px: 3,
+                            py: 1.2,
                             fontWeight: 700,
-                            borderRadius: 6,
+                            fontSize: "0.88rem",
+                            borderRadius: "10px",
+                            background: "rgba(15, 23, 42, 0.6)",
                             "&:hover": {
-                              borderColor: "#cbd5e1",
-                              backgroundColor: "rgba(30, 41, 59, 0.45)",
+                              borderColor: "#f8fafc",
+                              backgroundColor: "rgba(30, 41, 59, 0.6)",
+                              transform: "translateY(-1px)",
                             },
                           }}
                         >
-                          {scriptDownloading ? "Exporting Script..." : "Export Remediation Script"}
+                          {scriptDownloading ? "Exporting PowerShell..." : "Export Remediation Script (.ps1)"}
                         </Button>
                       </Box>
                     )}
                   </Card>
-                </>
+                </Box>
               )}
 
-              {/* Installed Apps */}
+              {/* Installed Apps View */}
               {selectedMenu === "installed" && <InstalledAppsTable data={normalizedApps} />}
 
-              {/* Drivers */}
+              {/* Drivers View */}
               {selectedMenu === "drivers" && (
                 <MissingDrivers
                   missing={missingDrivers}
@@ -569,7 +1008,7 @@ function App() {
                 />
               )}
 
-              {/* Software Protection */}
+              {/* Software Protection View */}
               {selectedMenu === "protection" && (
                 <ProtectionCenter
                   results={protectionResults}
