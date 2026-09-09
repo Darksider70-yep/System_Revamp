@@ -61,12 +61,15 @@ const InstalledAppsTable = ({ data = [] }) => {
   const columns = useMemo(() => columnsData, []);
 
   // Filter data based on quick tabs
+  const isNeedsUpdate = (app) => app.status === "Update Available" || Boolean(app.updateRequired);
+  const isUpToDate = (app) => app.status === "Up-to-date" || (!isNeedsUpdate(app) && app.status !== "Unknown");
+
   const filteredData = useMemo(() => {
     if (filterType === "outdated") {
-      return data.filter((app) => !app.status?.includes("Up-to-date"));
+      return data.filter(isNeedsUpdate);
     }
     if (filterType === "uptodate") {
-      return data.filter((app) => app.status?.includes("Up-to-date"));
+      return data.filter(isUpToDate);
     }
     if (filterType === "highrisk") {
       return data.filter((app) => app.riskLevel === "High");
@@ -74,8 +77,8 @@ const InstalledAppsTable = ({ data = [] }) => {
     return data;
   }, [data, filterType]);
 
-  const upToDateCount = useMemo(() => data.filter((app) => app.status?.includes("Up-to-date")).length, [data]);
-  const outdatedCount = useMemo(() => data.filter((app) => !app.status?.includes("Up-to-date")).length, [data]);
+  const upToDateCount = useMemo(() => data.filter(isUpToDate).length, [data]);
+  const outdatedCount = useMemo(() => data.filter(isNeedsUpdate).length, [data]);
 
   const chartData = useMemo(
     () => [

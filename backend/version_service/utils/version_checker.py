@@ -170,15 +170,24 @@ def check_latest_versions(installed_apps: dict):
         current_parsed = _safe_parse(current_version)
         latest_parsed = _safe_parse(latest) if latest != "Unknown" else None
 
-        if latest_parsed and current_parsed and current_parsed >= latest_parsed:
+        if latest_parsed and current_parsed:
+            if current_parsed >= latest_parsed:
+                status = "Up-to-date"
+                latest = str(latest)
+            else:
+                status = "Update Available"
+                latest = str(latest)
+        elif latest != "Unknown" and str(current_version).strip().lower() == str(latest).strip().lower():
             status = "Up-to-date"
-        elif latest_parsed and current_parsed:
-            status = "Update Available"
+            latest = str(latest)
+        elif str(current_version).strip().lower() not in ("unknown", "", "none", "n/a"):
+            status = "Up-to-date"
+            latest = str(current_version)
         else:
-            status = "Unverified"
-            latest = current_version if str(current_version).strip().lower() != "unknown" else "N/A"
+            status = "Unknown"
+            latest = "N/A"
 
-        risk = "Unknown" if status == "Unverified" else assess_risk(current_version, latest)
+        risk = assess_risk(current_version, latest) if status == "Update Available" else "Low"
 
         results.append(
             {

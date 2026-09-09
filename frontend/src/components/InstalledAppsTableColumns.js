@@ -74,7 +74,7 @@ const columns = [
     Header: "Latest Target",
     accessor: "latest",
     Cell: ({ value, row }) => {
-      const isOutdated = row.original.status && !row.original.status.includes("Up-to-date");
+      const isOutdated = row.original.status === "Update Available";
       return (
         <Box
           component="span"
@@ -82,12 +82,12 @@ const columns = [
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: "0.8rem",
             fontWeight: 500,
-            color: isOutdated ? "#34d399" : "#94a3b8",
-            backgroundColor: isOutdated ? "rgba(16, 185, 129, 0.08)" : "#161f2e",
+            color: isOutdated ? "#fbbf24" : "#94a3b8",
+            backgroundColor: isOutdated ? "rgba(245, 158, 11, 0.08)" : "#161f2e",
             px: 1,
             py: 0.3,
             borderRadius: "4px",
-            border: `1px solid ${isOutdated ? "rgba(16, 185, 129, 0.3)" : "rgba(255, 255, 255, 0.08)"}`,
+            border: `1px solid ${isOutdated ? "rgba(245, 158, 11, 0.3)" : "rgba(255, 255, 255, 0.08)"}`,
             display: "inline-block",
           }}
         >
@@ -100,7 +100,8 @@ const columns = [
     Header: "Status",
     accessor: "status",
     Cell: ({ value }) => {
-      const isUpToDate = (value || "").includes("Up-to-date");
+      const isNeedsUpdate = value === "Update Available";
+      const isUpToDate = value === "Up-to-date" || !isNeedsUpdate;
       return (
         <Box
           sx={{
@@ -110,19 +111,19 @@ const columns = [
             px: 1.2,
             py: 0.35,
             borderRadius: "999px",
-            backgroundColor: isUpToDate ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)",
-            border: `1px solid ${isUpToDate ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
-            color: isUpToDate ? "#34d399" : "#fbbf24",
+            backgroundColor: isNeedsUpdate ? "rgba(245, 158, 11, 0.12)" : "rgba(16, 185, 129, 0.12)",
+            border: `1px solid ${isNeedsUpdate ? "rgba(245, 158, 11, 0.3)" : "rgba(16, 185, 129, 0.3)"}`,
+            color: isNeedsUpdate ? "#fbbf24" : "#34d399",
             fontSize: "0.78rem",
             fontWeight: 600,
           }}
         >
-          {isUpToDate ? (
-            <CheckCircle sx={{ fontSize: 13, color: "#34d399" }} />
-          ) : (
+          {isNeedsUpdate ? (
             <WarningAmber sx={{ fontSize: 13, color: "#fbbf24" }} />
+          ) : (
+            <CheckCircle sx={{ fontSize: 13, color: "#34d399" }} />
           )}
-          {value || "Unknown"}
+          {value || "Up-to-date"}
         </Box>
       );
     },

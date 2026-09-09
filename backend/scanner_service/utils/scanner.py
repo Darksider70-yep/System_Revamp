@@ -38,6 +38,10 @@ def _scan_windows_apps_from_registry():
                                 version = _read_reg_value(app_key, "DisplayVersion") or "Unknown"
                                 if not name:
                                     continue
+                                
+                                name_str = str(name).strip()
+                                if not name_str or name_str.startswith("${{") or name_str.startswith("$("):
+                                    continue
 
                                 identity = (str(name).strip().lower(), str(version).strip().lower())
                                 if identity in seen:
