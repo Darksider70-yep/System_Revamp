@@ -16,6 +16,8 @@ import {
   Warning,
   ErrorOutline,
   BuildCircle,
+  PowerSettingsNew,
+  ToggleOff,
 } from "@mui/icons-material";
 
 const impactConfig = {
@@ -31,14 +33,35 @@ const MissingDrivers = ({
   riskSummary = {},
   onDownloadDrivers = null,
   downloadingDrivers = false,
+  onEnableDriver = null,
 }) => {
   const [activeTab, setActiveTab] = useState(0);
+  const [enablingId, setEnablingId] = useState(null);
+
+  const disabledDrivers = missing.filter((d) => d.Status === "Disabled" || d.ErrorCode === 22);
+  const genuinelyMissing = missing.filter((d) => d.Status !== "Disabled" && d.ErrorCode !== 22);
+
+  const handleEnable = async (driver) => {
+    const id = driver.DeviceID || driver["Driver Name"];
+    setEnablingId(id);
+    try {
+      if (onEnableDriver) {
+        await onEnableDriver(driver);
+      }
+    } finally {
+      setEnablingId(null);
+    }
+  };
 
   const renderDriverCard = (driver, key) => {
     const isMissing = driver.Status === "Missing";
+    const isDisabled = driver.Status === "Disabled" || driver.ErrorCode === 22;
+
     const impact = driver.Impact || "Low";
     const cfg = impactConfig[impact] || impactConfig.Low;
-    const riskScore = driver.RiskScore ?? (isMissing ? 65 : 10);
+    const riskScore = driver.RiskScore ?? (isMissing ? 65 : (isDisabled ? 40 : 0));
+    const deviceKey = driver.DeviceID || driver["Driver Name"];
+    const isEnablingThis = enablingId === deviceKey;
 
     return (
       <Card
@@ -47,7 +70,13 @@ const MissingDrivers = ({
           p: 2,
           backgroundColor: "#121824",
           borderRadius: "10px",
-          border: `1px solid ${isMissing ? cfg.border : "rgba(255, 255, 255, 0.08)"}`,
+          border: `1px solid ${
+            isMissing
+              ? cfg.border
+              : isDisabled
+              ? "rgba(245, 158, 11, 0.3)"
+              : "rgba(255, 255, 255, 0.08)"
+          }`,
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
@@ -55,42 +84,59 @@ const MissingDrivers = ({
           gap: 1.5,
           transition: "all 0.15s ease",
           "&:hover": {
-            borderColor: isMissing ? cfg.color : "rgba(16, 185, 129, 0.4)",
+            borderColor: isMissing
+              ? cfg.color
+              : isDisabled
+              ? "#f59e0b"
+              : "rgba(16, 185, 129, 0.4)",
           },
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flex: 1, minWidth: 0 }}>
           <Box
             sx={{
               width: 38,
               height: 38,
               borderRadius: "8px",
-              backgroundColor: isMissing ? "rgba(239, 68, 68, 0.12)" : "rgba(16, 185, 129, 0.12)",
-              border: `1px solid ${isMissing ? "rgba(239, 68, 68, 0.25)" : "rgba(16, 185, 129, 0.25)"}`,
+              backgroundColor: isMissing
+                ? "rgba(239, 68, 68, 0.12)"
+                : isDisabled
+                ? "rgba(245, 158, 11, 0.12)"
+                : "rgba(16, 185, 129, 0.12)",
+              border: `1px solid ${
+                isMissing
+                  ? "rgba(239, 68, 68, 0.25)"
+                  : isDisabled
+                  ? "rgba(245, 158, 11, 0.3)"
+                  : "rgba(16, 185, 129, 0.25)"
+              }`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: isMissing ? "#ef4444" : "#10b981",
+              color: isMissing ? "#ef4444" : (isDisabled ? "#f59e0b" : "#10b981"),
               flexShrink: 0,
             }}
           >
-            <Memory sx={{ fontSize: 20 }} />
+            {isDisabled ? <ToggleOff sx={{ fontSize: 24 }} /> : <Memory sx={{ fontSize: 20 }} />}
           </Box>
 
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
               <Typography
                 sx={{
                   fontWeight: 600,
                   fontSize: "0.92rem",
                   color: "#f8fafc",
                   fontFamily: "'JetBrains Mono', monospace",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
-                {driver["Driver Name"]}.sys
+                {driver["Driver Name"]}
               </Typography>
               <Chip
-                label={driver.Device || "Hardware"}
+                label={driver.Manufacturer || driver.DeviceClass || "Hardware"}
                 size="small"
                 sx={{
                   backgroundColor: "#161f2e",
@@ -102,8 +148,18 @@ const MissingDrivers = ({
               />
             </Box>
 
-            {isMissing ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.3 }}>
+            {isDisabled ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.4, flexWrap: "wrap" }}>
+                <Typography sx={{ fontSize: "0.75rem", color: "#fbbf24", fontWeight: 500 }}>
+                  Device is currently disabled in Windows
+                </Typography>
+                <Typography sx={{ fontSize: "0.75rem", color: "#64748b" }}>•</Typography>
+                <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                  Impact: <strong style={{ color: cfg.color }}>{impact}</strong>
+                </Typography>
+              </Box>
+            ) : isMissing ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.4, flexWrap: "wrap" }}>
                 <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8" }}>
                   Risk Score: <strong style={{ color: cfg.color }}>{riskScore}/100</strong>
                 </Typography>
@@ -111,40 +167,90 @@ const MissingDrivers = ({
                 <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8" }}>
                   Impact: <strong style={{ color: cfg.color }}>{impact}</strong>
                 </Typography>
+                {driver.Reason && (
+                  <>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b" }}>•</Typography>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#f87171" }}>
+                      {driver.Reason}
+                    </Typography>
+                  </>
+                )}
               </Box>
             ) : (
               <Typography sx={{ fontSize: "0.75rem", color: "#10b981", mt: 0.3, display: "flex", alignItems: "center", gap: 0.4 }}>
-                <CheckCircle sx={{ fontSize: 12 }} /> Operating normally
+                <CheckCircle sx={{ fontSize: 12 }} /> Operating normally ({driver.Version || "Verified"})
               </Typography>
             )}
           </Box>
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, alignSelf: { xs: "flex-end", sm: "center" } }}>
-          {isMissing && (
+          {/* Action Button for Disabled Drivers */}
+          {isDisabled && onEnableDriver && (
+            <Button
+              size="small"
+              variant="contained"
+              disabled={isEnablingThis}
+              onClick={() => handleEnable(driver)}
+              startIcon={isEnablingThis ? <CircularProgress size={14} sx={{ color: "#ffffff" }} /> : <PowerSettingsNew sx={{ fontSize: 16 }} />}
+              sx={{
+                backgroundColor: "#10b981",
+                color: "#ffffff",
+                fontWeight: 600,
+                fontSize: "0.78rem",
+                px: 1.8,
+                py: 0.5,
+                borderRadius: "6px",
+                textTransform: "none",
+                boxShadow: "none",
+                "&:hover": {
+                  backgroundColor: "#059669",
+                  boxShadow: "none",
+                },
+              }}
+            >
+              {isEnablingThis ? "Enabling..." : "Enable Device"}
+            </Button>
+          )}
+
+          {/* Status Badges */}
+          {isDisabled ? (
             <Chip
-              label={`${impact} Impact`}
+              label="Disabled"
               sx={{
                 fontWeight: 600,
-                color: cfg.color,
-                backgroundColor: cfg.bg,
-                border: `1px solid ${cfg.border}`,
+                color: "#fbbf24",
+                backgroundColor: "rgba(245, 158, 11, 0.15)",
+                border: "1px solid rgba(245, 158, 11, 0.4)",
+                fontSize: "0.72rem",
+                height: 24,
+              }}
+            />
+          ) : isMissing ? (
+            <Chip
+              label="Missing"
+              sx={{
+                fontWeight: 600,
+                color: "#ffffff",
+                backgroundColor: "#dc2626",
+                border: "1px solid #ef4444",
+                fontSize: "0.72rem",
+                height: 24,
+              }}
+            />
+          ) : (
+            <Chip
+              label="Installed"
+              sx={{
+                fontWeight: 600,
+                color: "#34d399",
+                backgroundColor: "rgba(16, 185, 129, 0.12)",
+                border: "1px solid rgba(16, 185, 129, 0.3)",
                 fontSize: "0.72rem",
                 height: 24,
               }}
             />
           )}
-          <Chip
-            label={isMissing ? "Missing" : "Installed"}
-            sx={{
-              fontWeight: 600,
-              color: isMissing ? "#ffffff" : "#34d399",
-              backgroundColor: isMissing ? "#dc2626" : "rgba(16, 185, 129, 0.12)",
-              border: isMissing ? "1px solid #ef4444" : "1px solid rgba(16, 185, 129, 0.3)",
-              fontSize: "0.72rem",
-              height: 24,
-            }}
-          />
         </Box>
       </Card>
     );
@@ -174,40 +280,73 @@ const MissingDrivers = ({
           <Box>
             <Typography sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "1.1rem", display: "flex", alignItems: "center", gap: 0.8 }}>
               <BuildCircle sx={{ color: "#10b981" }} />
-              Driver Risk Intelligence
+              Driver & Hardware Device Intelligence
             </Typography>
             <Typography sx={{ color: "#94a3b8", fontSize: "0.82rem", mt: 0.2 }}>
-              Verifies local PCI/USB devices against Microsoft WHQL driver catalog.
+              Monitors active Plug-and-Play devices, driver health, and hardware states in real time.
             </Typography>
           </Box>
 
-          <Button
-            variant="contained"
-            onClick={onDownloadDrivers}
-            disabled={downloadingDrivers || missing.length === 0 || !onDownloadDrivers}
-            startIcon={downloadingDrivers ? <CircularProgress size={16} sx={{ color: "#ffffff" }} /> : <Download />}
-            sx={{
-              backgroundColor: "#10b981",
-              color: "#ffffff",
-              fontWeight: 600,
-              fontSize: "0.85rem",
-              px: 2.5,
-              py: 0.9,
-              borderRadius: "8px",
-              textTransform: "none",
-              boxShadow: "none",
-              "&:hover": {
-                backgroundColor: "#059669",
+          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+            {disabledDrivers.length > 0 && onEnableDriver && (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  disabledDrivers.forEach((driver) => handleEnable(driver));
+                }}
+                disabled={enablingId !== null}
+                startIcon={<PowerSettingsNew />}
+                sx={{
+                  borderColor: "#10b981",
+                  color: "#34d399",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  px: 2,
+                  py: 0.9,
+                  borderRadius: "8px",
+                  textTransform: "none",
+                  "&:hover": {
+                    borderColor: "#059669",
+                    backgroundColor: "rgba(16, 185, 129, 0.08)",
+                  },
+                }}
+              >
+                Enable {disabledDrivers.length} Disabled {disabledDrivers.length === 1 ? "Device" : "Devices"}
+              </Button>
+            )}
+
+            <Button
+              variant="contained"
+              onClick={onDownloadDrivers}
+              disabled={downloadingDrivers || genuinelyMissing.length === 0 || !onDownloadDrivers}
+              startIcon={downloadingDrivers ? <CircularProgress size={16} sx={{ color: "#ffffff" }} /> : <Download />}
+              sx={{
+                backgroundColor: "#10b981",
+                color: "#ffffff",
+                fontWeight: 600,
+                fontSize: "0.85rem",
+                px: 2.5,
+                py: 0.9,
+                borderRadius: "8px",
+                textTransform: "none",
                 boxShadow: "none",
-              },
-              "&:disabled": {
-                backgroundColor: "rgba(255, 255, 255, 0.08)",
-                color: "#64748b",
-              },
-            }}
-          >
-            {downloadingDrivers ? "Updating Drivers..." : `Update ${missing.length} Missing Drivers`}
-          </Button>
+                "&:hover": {
+                  backgroundColor: "#059669",
+                  boxShadow: "none",
+                },
+                "&:disabled": {
+                  backgroundColor: "rgba(255, 255, 255, 0.08)",
+                  color: "#64748b",
+                },
+              }}
+            >
+              {downloadingDrivers
+                ? "Updating Drivers..."
+                : genuinelyMissing.length > 0
+                ? `Update ${genuinelyMissing.length} Missing Drivers`
+                : "All Drivers Up-to-date"}
+            </Button>
+          </Box>
         </Box>
 
         {/* Driver Risk Level Indicators */}
@@ -281,15 +420,15 @@ const MissingDrivers = ({
             label={
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
                 <Warning sx={{ fontSize: 16, color: missing.length ? "#fbbf24" : "#94a3b8" }} />
-                <span>Missing Drivers</span>
+                <span>Problem & Disabled Devices</span>
                 <Chip
                   label={missing.length}
                   size="small"
                   sx={{
                     height: 18,
                     fontSize: "0.7rem",
-                    backgroundColor: missing.length ? "rgba(239, 68, 68, 0.2)" : "rgba(255, 255, 255, 0.08)",
-                    color: missing.length ? "#f87171" : "#94a3b8",
+                    backgroundColor: missing.length ? (disabledDrivers.length > 0 && genuinelyMissing.length === 0 ? "rgba(245, 158, 11, 0.2)" : "rgba(239, 68, 68, 0.2)") : "rgba(255, 255, 255, 0.08)",
+                    color: missing.length ? (disabledDrivers.length > 0 && genuinelyMissing.length === 0 ? "#fbbf24" : "#f87171") : "#94a3b8",
                     fontWeight: 600,
                   }}
                 />
@@ -322,7 +461,7 @@ const MissingDrivers = ({
       {activeTab === 0 && (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {missing.length > 0 ? (
-            missing.map((driver, idx) => renderDriverCard(driver, `missing-${idx}`))
+            missing.map((driver, idx) => renderDriverCard(driver, `problem-${idx}`))
           ) : (
             <Card
               sx={{
@@ -335,10 +474,10 @@ const MissingDrivers = ({
             >
               <CheckCircle sx={{ fontSize: 36, color: "#10b981", mb: 1 }} />
               <Typography sx={{ color: "#f8fafc", fontWeight: 600, fontSize: "1rem" }}>
-                All Hardware Drivers are Installed & Verified
+                All Hardware Drivers are Installed & Enabled
               </Typography>
               <Typography sx={{ color: "#94a3b8", fontSize: "0.82rem", mt: 0.3 }}>
-                No missing drivers found on this system.
+                No missing drivers or disabled devices detected on this system.
               </Typography>
             </Card>
           )}

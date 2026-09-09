@@ -327,6 +327,32 @@ function App() {
     }
   };
 
+  const handleEnableDriver = async (driver) => {
+    try {
+      const deviceId = driver?.DeviceID || "";
+      const driverName = driver?.["Driver Name"] || "";
+      const res = await fetch("http://127.0.0.1:8001/drivers/enable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId, driverName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `Enable device failed with status ${res.status}`);
+      }
+      if (data.success) {
+        showToast(data.message || `Device enabled successfully.`, "success");
+      } else if (data.requiresElevation) {
+        showToast(data.message || "Enabling devices requires Administrator privileges.", "warning");
+      } else {
+        showToast(data.message || "Failed to enable device.", "error");
+      }
+      fetchDrivers();
+    } catch (err) {
+      showToast(toFriendlyFetchError(err, "Drivers service", "http://127.0.0.1:8001"), "error");
+    }
+  };
+
   const handleProtectionScan = async () => {
     try {
       setProtectionScanning(true);
@@ -986,6 +1012,7 @@ function App() {
                   riskSummary={driverRiskSummary}
                   onDownloadDrivers={handleDownloadDrivers}
                   downloadingDrivers={driversDownloading}
+                  onEnableDriver={handleEnableDriver}
                 />
               )}
 

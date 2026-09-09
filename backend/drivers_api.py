@@ -80,13 +80,16 @@ def scan_problem_devices():
 
                 # Format driver name cleanly
                 driver_name = name.split("(")[0].strip() if "(" in name else name
+                is_disabled = (code == 22)
+                status_label = "Disabled" if is_disabled else "Missing"
 
                 problems.append({
                     "Driver Name": driver_name,
                     "Device": f"{name} ({reason})",
                     "Impact": impact,
                     "RiskScore": _impact_score(impact),
-                    "Status": "Missing",
+                    "Status": status_label,
+                    "IsDisabled": is_disabled,
                     "ErrorCode": code,
                     "Reason": reason,
                     "DeviceID": item.get("DeviceID", ""),
@@ -234,3 +237,65 @@ def download_missing_drivers(payload: dict = None):
         "requiresElevation": access_denied,
         "message": message,
     }
+
+
+@app.post("/drivers/enable")
+def enable_device(payload: dict = None):
+    """
+    Enables a disabled hardware device via PowerShell Enable-PnpDevice.
+    """
+    if not isinstance(payload, dict):
+        return {"success": False, "message": "Invalid request payload"}
+
+    device_id = payload.get("deviceId") or ""
+    driver_name = payload.get("driverName") or ""
+
+    if not device_id and not driver_name:
+        return {"success": False, "message": "Device identifier or driver name required."}
+
+    # First attempt: Enable by exact Device Instance ID
+    ps_cmd = ""
+    if device_id:
+        escaped_id = device_id.replace("'", "''")
+        ps_cmd = f"Get-PnpDevice -InstanceId '{escaped_id}' -ErrorAction SilentlyContinue | Enable-PnpDevice -Confirm:$false"
+    else:
+        escaped_name = driver_name.replace("'", "''")
+        ps_cmd = f"Get-PnpDevice | Where-Object {{ $_.FriendlyName -like '*{escaped_name}*' }} | Enable-PnpDevice -Confirm:$false"
+
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_cmd],
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+
+        access_denied = (
+            "access is denied" in str(result.stderr).lower()
+            or "access is denied" in str(result.stdout).lower()
+            or "permission" in str(result.stderr).lower()
+        )
+
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": f"Device '{driver_name or device_id}' enabled successfully.",
+            }
+        elif access_denied:
+            return {
+                "success": False,
+                "requiresElevation": True,
+                "message": (
+                    "Device enabling requires administrative privileges. "
+                    "Please run the backend service as Administrator."
+                ),
+            }
+        else:
+            return {
+                "success": False,
+                "message": (result.stderr or result.stdout or "Failed to enable hardware device.").strip(),
+            }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
