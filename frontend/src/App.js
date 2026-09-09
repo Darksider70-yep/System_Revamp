@@ -16,6 +16,8 @@ import {
   ListItemButton,
   ListItemText,
   Chip,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   CloudDownload,
@@ -94,6 +96,16 @@ function App() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [scriptDownloading, setScriptDownloading] = useState(false);
   const [driversDownloading, setDriversDownloading] = useState(false);
+  const [toast, setToast] = useState({ open: false, message: "", severity: "info" });
+
+  const showToast = (message, severity = "info") => {
+    setToast({ open: true, message, severity });
+  };
+
+  const handleCloseToast = (event, reason) => {
+    if (reason === "clickaway") return;
+    setToast((prev) => ({ ...prev, open: false }));
+  };
   const [refreshing, setRefreshing] = useState(false);
 
   const [missingDrivers, setMissingDrivers] = useState([]);
@@ -233,7 +245,7 @@ function App() {
         link.remove();
         window.URL.revokeObjectURL(url);
       })
-      .catch((err) => alert(err?.message || "Failed to download ZIP package"))
+      .catch((err) => showToast(err?.message || "Failed to download ZIP package", "error"))
       .finally(() => {
         clearInterval(interval);
         setTimeout(() => {
@@ -273,8 +285,9 @@ function App() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      showToast("Remediation script exported successfully.", "success");
     } catch (err) {
-      alert(err?.message || "Failed to export remediation script");
+      showToast(err?.message || "Failed to export remediation script", "error");
     } finally {
       setScriptDownloading(false);
     }
@@ -301,14 +314,14 @@ function App() {
         : [];
 
       if (failed.length === 0) {
-        alert("Driver download/install triggered successfully. Windows may continue in background.");
+        showToast("Driver download/install triggered successfully. Windows may continue in background.", "success");
       } else {
-        alert("Driver update started, but some steps reported issues. Try running app as Administrator.");
+        showToast(data?.message || "Driver update started, but some steps reported issues. Try running app as Administrator.", "warning");
       }
 
       fetchDrivers();
     } catch (err) {
-      alert(toFriendlyFetchError(err, "Drivers service", "http://127.0.0.1:8001"));
+      showToast(toFriendlyFetchError(err, "Drivers service", "http://127.0.0.1:8001"), "error");
     } finally {
       setDriversDownloading(false);
     }
@@ -350,8 +363,9 @@ function App() {
       setProtectionResults(Array.isArray(data.results) ? data.results : []);
       setProtectionSummary(data.summary || { malicious: 0, suspicious: 0, clean: 0, unknown: 0, error: 0 });
       setLastProtectionScan(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      showToast("Software protection scan completed.", "success");
     } catch (err) {
-      alert(toFriendlyFetchError(err, "Protection service", "http://127.0.0.1:8003"));
+      showToast(toFriendlyFetchError(err, "Protection service", "http://127.0.0.1:8003"), "error");
       setProtectionResults([]);
       setProtectionSummary({ malicious: 0, suspicious: 0, clean: 0, unknown: 0, error: 0 });
     } finally {
@@ -988,6 +1002,30 @@ function App() {
             </Box>
           </Fade>
         )}
+
+        {/* Modern Toast Notification */}
+        <Snackbar
+          open={toast.open}
+          autoHideDuration={4500}
+          onClose={handleCloseToast}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        >
+          <Alert
+            onClose={handleCloseToast}
+            severity={toast.severity}
+            variant="filled"
+            sx={{
+              width: "100%",
+              borderRadius: "10px",
+              boxShadow: "0 8px 30px rgba(0, 0, 0, 0.6)",
+              fontWeight: 600,
+              fontSize: "0.85rem",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            {toast.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </Box>
   );
