@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-05 01:43:24",
+  "generatedAt": "2026-09-09 14:34:17",
   "apps": [
     {
       "name": "${{arpDisplayName}}",
@@ -15,7 +15,7 @@
     },
     {
       "name": "Antigravity IDE (User)",
-      "version": "2.1.1"
+      "version": "2.5.5"
     },
     {
       "name": "Application Verifier x64 External Package (DesktopEditions)",
@@ -30,6 +30,10 @@
       "version": "3.0.31"
     },
     {
+      "name": "Cisco Packet Tracer 9.0.1 64Bit",
+      "version": "9.0.1.858"
+    },
+    {
       "name": "CMake",
       "version": "4.3.2"
     },
@@ -39,7 +43,7 @@
     },
     {
       "name": "Copilot",
-      "version": "150.0.4078.96"
+      "version": "152.0.4191.66"
     },
     {
       "name": "CRT Development",
@@ -186,12 +190,12 @@
       "version": "3.4.6"
     },
     {
-      "name": "Go Programming Language amd64 go1.25.2",
-      "version": "1.25.2"
+      "name": "Go Programming Language amd64 go1.27.0",
+      "version": "1.27.0"
     },
     {
       "name": "Google Chrome",
-      "version": "150.0.7871.188"
+      "version": "152.0.7977.83"
     },
     {
       "name": "HoYoPlay",
@@ -219,11 +223,11 @@
     },
     {
       "name": "Lenovo Now",
-      "version": "4.7.0.48"
+      "version": "4.8.0.54"
     },
     {
       "name": "Lenovo Vantage Service",
-      "version": "5.1.2607.5"
+      "version": "5.1.2608.14"
     },
     {
       "name": "libnvptxcompiler Development",
@@ -279,11 +283,11 @@
     },
     {
       "name": "Microsoft Edge",
-      "version": "151.0.4129.59"
+      "version": "152.0.4191.66"
     },
     {
       "name": "Microsoft Edge WebView2 Runtime",
-      "version": "151.0.4129.59"
+      "version": "152.0.4191.66"
     },
     {
       "name": "Microsoft GameInput",
@@ -291,15 +295,19 @@
     },
     {
       "name": "Microsoft Office Home and Student 2021 - en-us",
-      "version": "16.0.20228.20124"
+      "version": "16.0.20326.20132"
     },
     {
       "name": "Microsoft OneDrive",
-      "version": "26.129.0706.0003"
+      "version": "26.153.0809.0004"
     },
     {
       "name": "Microsoft OneNote - en-us",
-      "version": "16.0.20228.20124"
+      "version": "16.0.20326.20132"
+    },
+    {
+      "name": "Microsoft Teams Meeting Add-in for Microsoft Office",
+      "version": "1.26.20101"
     },
     {
       "name": "Microsoft Update Health Tools",
@@ -330,14 +338,6 @@
       "version": "11.0.61030"
     },
     {
-      "name": "Microsoft Visual C++ 2015-2022 Redistributable (x64) - 14.44.35211",
-      "version": "14.44.35211.0"
-    },
-    {
-      "name": "Microsoft Visual C++ 2015-2022 Redistributable (x86) - 14.44.35211",
-      "version": "14.44.35211.0"
-    },
-    {
       "name": "Microsoft Visual C++ 2019 X64 Debug Runtime - 14.29.30157",
       "version": "14.29.30157"
     },
@@ -346,24 +346,32 @@
       "version": "14.29.30157"
     },
     {
-      "name": "Microsoft Visual C++ 2022 X64 Additional Runtime - 14.44.35211",
-      "version": "14.44.35211"
+      "name": "Microsoft Visual C++ 2022 X64 Additional Runtime - 14.50.35719",
+      "version": "14.50.35719"
     },
     {
-      "name": "Microsoft Visual C++ 2022 X64 Minimum Runtime - 14.44.35211",
-      "version": "14.44.35211"
+      "name": "Microsoft Visual C++ 2022 X64 Minimum Runtime - 14.50.35719",
+      "version": "14.50.35719"
     },
     {
-      "name": "Microsoft Visual C++ 2022 X86 Additional Runtime - 14.44.35211",
-      "version": "14.44.35211"
+      "name": "Microsoft Visual C++ 2022 X86 Additional Runtime - 14.50.35719",
+      "version": "14.50.35719"
     },
     {
-      "name": "Microsoft Visual C++ 2022 X86 Minimum Runtime - 14.44.35211",
-      "version": "14.44.35211"
+      "name": "Microsoft Visual C++ 2022 X86 Minimum Runtime - 14.50.35719",
+      "version": "14.50.35719"
+    },
+    {
+      "name": "Microsoft Visual C++ v14 Redistributable (x64) - 14.50.35719",
+      "version": "14.50.35719.0"
+    },
+    {
+      "name": "Microsoft Visual C++ v14 Redistributable (x86) - 14.50.35719",
+      "version": "14.50.35719.0"
     },
     {
       "name": "Microsoft Visual Studio Code (User)",
-      "version": "1.131.0"
+      "version": "1.135.0"
     },
     {
       "name": "Microsoft Visual Studio Installer",
@@ -376,6 +384,10 @@
     {
       "name": "Microsoft Visual Studio Setup WMI Provider",
       "version": "3.7.2182.35401"
+    },
+    {
+      "name": "Microsoft Windows Application Compatibility Fix Database",
+      "version": "Unknown"
     },
     {
       "name": "Microsoft Windows Desktop Runtime - 6.0.8 (x64)",
@@ -454,10 +466,6 @@
       "version": "13.1"
     },
     {
-      "name": "NvCpl",
-      "version": "1.0"
-    },
-    {
       "name": "NVFATBIN Runtime",
       "version": "12.4"
     },
@@ -470,12 +478,16 @@
       "version": "1.48"
     },
     {
-      "name": "NVIDIA App 11.0.6.383",
-      "version": "11.0.6.383"
+      "name": "NVIDIA App 11.0.8.299",
+      "version": "11.0.8.299"
+    },
+    {
+      "name": "NVIDIA App driver settings",
+      "version": "1.0"
     },
     {
       "name": "NVIDIA Backend",
-      "version": "11.0.6.383"
+      "version": "11.0.8.299"
     },
     {
       "name": "NVIDIA Container",
@@ -506,20 +518,20 @@
       "version": "13.1"
     },
     {
-      "name": "NVIDIA FrameView SDK 1.5.11821.36727370",
-      "version": "1.5.11821.36727370"
+      "name": "NVIDIA FrameView SDK 1.8.12612.38276700",
+      "version": "1.8.12612.38276700"
     },
     {
-      "name": "NVIDIA Graphics Driver 595.97",
-      "version": "595.97"
+      "name": "NVIDIA Graphics Driver 616.56",
+      "version": "616.56"
     },
     {
-      "name": "NVIDIA HD Audio Driver 1.4.5.7",
-      "version": "1.4.5.7"
+      "name": "NVIDIA HD Audio Driver 1.4.6.3",
+      "version": "1.4.6.3"
     },
     {
       "name": "NVIDIA Install Application",
-      "version": "2.1002.439.0"
+      "version": "2.1002.463.0"
     },
     {
       "name": "NVIDIA LocalSystem Container",
@@ -527,27 +539,31 @@
     },
     {
       "name": "NVIDIA MessageBus 3 for NvApp",
-      "version": "3.20"
+      "version": "3.21"
     },
     {
       "name": "NVIDIA NvDLISR",
       "version": "1.0"
     },
     {
-      "name": "NVIDIA PhysX System Software 9.23.1019",
-      "version": "9.23.1019"
+      "name": "NVIDIA PhysX System Software 9.26.0703",
+      "version": "9.26.0703"
     },
     {
       "name": "NVIDIA Platform Controllers and Framework",
-      "version": "595.31"
+      "version": "615.34"
     },
     {
-      "name": "NVIDIA ShadowPlay 11.0.6.0",
-      "version": "11.0.6.0"
+      "name": "NVIDIA Session Container",
+      "version": "1.48"
+    },
+    {
+      "name": "NVIDIA ShadowPlay 11.0.8.0",
+      "version": "11.0.8.0"
     },
     {
       "name": "NVIDIA Telemetry Client",
-      "version": "19.5.6.0"
+      "version": "19.6.6.0"
     },
     {
       "name": "NVIDIA USBC Driver 1.52.831.832",
@@ -615,7 +631,7 @@
     },
     {
       "name": "Office 16 Click-to-Run Extensibility Component",
-      "version": "16.0.20131.20112"
+      "version": "16.0.20326.20072"
     },
     {
       "name": "OPENCL Runtime",
@@ -780,10 +796,6 @@
     {
       "name": "Universal General MIDI DLS Extension SDK",
       "version": "10.1.28000.1839"
-    },
-    {
-      "name": "Unstop SmartHire 3.0.5",
-      "version": "3.0.5"
     },
     {
       "name": "vcpp_crt.redist.clickonce",
