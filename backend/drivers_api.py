@@ -1,7 +1,7 @@
-# backend/drivers_api.py
 import json
 import os
 import subprocess
+import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -53,11 +53,12 @@ def scan_problem_devices():
     """
     Scans for actual hardware devices on Windows with configuration/driver errors
     (e.g., Code 28 driver missing, Code 10 failed to start).
+    Ignores healthy devices with Status 'OK'.
     """
     problems = []
     try:
         ps_cmd = (
-            "Get-CimInstance Win32_PnPEntity -Filter 'ConfigManagerErrorCode <> 0' | "
+            "Get-CimInstance Win32_PnPEntity -Filter 'ConfigManagerErrorCode > 0 and Status != ''OK''' | "
             "Select-Object Name, DeviceID, Status, ConfigManagerErrorCode, PNPClass, Manufacturer | "
             "ConvertTo-Json -Compress"
         )
@@ -74,6 +75,12 @@ def scan_problem_devices():
             for item in items:
                 name = item.get("Name") or item.get("DeviceID") or "Unknown Hardware Device"
                 code = item.get("ConfigManagerErrorCode", 0)
+                status = item.get("Status") or ""
+
+                # Ignore devices that are already online / OK
+                if code == 0 or status.upper() == "OK":
+                    continue
+
                 reason = PNP_ERROR_DESCRIPTIONS.get(code, f"Hardware Error Code {code}")
                 device_class = item.get("PNPClass") or ""
                 impact = _classify_impact(name, device_class)
@@ -278,6 +285,8 @@ def enable_device(payload: dict = None):
         )
 
         if result.returncode == 0:
+            # Allow the Windows Kernel and PnP stack 1.2 seconds to finish initializing
+            time.sleep(1.2)
             return {
                 "success": True,
                 "message": f"Device '{driver_name or device_id}' enabled successfully.",

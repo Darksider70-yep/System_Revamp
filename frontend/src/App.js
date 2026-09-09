@@ -195,9 +195,14 @@ function App() {
     fetchDrivers();
   }, []);
 
-  const handleRefresh = () => {
-    fetchApps();
-    fetchDrivers();
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.allSettled([fetchApps(), fetchDrivers()]);
+      showToast("System rescan completed. Apps & Drivers refreshed.", "success");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleDownloadZip = (mode = "full") => {
@@ -348,6 +353,10 @@ function App() {
         showToast(data.message || "Failed to enable device.", "error");
       }
       fetchDrivers();
+      // Second fetch after Windows PnP stack completes initialization
+      setTimeout(() => {
+        fetchDrivers();
+      }, 1500);
     } catch (err) {
       showToast(toFriendlyFetchError(err, "Drivers service", "http://127.0.0.1:8001"), "error");
     }
