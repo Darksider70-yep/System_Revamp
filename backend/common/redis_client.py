@@ -26,7 +26,7 @@ def _get_redis_config():
     if url:
         return {"url": url}
     return {
-        "host": os.getenv("REDIS_HOST", "localhost"),
+        "host": os.getenv("REDIS_HOST", "127.0.0.1"),
         "port": int(os.getenv("REDIS_PORT", "6379")),
         "password": os.getenv("REDIS_PASSWORD", None),
         "db": int(os.getenv("REDIS_DB", "0")),
@@ -37,19 +37,25 @@ def init_redis() -> bool:
     """Initializes Redis connection and performs health check ping."""
     global _REDIS_CLIENT, _REDIS_INITIALIZED, _REDIS_AVAILABLE
 
+    if _REDIS_INITIALIZED:
+        return _REDIS_AVAILABLE
+
     if not REDIS_PKG_AVAILABLE:
         print("[Redis] redis-py not installed. Operating in fallback memory mode.")
         _REDIS_AVAILABLE = False
         _REDIS_INITIALIZED = True
         return False
 
-    if _REDIS_INITIALIZED and _REDIS_AVAILABLE:
-        return True
-
     cfg = _get_redis_config()
     try:
         if "url" in cfg:
-            client = redis.Redis.from_url(cfg["url"], decode_responses=True, socket_timeout=2)
+            client = redis.Redis.from_url(
+                cfg["url"],
+                decode_responses=True,
+                socket_timeout=0.5,
+                socket_connect_timeout=0.5,
+                retry=None,
+            )
         else:
             client = redis.Redis(
                 host=cfg["host"],
@@ -57,7 +63,9 @@ def init_redis() -> bool:
                 password=cfg["password"],
                 db=cfg["db"],
                 decode_responses=True,
-                socket_timeout=2,
+                socket_timeout=0.5,
+                socket_connect_timeout=0.5,
+                retry=None,
             )
         # Test connection
         client.ping()

@@ -101,15 +101,15 @@ def init_db() -> bool:
     """Initialize database tables and pre-seed initial catalog."""
     global _ENGINE, _SESSION_FACTORY, _DB_INITIALIZED, _DB_AVAILABLE
 
+    if _DB_INITIALIZED:
+        return _DB_AVAILABLE
+
     if not SQLALCHEMY_AVAILABLE:
         print("[DB] SQLAlchemy not installed. Operating in fallback mode.")
         _DB_AVAILABLE = False
         _DB_INITIALIZED = True
         _seed_fallback_store()
         return False
-
-    if _DB_INITIALIZED and _DB_AVAILABLE:
-        return True
 
     db_url = _get_database_url()
     try:
