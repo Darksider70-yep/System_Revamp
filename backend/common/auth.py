@@ -33,11 +33,16 @@ async def verify_internal_key(
 ) -> bool:
     """
     FastAPI dependency and helper validating the internal service/frontend shared key via HTTP header.
+    - Automatically bypasses OPTIONS preflight requests so browser CORS works properly.
     - If INTERNAL_API_KEY is unset/empty in environment, access is permitted (local dev mode).
     - Checks header `X-Internal-Key`.
     - Query strings are NEVER accepted for raw internal keys.
     - Raises HTTP 401 if a key is required but missing or invalid.
     """
+    # 1. OPTIONS preflight bypass
+    if request and getattr(request, "method", "").upper() == "OPTIONS":
+        return True
+
     configured_key = get_configured_internal_key()
     if not configured_key:
         return True

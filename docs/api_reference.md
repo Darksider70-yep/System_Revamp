@@ -3,11 +3,16 @@
 Complete documentation of all REST endpoints and real-time streaming interfaces across the System Revamp microservices.
 
 ## Authentication & Headers
-When `INTERNAL_API_KEY` is configured in the environment, all REST endpoints (except the root heartbeat `/`) require the `X-Internal-Key` HTTP header:
+When `INTERNAL_API_KEY` is configured in the environment, **all endpoints across all 4 services (except root heartbeat `GET /`) require the `X-Internal-Key` HTTP header**.
+
 ```http
 X-Internal-Key: <INTERNAL_API_KEY>
 ```
-If `INTERNAL_API_KEY` is not set or empty, services run in local development mode where authentication checks are bypassed.
+
+> [!IMPORTANT]
+> - **401 Unauthorized**: If `INTERNAL_API_KEY` is active and the `X-Internal-Key` header is missing or incorrect, endpoints immediately return `HTTP 401 Unauthorized` with `{"detail": "Unauthorized: Invalid or missing X-Internal-Key header"}`.
+> - **CORS & Preflights**: Browser `OPTIONS` preflight requests automatically bypass authentication so cross-origin fetch requests succeed seamlessly.
+> - **Zero Dev Friction**: If `INTERNAL_API_KEY` is not set or empty in `.env`, services run in local development mode where authentication checks are bypassed.
 
 ---
 
