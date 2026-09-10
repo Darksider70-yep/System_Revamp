@@ -7,13 +7,32 @@ from pathlib import Path
 import requests
 from packaging import version
 
-CACHE = {}
+try:
+    from common import db, redis_client
+except ModuleNotFoundError:
+    try:
+        from backend.common import db, redis_client
+    except Exception:
+        db = None
+        redis_client = None
+
 CACHE_TTL = 3600
 _LATEST_DB = None
 
 
 def _load_latest_db():
     global _LATEST_DB
+    
+    # Try PostgreSQL first
+    if db:
+        try:
+            pg_versions = db.get_all_latest_versions()
+            if pg_versions:
+                _LATEST_DB = {str(k).strip().lower(): str(v).strip() for k, v in pg_versions.items()}
+                return _LATEST_DB
+        except Exception:
+            pass
+
     if _LATEST_DB is not None:
         return _LATEST_DB
 
@@ -29,14 +48,15 @@ def _load_latest_db():
 
 
 def get_cached_version(key, fetch_func):
-    now = time.time()
-    if key in CACHE:
-        val, ts = CACHE[key]
-        if now - ts < CACHE_TTL:
-            return val
+    redis_key = f"sr:version:{key}"
+    if redis_client:
+        cached = redis_client.cache_get(redis_key)
+        if cached is not None:
+            return cached
 
     val = fetch_func(key)
-    CACHE[key] = (val, now)
+    if val and val != "Unknown" and redis_client:
+        redis_client.cache_set(redis_key, val, ttl_seconds=CACHE_TTL)
     return val
 
 

@@ -30,10 +30,21 @@ except ModuleNotFoundError:
     except Exception:
         simulate_attack_router = None
 
+try:
+    from common import db
+except ModuleNotFoundError:
+    try:
+        from backend.common import db
+    except Exception:
+        db = None
+
 app = FastAPI(
     title="System Scanner Service",
     version="1.0.0"
 )
+
+if db:
+    db.init_db()
 
 if simulate_attack_router:
     app.include_router(simulate_attack_router)
@@ -127,13 +138,34 @@ def generate_offline_package(mode: str = Query(default="full")):
         if mode not in {"full", "delta"}:
             mode = "full"
 
-        versions_path = BACKEND_ROOT / "latest_versions.json"
-        drivers_path = BACKEND_ROOT / "missing_drivers.json"
-        latest_versions = _read_json(versions_path)
-        missing_drivers = _read_json(drivers_path)
+        # Load latest versions (PostgreSQL preferred, fallback to JSON file)
+        latest_versions = {}
+        if db:
+            latest_versions = db.get_all_latest_versions()
+        if not latest_versions:
+            versions_path = BACKEND_ROOT / "latest_versions.json"
+            latest_versions = _read_json(versions_path)
 
-        previous_snapshot = _read_json(LAST_SNAPSHOT_PATH) if LAST_SNAPSHOT_PATH.exists() else {}
-        previous_apps = previous_snapshot.get("apps", []) if isinstance(previous_snapshot, dict) else []
+        # Load missing drivers snapshot (PostgreSQL preferred, fallback to JSON file)
+        missing_drivers = []
+        if db:
+            driver_history = db.get_latest_driver_history()
+            if driver_history:
+                missing_drivers = driver_history.get("missing_drivers", [])
+        if not missing_drivers:
+            drivers_path = BACKEND_ROOT / "missing_drivers.json"
+            missing_drivers = _read_json(drivers_path)
+
+        # Load previous scan snapshot (PostgreSQL preferred, fallback to last_scan_snapshot.json)
+        previous_apps = []
+        if db:
+            prev_snap = db.get_latest_scan_snapshot()
+            if prev_snap:
+                previous_apps = prev_snap.get("apps", [])
+        if not previous_apps and LAST_SNAPSHOT_PATH.exists():
+            previous_snapshot = _read_json(LAST_SNAPSHOT_PATH)
+            previous_apps = previous_snapshot.get("apps", []) if isinstance(previous_snapshot, dict) else []
+
         delta = _compute_delta(previous_apps, apps)
 
         manifest = {
@@ -156,6 +188,11 @@ def generate_offline_package(mode: str = Query(default="full")):
             archive.writestr("latest_versions.json", json.dumps(latest_versions, indent=2))
             archive.writestr("missing_drivers.json", json.dumps(missing_drivers, indent=2))
 
+        # Persist to DB
+        if db:
+            db.save_scan_snapshot(mode=mode, manifest=manifest, apps=apps, delta=delta)
+
+        # Also backup to JSON file
         _write_json(
             LAST_SNAPSHOT_PATH,
             {

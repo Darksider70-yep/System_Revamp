@@ -2,6 +2,7 @@ import hashlib
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -9,10 +10,28 @@ import requests
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+_SERVICE_DIR = Path(__file__).resolve().parent
+_BACKEND_ROOT = _SERVICE_DIR.parent
+if str(_SERVICE_DIR) not in sys.path:
+    sys.path.insert(0, str(_SERVICE_DIR))
+if str(_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_ROOT))
+
+try:
+    from common import redis_client
+except ModuleNotFoundError:
+    try:
+        from backend.common import redis_client
+    except Exception:
+        redis_client = None
+
 app = FastAPI(
     title="Software Protection Service",
     version="1.0.0",
 )
+
+if redis_client:
+    redis_client.init_redis()
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,8 +42,6 @@ app.add_middleware(
 )
 
 VT_API_BASE = "https://www.virustotal.com/api/v3/files"
-VT_CACHE: Dict[str, dict] = {}
-SIGNATURE_CACHE: Dict[str, str] = {}
 VT_KEY_FALLBACK_PATH = Path.home() / ".system_revamp_vt_api_key"
 
 KNOWN_EXECUTABLES = {
@@ -125,8 +142,11 @@ def _find_exe_from_path_by_name(app_name: str):
 
 
 def _get_authenticode_status(file_path: str):
-    if file_path in SIGNATURE_CACHE:
-        return SIGNATURE_CACHE[file_path]
+    cache_key = f"sr:sig:{file_path}"
+    if redis_client:
+        cached = redis_client.cache_get(cache_key)
+        if cached:
+            return cached
 
     try:
         escaped_path = file_path.replace("'", "''")
@@ -144,7 +164,8 @@ def _get_authenticode_status(file_path: str):
     except Exception:
         status = "UnknownError"
 
-    SIGNATURE_CACHE[file_path] = status
+    if redis_client and status != "UnknownError":
+        redis_client.cache_set(cache_key, status, ttl_seconds=86400)
     return status
 
 
@@ -221,8 +242,11 @@ def _sha256_file(path: str):
 
 
 def _vt_lookup_file_hash(file_hash: str):
-    if file_hash in VT_CACHE:
-        return VT_CACHE[file_hash]
+    cache_key = f"sr:vt:{file_hash}"
+    if redis_client:
+        cached = redis_client.cache_get(cache_key)
+        if cached:
+            return cached
 
     api_key = os.getenv("VT_API_KEY", "").strip()
     if not api_key and VT_KEY_FALLBACK_PATH.exists():
@@ -232,6 +256,13 @@ def _vt_lookup_file_hash(file_hash: str):
             api_key = ""
     if not api_key:
         return {"status": "NoApiKey"}
+
+    # Rate limiting check: default 4 requests per 60s
+    if redis_client:
+        rate_limit = int(os.getenv("VT_RATE_LIMIT_PER_MINUTE", "4"))
+        allowed, retry_after = redis_client.check_rate_limit("vt_api", max_requests=rate_limit, window_seconds=60)
+        if not allowed:
+            return {"status": "RateLimited", "retry_after": retry_after}
 
     try:
         resp = requests.get(
@@ -243,12 +274,16 @@ def _vt_lookup_file_hash(file_hash: str):
             data = {"status": "NotFound"}
         elif resp.status_code == 200:
             data = {"status": "OK", "payload": resp.json()}
+        elif resp.status_code == 429:
+            data = {"status": "RateLimited", "retry_after": 60}
         else:
             data = {"status": "Error", "code": resp.status_code}
     except Exception as e:
         data = {"status": "Error", "error": str(e)}
 
-    VT_CACHE[file_hash] = data
+    if redis_client and data.get("status") in {"OK", "NotFound"}:
+        redis_client.cache_set(cache_key, data, ttl_seconds=86400)
+
     return data
 
 
@@ -308,6 +343,34 @@ def _to_threat_result(app_name: str, app_version: str, file_path: str):
             "threatScore": local_score,
             "summary": local_msg,
             "source": "Local + VirusTotal",
+            "vtLink": vt_link,
+        }
+
+    if vt.get("status") == "RateLimited":
+        sig_status = _get_authenticode_status(file_path)
+        retry_sec = vt.get("retry_after", 60)
+        if sig_status == "Valid":
+            local_status = "Clean"
+            local_score = 20
+            local_msg = f"VirusTotal rate limit active (cooldown: {retry_sec}s). Authenticode signature is Valid."
+        elif sig_status in {"NotSigned", "HashMismatch"}:
+            local_status = "Suspicious"
+            local_score = 65
+            local_msg = f"VirusTotal rate limit active (cooldown: {retry_sec}s). Authenticode status: {sig_status}."
+        else:
+            local_status = "Unknown"
+            local_score = 35
+            local_msg = f"VirusTotal rate limit active (cooldown: {retry_sec}s). Authenticode status: {sig_status}."
+
+        return {
+            "name": app_name,
+            "version": app_version,
+            "path": file_path,
+            "sha256": file_hash,
+            "threatStatus": local_status,
+            "threatScore": local_score,
+            "summary": local_msg,
+            "source": "VirusTotal (Rate Limited) + Authenticode",
             "vtLink": vt_link,
         }
 

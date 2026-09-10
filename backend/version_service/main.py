@@ -16,10 +16,24 @@ try:
 except ModuleNotFoundError:
     from backend.version_service.utils.version_checker import check_latest_versions
 
+try:
+    from common import db, redis_client
+except ModuleNotFoundError:
+    try:
+        from backend.common import db, redis_client
+    except Exception:
+        db = None
+        redis_client = None
+
 app = FastAPI(
     title="Version Intelligence Service",
     version="1.0.0"
 )
+
+if db:
+    db.init_db()
+if redis_client:
+    redis_client.init_redis()
 
 app.add_middleware(
     CORSMiddleware,
