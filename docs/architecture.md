@@ -21,30 +21,31 @@ graph TB
     %% STYLING
     classDef clientStyle fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
     classDef serviceStyle fill:#1e1b4b,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
+    classDef nativeStyle fill:#2e1065,stroke:#c084fc,stroke-width:2px,color:#f8fafc;
+    classDef dbStyle fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
     classDef osStyle fill:#1e293b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
     classDef cloudStyle fill:#3b0764,stroke:#ec4899,stroke-width:2px,color:#f8fafc;
 
-    %% FRONTEND TIER
-    subgraph Frontend_Tier["🖥️ Presentation Tier (Port 3000)"]
-        UI["React 18 Dashboard<br/>(Material-UI v5 + Recharts + React-Table)"]:::clientStyle
-        StateEngine["State Management & SSE Listener<br/>(EventSource & React Hooks)"]:::clientStyle
-        UI --> StateEngine
+    %% CONTAINERIZED DOCKER COMPOSE TIER
+    subgraph Docker_Compose_Tier["🐳 Containerized Stack (Linux Docker Compose)"]
+        UI["🖥️ React 18 Dashboard<br/>Port: 3000 (Nginx)"]:::clientStyle
+        ScannerSvc["🔍 Scanner Service<br/>Port: 8000 (FastAPI)<br/>• Inventory & Packager<br/>• SSE Threat Simulator"]:::serviceStyle
+        VersionSvc["📦 Version Intelligence<br/>Port: 8002 (FastAPI)<br/>• SemVer Drift Evaluator<br/>• Live Winget/PyPI Query"]:::serviceStyle
+        PostgresDB["🐘 PostgreSQL 16 DB<br/>Port: 5432 (Internal/Host)<br/>• Scan Snapshots<br/>• Version Catalogs<br/>• Driver Audit History"]:::dbStyle
+        RedisCache["⚡ Redis 7 Cache<br/>Port: 6379 (Internal/Host)<br/>• Version Lookups (TTL 1h)<br/>• VT Rate Limiter (4/min)<br/>• Threat/Sig Cache (24h)"]:::dbStyle
     end
 
-    %% MICROSERVICES BACKEND TIER
-    subgraph Backend_Tier["⚙️ FastAPI Microservices Tier (Python 3.10+)"]
-        ScannerSvc["🔍 Scanner Service<br/>Port: 8000<br/>• Inventory Scan<br/>• Delta / Full Packager<br/>• Remediation Engine<br/>• SSE Threat Simulator"]:::serviceStyle
-        DriverSvc["🚗 Driver Risk Service<br/>Port: 8001<br/>• Hardware Driver Audit<br/>• Risk Score Engine<br/>• Update Pipeline (UsoClient)"]:::serviceStyle
-        VersionSvc["📦 Version Intelligence<br/>Port: 8002<br/>• SemVer Drift Evaluator<br/>• Live Winget/PyPI Query<br/>• Local Version DB"]:::serviceStyle
-        ProtectSvc["🛡️ Protection Service<br/>Port: 8003<br/>• Binary Path Resolver<br/>• SHA-256 Hasher<br/>• Authenticode Verifier<br/>• VirusTotal v3 Client"]:::serviceStyle
+    %% NATIVE WINDOWS HOST TIER
+    subgraph Native_Windows_Tier["💻 Native Windows Host Microservices (uvicorn)"]
+        DriverSvc["🚗 Driver Risk Service<br/>Port: 8001 (FastAPI Native)<br/>• Hardware Driver Audit<br/>• Risk Score Engine<br/>• PnP / Windows Update Pipeline"]:::nativeStyle
+        ProtectSvc["🛡️ Protection Service<br/>Port: 8003 (FastAPI Native)<br/>• Binary Path Resolver<br/>• Authenticode Verifier<br/>• VirusTotal v3 Client"]:::nativeStyle
     end
 
     %% LOCAL OS RUNTIME TIER
-    subgraph OS_Tier["💻 Host OS Hardware & Subsystems"]
-        Registry["Windows Registry<br/>(HKLM / HKCU Uninstall Keys)"]:::osStyle
+    subgraph OS_Tier["⚙️ Windows Kernel & Subsystems"]
+        Registry["Windows Registry<br/>(HKLM / HKCU Uninstall)"]:::osStyle
         WMIC_CIM["WMI / CIM Subsystem<br/>(Win32_PnPSignedDriver)"]:::osStyle
         PnpUtil["OS Utilities<br/>(pnputil.exe / UsoClient.exe)"]:::osStyle
-        FileSystem["Local File System<br/>(Binaries, Snapshots, ZIPs)"]:::osStyle
         PowerShell["PowerShell 5.1/7+<br/>(Get-AuthenticodeSignature)"]:::osStyle
     end
 
@@ -55,34 +56,42 @@ graph TB
         PyPIRepo["PyPI REST API<br/>(Python Package Index)"]:::cloudStyle
     end
 
-    %% INTERCONNECTS
-    StateEngine -- "HTTP GET /scan<br/>POST /generate-remediation-script<br/>GET /simulate-attack (SSE)" --> ScannerSvc
-    StateEngine -- "HTTP GET /drivers<br/>POST /drivers/download" --> DriverSvc
-    StateEngine -- "HTTP POST /check-versions" --> VersionSvc
-    StateEngine -- "HTTP POST /protection/scan" --> ProtectSvc
+    %% FRONTEND CONNECTIONS
+    UI -- "GET /scan | POST /generate-remediation-script | GET /simulate-attack" --> ScannerSvc
+    UI -- "GET /drivers | POST /drivers/download" --> DriverSvc
+    UI -- "POST /check-versions" --> VersionSvc
+    UI -- "POST /protection/scan" --> ProtectSvc
 
-    %% Service to OS links
-    ScannerSvc --> Registry
-    ScannerSvc --> FileSystem
+    %% PERSISTENCE & CACHE CONNECTIONS
+    ScannerSvc --> PostgresDB
+    ScannerSvc --> RedisCache
+    VersionSvc --> PostgresDB
+    VersionSvc --> RedisCache
+    DriverSvc -- "localhost:5432" --> PostgresDB
+    ProtectSvc -- "localhost:6379" --> RedisCache
+
+    %% NATIVE PROCESS OS ACCESS
     DriverSvc --> WMIC_CIM
     DriverSvc --> PnpUtil
-    VersionSvc -. "Query CLI" .-> WingetRepo
-    VersionSvc -. "HTTP REST" .-> PyPIRepo
-    ProtectSvc --> FileSystem
+    ProtectSvc --> Registry
     ProtectSvc --> PowerShell
     ProtectSvc -- "HTTPS API Key" --> VT
+    VersionSvc -. "Query CLI" .-> WingetRepo
+    VersionSvc -. "HTTP REST" .-> PyPIRepo
 ```
 
 ---
 
 ## 3. 📂 Microservice Breakdown & Responsibilities
 
-| Service Name | Default Port | Primary Responsibilities | Core Dependencies & Utilities |
-|---|---|---|---|
-| **Scanner Service** | `8000` | Application inventory discovery, offline ZIP generator, unattended PowerShell remediation generator, real-time SSE attack simulation. | `winreg`, `dpkg-query`, `system_profiler`, `zipfile`, `asyncio` SSE |
-| **Driver Risk Service** | `8001` | Device driver inventory, missing driver classification, impact scoring, automated Windows update installation triggers. | `Get-CimInstance Win32_PnPSignedDriver`, `UsoClient.exe`, `pnputil.exe` |
-| **Version Intelligence Service** | `8002` | Version drift calculation, package repository querying, semantic version comparison, risk stratification. | `packaging.version`, Winget CLI, PyPI REST API, `latest_versions.json` |
-| **Software Protection Service** | `8003` | Target executable discovery, SHA-256 hash calculation, VirusTotal reputation checks, PowerShell Authenticode signature validation. | `hashlib`, `requests`, `Get-AuthenticodeSignature`, VirusTotal API v3 |
+| Service Name | Default Port | Deployment Target | Primary Responsibilities | Core Dependencies & State Storage |
+|---|---|---|---|---|
+| **Scanner Service** | `8000` | Docker (Linux) | Application inventory discovery, offline ZIP generator, unattended PowerShell remediation generator, SSE attack simulation. | `fastapi`, `asyncio`, PostgreSQL (`scan_snapshots`), Redis |
+| **Driver Risk Service** | `8001` | Native Windows Host | Device driver inventory, missing driver classification, impact scoring, automated Windows update installation triggers. | `Get-CimInstance Win32_PnPSignedDriver`, `UsoClient.exe`, `pnputil.exe`, PostgreSQL (`driver_history`) |
+| **Version Intelligence Service** | `8002` | Docker (Linux) | Version drift calculation, package repository querying, semantic version comparison, risk stratification. | `packaging.version`, Winget CLI, PyPI REST API, Redis (`sr:version:*`), PostgreSQL (`latest_versions`) |
+| **Software Protection Service** | `8003` | Native Windows Host | Target executable discovery, SHA-256 hash calculation, VirusTotal reputation checks, PowerShell Authenticode signature validation. | `hashlib`, `requests`, `Get-AuthenticodeSignature`, VirusTotal API v3, Redis (`sr:vt:*`, `sr:sig:*`, Rate Limit) |
+| **PostgreSQL Database** | `5432` | Docker (Linux) | Persistent transactional storage for scan snapshots, version drift records, and driver audit history. | PostgreSQL 16 Alpine, Persistent Docker Volume (`postgres_data`) |
+| **Redis Cache & Limiter** | `6379` | Docker (Linux) | In-memory distributed caching for version checks, threat signatures, and sliding-window rate limiting for VirusTotal API. | Redis 7 Alpine, Persistent Docker Volume (`redis_data`) |
 
 ---
 
