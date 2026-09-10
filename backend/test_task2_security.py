@@ -168,4 +168,5 @@ if __name__ == "__main__":
     print("PASS: Rate limiting on POST /protection/scan (10/min)")
     test_remediation_dry_run_vs_live()
     print("PASS: Remediation dry-run preview vs live audit logging")
-    print("\nALL TASK 2 SECURITY TESTS PASSED! 🎉")
+    print("\nALL TASK 2 SECURITY TESTS PASSED SUCCESSFULLY! [SUCCESS]")
+

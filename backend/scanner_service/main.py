@@ -350,7 +350,7 @@ async def generate_remediation_script(request: Request, payload: dict):
                 "$ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Get-Location }",
                 "$LogDir = Join-Path $ScriptDir 'logs'",
                 "if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }",
-                "$LogFile = Join-Path $LogDir ('remediation_' + (Get-Date -Format 'yyyyMMdd_HHmmss') + '.log')",
+                "$LogFile = Join-Path $LogDir ('system_revamp_remediation_' + (Get-Date -Format 'yyyyMMdd_HHmmss') + '.log')",
                 "",
                 "function Log-Message {",
                 "    param([string]$Message, [string]$Level = 'INFO')",
