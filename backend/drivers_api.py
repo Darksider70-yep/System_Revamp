@@ -184,7 +184,10 @@ def scan_installed_signed_drivers():
 
 
 @app.get("/drivers")
-def get_drivers():
+async def get_drivers(request: Request):
+    if verify_internal_key:
+        await verify_internal_key(request)
+
     missing_drivers = scan_problem_devices()
     installed_drivers = scan_installed_signed_drivers()
 
@@ -209,7 +212,10 @@ def get_drivers():
 
 
 @app.post("/drivers/download")
-def download_missing_drivers(payload: dict = None):
+async def download_missing_drivers(request: Request, payload: dict = None):
+    if verify_internal_key:
+        await verify_internal_key(request)
+
     requested = []
     if isinstance(payload, dict):
         raw = payload.get("drivers", [])
@@ -274,10 +280,13 @@ def download_missing_drivers(payload: dict = None):
 
 
 @app.post("/drivers/enable")
-def enable_device(payload: dict = None):
+async def enable_device(request: Request, payload: dict = None):
     """
     Enables a disabled hardware device via PowerShell Enable-PnpDevice.
     """
+    if verify_internal_key:
+        await verify_internal_key(request)
+
     if not isinstance(payload, dict):
         return {"success": False, "message": "Invalid request payload"}
 
