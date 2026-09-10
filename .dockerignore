@@ -1,0 +1,15 @@
+**/.git
+**/.gitignore
+**/.env
+**/.env.local
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/node_modules
+**/build
+**/venv
+**/env
+**/.vscode
+**/.idea
+**/desktop.ini
