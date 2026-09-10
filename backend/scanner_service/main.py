@@ -6,7 +6,7 @@ import time
 from typing import Dict, List
 import zipfile
 
-from fastapi import FastAPI, Query, Response
+from fastapi import FastAPI, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 

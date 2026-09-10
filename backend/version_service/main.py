@@ -53,7 +53,9 @@ def root():
 
 
 @app.post("/check-versions")
-def check_versions(installed_apps: dict):
+async def check_versions(request: Request, installed_apps: dict):
+    if verify_internal_key:
+        await verify_internal_key(request)
     try:
         results = check_latest_versions(installed_apps)
         return {"apps": results}

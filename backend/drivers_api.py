@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 _BACKEND_DIR = Path(__file__).resolve().parent
@@ -13,11 +13,14 @@ if str(_BACKEND_DIR) not in sys.path:
 
 try:
     from common import db
+    from common.auth import verify_internal_key
 except ModuleNotFoundError:
     try:
         from backend.common import db
+        from backend.common.auth import verify_internal_key
     except Exception:
         db = None
+        verify_internal_key = None
 
 app = FastAPI(
     title="Driver Risk Service",
