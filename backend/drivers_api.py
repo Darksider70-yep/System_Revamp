@@ -1,11 +1,31 @@
 import json
 import os
 import subprocess
+import sys
 import time
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+_BACKEND_DIR = Path(__file__).resolve().parent
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+
+try:
+    from common import db
+except ModuleNotFoundError:
+    try:
+        from backend.common import db
+    except Exception:
+        db = None
+
+app = FastAPI(
+    title="Driver Risk Service",
+    version="1.0.0"
+)
+
+if db:
+    db.init_db()
 
 app.add_middleware(
     CORSMiddleware,
@@ -173,6 +193,10 @@ def get_drivers():
         impact = str(item.get("Impact", "")).lower()
         if impact in summary:
             summary[impact] += 1
+
+    # Persist scan results to PostgreSQL history
+    if db:
+        db.save_driver_history(missing_drivers, installed_drivers, summary)
 
     return {
         "missingDrivers": missing_drivers,
