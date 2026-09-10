@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 
 _SERVICE_DIR = Path(__file__).resolve().parent
@@ -19,11 +19,14 @@ if str(_BACKEND_ROOT) not in sys.path:
 
 try:
     from common import redis_client
+    from common.auth import verify_internal_key
 except ModuleNotFoundError:
     try:
         from backend.common import redis_client
+        from backend.common.auth import verify_internal_key
     except Exception:
         redis_client = None
+        verify_internal_key = None
 
 app = FastAPI(
     title="Software Protection Service",
@@ -443,7 +446,9 @@ def root():
 
 
 @app.get("/protection/debug-key")
-def debug_key_state():
+async def debug_key_state(request: Request):
+    if verify_internal_key:
+        await verify_internal_key(request)
     env_key = os.getenv("VT_API_KEY", "").strip()
     file_key = ""
     if VT_KEY_FALLBACK_PATH.exists():
@@ -459,7 +464,26 @@ def debug_key_state():
 
 
 @app.post("/protection/scan")
-def protection_scan(payload: dict = None):
+async def protection_scan(request: Request, payload: dict = None):
+    # 1. Auth check
+    if verify_internal_key:
+        await verify_internal_key(request)
+
+    # 2. Endpoint rate limit check (10 requests per 60s per client IP)
+    if redis_client:
+        client_host = request.client.host if request.client else "unknown"
+        allowed, retry_after = redis_client.check_rate_limit(
+            f"protection_scan:{client_host}",
+            max_requests=10,
+            window_seconds=60,
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded for /protection/scan. Please retry in {retry_after} seconds.",
+                headers={"Retry-After": str(retry_after)},
+            )
+
     payload = payload if isinstance(payload, dict) else {}
     requested_apps = payload.get("apps", [])
     max_apps = int(payload.get("maxApps", 15))

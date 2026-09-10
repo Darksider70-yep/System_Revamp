@@ -32,11 +32,14 @@ except ModuleNotFoundError:
 
 try:
     from common import db
+    from common.auth import verify_internal_key
 except ModuleNotFoundError:
     try:
         from backend.common import db
+        from backend.common.auth import verify_internal_key
     except Exception:
         db = None
+        verify_internal_key = None
 
 app = FastAPI(
     title="System Scanner Service",
@@ -69,7 +72,9 @@ def root():
 
 
 @app.get("/scan")
-def scan_system():
+async def scan_system(request: Request):
+    if verify_internal_key:
+        await verify_internal_key(request)
     try:
         apps = get_installed_apps()
         return {"apps": apps}
@@ -131,7 +136,9 @@ def _compute_delta(previous_apps: List[Dict[str, str]], current_apps: List[Dict[
 
 
 @app.get("/generate-offline-package")
-def generate_offline_package(mode: str = Query(default="full")):
+async def generate_offline_package(request: Request, mode: str = Query(default="full")):
+    if verify_internal_key:
+        await verify_internal_key(request)
     try:
         apps = get_installed_apps()
         mode = str(mode).strip().lower()
@@ -231,10 +238,13 @@ def _guess_winget_id(app_name: str):
 
 
 @app.post("/generate-remediation-script")
-def generate_remediation_script(payload: dict):
+async def generate_remediation_script(request: Request, payload: dict):
+    if verify_internal_key:
+        await verify_internal_key(request)
     try:
         apps = payload.get("apps", []) if isinstance(payload, dict) else []
         drivers = payload.get("drivers", []) if isinstance(payload, dict) else []
+        dry_run = bool(payload.get("dryRun", False)) if isinstance(payload, dict) else False
 
         app_names = []
         for item in apps:
@@ -254,72 +264,180 @@ def generate_remediation_script(payload: dict):
             if driver_name:
                 driver_names.append(driver_name)
 
-        lines = [
-            "# System Revamp - Remediation Script",
-            f"# Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}",
-            "Set-StrictMode -Version Latest",
-            "$ErrorActionPreference = 'Continue'",
-            "",
-            "Write-Host 'Starting safe remediation steps...' -ForegroundColor Cyan",
-            "",
-            "# ----- Application Updates (winget) -----",
-        ]
+        gen_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
-        if app_names:
-            for name in app_names:
-                winget_id = _guess_winget_id(name)
-                if winget_id:
-                    lines.extend(
-                        [
-                            f"Write-Host 'Updating {name} ({winget_id})' -ForegroundColor Yellow",
-                            (
-                                f"winget upgrade --id \"{winget_id}\" --exact "
-                                "--accept-package-agreements --accept-source-agreements "
-                                "--disable-interactivity"
-                            ),
+        if dry_run:
+            # -------------------------------------------------------------
+            # DRY-RUN PREVIEW SCRIPT
+            # -------------------------------------------------------------
+            lines = [
+                "# ========================================================",
+                "# System Revamp - Remediation Script [PREVIEW / DRY-RUN]",
+                f"# Generated: {gen_time}",
+                "# Mode: DRY-RUN (No changes will be applied to the system)",
+                "# ========================================================",
+                "Set-StrictMode -Version Latest",
+                "$ErrorActionPreference = 'Continue'",
+                "",
+                "Write-Host '[DRY RUN] Starting Remediation Preview Mode...' -ForegroundColor Cyan",
+                "Write-Host '[DRY RUN] No packages or drivers will be modified during this run.' -ForegroundColor DarkCyan",
+                "",
+                "# ----- Application Updates Preview -----",
+            ]
+
+            if app_names:
+                for name in app_names:
+                    winget_id = _guess_winget_id(name)
+                    if winget_id:
+                        cmd = (
+                            f"winget upgrade --id \"{winget_id}\" --exact "
+                            "--accept-package-agreements --accept-source-agreements "
+                            "--disable-interactivity"
+                        )
+                        lines.extend([
+                            f"Write-Host '[DRY RUN] Plan: Upgrade {name}' -ForegroundColor Yellow",
+                            f"Write-Host '          Command: {cmd}' -ForegroundColor Gray",
                             "",
-                        ]
-                    )
-                else:
-                    lines.extend(
-                        [
+                        ])
+                    else:
+                        lines.extend([
+                            f"Write-Host '[DRY RUN] Plan: Manual review required for {name} (No exact Winget mapping)' -ForegroundColor DarkYellow",
+                            f"Write-Host '          Suggested: winget search --name \"{name}\"' -ForegroundColor Gray",
+                            "",
+                        ])
+            else:
+                lines.append("# No applications selected for preview.")
+                lines.append("")
+
+            lines.extend([
+                "# ----- Driver Remediation Preview -----",
+                "Write-Host '[DRY RUN] Plan: Trigger Windows Update PnP Driver Scan' -ForegroundColor Yellow",
+                "Write-Host '          Commands: UsoClient StartScan -> StartDownload -> StartInstall' -ForegroundColor Gray",
+                "",
+            ])
+
+            if driver_names:
+                for driver in driver_names:
+                    lines.append(f"Write-Host '[DRY RUN] Unresolved hardware driver: {driver}.sys' -ForegroundColor DarkYellow")
+            else:
+                lines.append("# No specific missing drivers selected.")
+
+            lines.extend([
+                "",
+                "Write-Host '[DRY RUN] Preview complete. To execute real upgrades, generate script without Dry-Run.' -ForegroundColor Green",
+            ])
+
+            script = "\n".join(lines)
+            headers = {
+                "Content-Disposition": 'attachment; filename="system_revamp_remediation_dryrun.ps1"'
+            }
+            return Response(content=script, media_type="text/plain; charset=utf-8", headers=headers)
+
+        else:
+            # -------------------------------------------------------------
+            # EXECUTION SCRIPT WITH PERSISTENT AUDIT LOGGING
+            # -------------------------------------------------------------
+            lines = [
+                "# ========================================================",
+                "# System Revamp - Unattended Remediation Script",
+                f"# Generated: {gen_time}",
+                "# Mode: LIVE EXECUTION (Logs written to ./logs/ directory)",
+                "# ========================================================",
+                "Set-StrictMode -Version Latest",
+                "$ErrorActionPreference = 'Continue'",
+                "",
+                "# Setup execution log file next to script",
+                "$ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Get-Location }",
+                "$LogDir = Join-Path $ScriptDir 'logs'",
+                "if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }",
+                "$LogFile = Join-Path $LogDir ('remediation_' + (Get-Date -Format 'yyyyMMdd_HHmmss') + '.log')",
+                "",
+                "function Log-Message {",
+                "    param([string]$Message, [string]$Level = 'INFO')",
+                "    $Stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'",
+                "    $Formatted = \"[$Stamp] [$Level] $Message\"",
+                "    Add-Content -Path $LogFile -Value $Formatted",
+                "}",
+                "",
+                "function Execute-LoggedCommand {",
+                "    param([string]$Command, [string]$Description)",
+                "    Write-Host \"Executing: $Description\" -ForegroundColor Yellow",
+                "    Log-Message \"Starting: $Description | Command: $Command\" 'INFO'",
+                "    ",
+                "    $Output = Invoke-Expression $Command 2>&1",
+                "    $ExitCode = $LASTEXITCODE",
+                "    ",
+                "    if ($Output) {",
+                "        $OutputStr = ($Output | Out-String).Trim()",
+                "        Write-Host $OutputStr",
+                "        Log-Message \"Output:`n$OutputStr\" 'DEBUG'",
+                "    }",
+                "    ",
+                "    if ($null -eq $ExitCode -or $ExitCode -eq 0) {",
+                "        Log-Message \"Completed: $Description (ExitCode: 0)\" 'SUCCESS'",
+                "        Write-Host \"Success: $Description\" -ForegroundColor Green",
+                "    } else {",
+                "        Log-Message \"Failed: $Description (ExitCode: $ExitCode)\" 'ERROR'",
+                "        Write-Host \"Warning/Error (ExitCode $ExitCode): $Description\" -ForegroundColor Red",
+                "    }",
+                "    Write-Host ''",
+                "}",
+                "",
+                "Write-Host 'Starting system remediation...' -ForegroundColor Cyan",
+                "Log-Message '=== System Revamp Remediation Session Started ===' 'INFO'",
+                "",
+                "# ----- Application Updates (winget) -----",
+            ]
+
+            if app_names:
+                for name in app_names:
+                    winget_id = _guess_winget_id(name)
+                    if winget_id:
+                        cmd = (
+                            f"winget upgrade --id \"{winget_id}\" --exact "
+                            "--accept-package-agreements --accept-source-agreements "
+                            "--disable-interactivity"
+                        )
+                        lines.extend([
+                            f"Execute-LoggedCommand -Command '{cmd}' -Description 'Upgrade {name} ({winget_id})'",
+                        ])
+                    else:
+                        lines.extend([
                             f"# No safe winget mapping found for: {name}",
-                            f"# Review manually: winget search --name \"{name}\"",
+                            f"Log-Message 'Skipped auto-upgrade for {name}: No exact Winget ID mapping' 'WARN'",
+                            f"Write-Host '# Review manually: winget search --name \"{name}\"' -ForegroundColor DarkYellow",
                             "",
-                        ]
-                    )
-        else:
-            lines.append("# No applications selected.")
-            lines.append("")
+                        ])
+            else:
+                lines.append("Log-Message 'No applications selected.' 'INFO'")
+                lines.append("")
 
-        lines.extend(
-            [
+            lines.extend([
                 "# ----- Driver Remediation Guidance -----",
-                "Write-Host 'Checking Windows Update for driver updates...' -ForegroundColor Yellow",
-                "UsoClient StartScan",
-                "UsoClient StartDownload",
-                "UsoClient StartInstall",
+                "Execute-LoggedCommand -Command 'UsoClient StartScan' -Description 'Trigger Windows Update Driver Scan'",
+                "Execute-LoggedCommand -Command 'UsoClient StartDownload' -Description 'Download Pending Driver Updates'",
+                "Execute-LoggedCommand -Command 'UsoClient StartInstall' -Description 'Install Driver Updates'",
                 "",
-            ]
-        )
+            ])
 
-        if driver_names:
-            for driver in driver_names:
-                lines.append(f"# Validate/install driver manually if still missing: {driver}.sys")
-        else:
-            lines.append("# No drivers selected.")
+            if driver_names:
+                for driver in driver_names:
+                    lines.append(f"Log-Message 'Unresolved driver requires verification: {driver}.sys' 'WARN'")
+                    lines.append(f"# Validate/install driver manually if still missing: {driver}.sys")
+            else:
+                lines.append("Log-Message 'No drivers selected.' 'INFO'")
 
-        lines.extend(
-            [
+            lines.extend([
                 "",
+                "Log-Message '=== System Revamp Remediation Session Completed ===' 'INFO'",
                 "Write-Host 'Remediation script completed.' -ForegroundColor Green",
-            ]
-        )
+                "Write-Host \"Execution log saved to: $LogFile\" -ForegroundColor Cyan",
+            ])
 
-        script = "\n".join(lines)
-        headers = {
-            "Content-Disposition": 'attachment; filename="system_revamp_remediation.ps1"'
-        }
-        return Response(content=script, media_type="text/plain; charset=utf-8", headers=headers)
+            script = "\n".join(lines)
+            headers = {
+                "Content-Disposition": 'attachment; filename="system_revamp_remediation.ps1"'
+            }
+            return Response(content=script, media_type="text/plain; charset=utf-8", headers=headers)
     except Exception as e:
         return {"error": str(e)}

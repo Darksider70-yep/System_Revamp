@@ -1,23 +1,80 @@
-from fastapi import APIRouter, Request
-from fastapi.responses import StreamingResponse
 import asyncio
+import datetime
 import json
 import random
-import datetime
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
+
+try:
+    from common.auth import consume_sse_token, generate_sse_token, verify_internal_key
+    from common import redis_client
+except ModuleNotFoundError:
+    try:
+        from backend.common.auth import consume_sse_token, generate_sse_token, verify_internal_key
+        from backend.common import redis_client
+    except Exception:
+        verify_internal_key = None
+        generate_sse_token = None
+        consume_sse_token = None
+        redis_client = None
 
 router = APIRouter()
+
 
 def now():
     return datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
+
+@router.post("/simulate-attack/token")
+async def request_simulate_attack_token(request: Request):
+    """
+    Issues a short-lived (~30s), single-use token for initiating an SSE attack simulation.
+    Protected by the standard X-Internal-Key header.
+    """
+    if verify_internal_key:
+        await verify_internal_key(request)
+
+    token = generate_sse_token(expires_in=30) if generate_sse_token else "dev-token"
+    return {
+        "token": token,
+        "expiresIn": 30,
+        "tokenType": "SingleUseSSE",
+    }
+
+
 @router.get("/simulate-attack/{app_name}")
-async def simulate_attack(app_name: str, request: Request):
+async def simulate_attack(app_name: str, request: Request, token: Optional[str] = Query(None)):
     """
     Streams realistic fake attack logs in real-time for the given app using SSE.
-    Sends a structured summary at the end.
+    Requires a valid single-use token generated via POST /simulate-attack/token.
+    Tokens are consumed and invalidated immediately upon first connection.
     """
+    # 1. Validate and consume the single-use SSE ticket token
+    if consume_sse_token:
+        is_valid = consume_sse_token(token)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized: Invalid, expired, or already-consumed simulation token. Request a new token via POST /simulate-attack/token.",
+                headers={"WWW-Authenticate": "Token"},
+            )
 
-        # inside simulate_attack.py
+    # 2. Rate limit check (5 starts per 60s per client IP)
+    if redis_client:
+        client_host = request.client.host if request.client else "unknown"
+        allowed, retry_after = redis_client.check_rate_limit(
+            f"simulate_attack:{client_host}",
+            max_requests=5,
+            window_seconds=60,
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded for attack simulations. Please retry in {retry_after} seconds.",
+                headers={"Retry-After": str(retry_after)},
+            )
+
     async def log_generator():
         steps = [
             {"step": 1, "message": f"Reconnaissance started on {app_name}", "level": "INFO"},
@@ -64,7 +121,6 @@ async def simulate_attack(app_name: str, request: Request):
 
         except asyncio.CancelledError:
             return
-
 
     return StreamingResponse(
         log_generator(),

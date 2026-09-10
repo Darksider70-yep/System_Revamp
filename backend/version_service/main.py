@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 _SERVICE_DIR = Path(__file__).resolve().parent
@@ -18,12 +18,15 @@ except ModuleNotFoundError:
 
 try:
     from common import db, redis_client
+    from common.auth import verify_internal_key
 except ModuleNotFoundError:
     try:
         from backend.common import db, redis_client
+        from backend.common.auth import verify_internal_key
     except Exception:
         db = None
         redis_client = None
+        verify_internal_key = None
 
 app = FastAPI(
     title="Version Intelligence Service",
