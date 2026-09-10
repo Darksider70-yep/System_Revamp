@@ -2,12 +2,20 @@
 
 Complete documentation of all REST endpoints and real-time streaming interfaces across the System Revamp microservices.
 
+## Authentication & Headers
+When `INTERNAL_API_KEY` is configured in the environment, all REST endpoints (except the root heartbeat `/`) require the `X-Internal-Key` HTTP header:
+```http
+X-Internal-Key: <INTERNAL_API_KEY>
+```
+If `INTERNAL_API_KEY` is not set or empty, services run in local development mode where authentication checks are bypassed.
+
 ---
 
 ## 1. Scanner Service (`http://127.0.0.1:8000`)
 
 ### `GET /`
 - **Description**: Service health and heartbeat check.
+- **Auth**: None
 - **Response**:
   ```json
   {
@@ -17,6 +25,7 @@ Complete documentation of all REST endpoints and real-time streaming interfaces 
 
 ### `GET /scan`
 - **Description**: Enumerates installed applications on the host OS across Windows, Linux, and macOS.
+- **Auth**: `X-Internal-Key`
 - **Response**:
   ```json
   {
@@ -29,23 +38,40 @@ Complete documentation of all REST endpoints and real-time streaming interfaces 
   ```
 
 ### `GET /generate-offline-package`
+- **Auth**: `X-Internal-Key`
 - **Query Parameters**:
   - `mode` *(string, optional, default: `"full"`)*: Either `"full"` or `"delta"`.
 - **Description**: Bundles application inventory, version catalog, missing driver status, and differential delta data into a ZIP archive.
 - **Response**: Streamed `application/zip` download (`offline_update_package.zip` or `offline_delta_package.zip`).
 
 ### `POST /generate-remediation-script`
-- **Description**: Generates an executable PowerShell remediation script for updating outdated software via Winget and checking drivers.
+- **Auth**: `X-Internal-Key`
+- **Description**: Generates a PowerShell remediation script. Supports safe dry-run preview and execution logging modes.
 - **Request Body**:
   ```json
   {
     "apps": ["Python 3", "Google Chrome"],
-    "drivers": ["nvlddmkm", "rt640x64"]
+    "drivers": ["nvlddmkm", "rt640x64"],
+    "dryRun": false
   }
   ```
-- **Response**: Streamed `text/plain` file download (`system_revamp_remediation.ps1`).
+- **Response**: Streamed `text/plain` file download (`system_revamp_remediation.ps1` or `system_revamp_remediation_preview.ps1`).
+
+### `POST /simulate-attack/token`
+- **Auth**: `X-Internal-Key`
+- **Rate Limit**: 5 requests / min / IP
+- **Description**: Issues a short-lived (30s), single-use ticket token for initiating an SSE attack simulation without exposing API keys in URLs.
+- **Response**:
+  ```json
+  {
+    "token": "dGhpc19pc19hX3NhbXBsZV90b2tlbg...",
+    "expiresIn": 30,
+    "tokenType": "SingleUseSSE"
+  }
+  ```
 
 ### `GET /simulate-attack/{app_name}`
+- **Auth**: Ephemeral token via `?token=<ticket_token>` (obtained from `POST /simulate-attack/token`). The token is verified and immediately burned upon connection.
 - **Description**: Server-Sent Events (SSE) stream simulating a penetration test / security assessment on the targeted application.
 - **Response Stream Event Types**:
   - `data: {"timestamp": "...", "step": 1, "progress": 10, "level": "INFO", "message": "Reconnaissance started..."}`
@@ -57,6 +83,7 @@ Complete documentation of all REST endpoints and real-time streaming interfaces 
 ## 2. Driver Risk Service (`http://127.0.0.1:8001`)
 
 ### `GET /drivers`
+- **Auth**: `X-Internal-Key`
 - **Description**: Scans installed Windows device drivers and cross-references them against critical system driver profiles.
 - **Response**:
   ```json
@@ -89,6 +116,7 @@ Complete documentation of all REST endpoints and real-time streaming interfaces 
   ```
 
 ### `POST /drivers/download`
+- **Auth**: `X-Internal-Key`
 - **Description**: Executes automated driver update sequence via `UsoClient` and `pnputil`.
 - **Request Body**:
   ```json
@@ -102,15 +130,33 @@ Complete documentation of all REST endpoints and real-time streaming interfaces 
     "requestedDrivers": ["nvlddmkm", "rt640x64"],
     "steps": [
       {
-        "step": "Start driver scan",
-        "command": "UsoClient StartScan",
+        "step": "Rescan Plug and Play hardware devices",
+        "command": "pnputil /scan-devices",
         "returnCode": 0,
         "stdout": "",
         "stderr": ""
       }
     ],
     "success": true,
-    "message": "Driver update flow executed."
+    "message": "Hardware rescan and driver synchronization completed successfully."
+  }
+  ```
+
+### `POST /drivers/enable`
+- **Auth**: `X-Internal-Key`
+- **Description**: Enables a disabled hardware device via PowerShell `Enable-PnpDevice`.
+- **Request Body**:
+  ```json
+  {
+    "deviceId": "PCI\\VEN_10DE&DEV_1C82...",
+    "driverName": "NVIDIA GeForce GTX 1050 Ti"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "message": "Device 'NVIDIA GeForce GTX 1050 Ti' enabled successfully."
   }
   ```
 
@@ -120,6 +166,7 @@ Complete documentation of all REST endpoints and real-time streaming interfaces 
 
 ### `GET /`
 - **Description**: Service health check.
+- **Auth**: None
 - **Response**:
   ```json
   {
@@ -128,6 +175,7 @@ Complete documentation of all REST endpoints and real-time streaming interfaces 
   ```
 
 ### `POST /check-versions`
+- **Auth**: `X-Internal-Key`
 - **Description**: Compares current installed software versions against live package registries (Winget, PyPI) and cached database to evaluate update status and version drift risks.
 - **Request Body**:
   ```json
@@ -165,6 +213,7 @@ Complete documentation of all REST endpoints and real-time streaming interfaces 
 
 ### `GET /`
 - **Description**: Health check.
+- **Auth**: None
 - **Response**:
   ```json
   {
@@ -173,6 +222,7 @@ Complete documentation of all REST endpoints and real-time streaming interfaces 
   ```
 
 ### `GET /protection/debug-key`
+- **Auth**: `X-Internal-Key`
 - **Description**: Returns debug information regarding active VirusTotal API key configuration.
 - **Response**:
   ```json
@@ -184,6 +234,8 @@ Complete documentation of all REST endpoints and real-time streaming interfaces 
   ```
 
 ### `POST /protection/scan`
+- **Auth**: `X-Internal-Key`
+- **Rate Limit**: 10 requests / min / IP
 - **Description**: Resolves binaries for installed applications on disk, calculates SHA256 hashes, performs VirusTotal reputation queries or Authenticode signature verifications.
 - **Request Body**:
   ```json

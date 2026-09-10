@@ -29,9 +29,16 @@ yarn-error.log*
 postgres_data/
 redis_data/
 
+# Logs & Generated Remediation Scripts
+*.log
+logs/
+system_revamp_remediation*.ps1
+system_revamp_remediation*.log
+
 # IDE & OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 desktop.ini
+

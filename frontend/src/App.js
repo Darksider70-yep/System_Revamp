@@ -84,6 +84,16 @@ const CustomBarTooltip = ({ active, payload, label }) => {
   return null;
 };
 
+const INTERNAL_API_KEY = process.env.REACT_APP_INTERNAL_API_KEY || "system-revamp-internal-key-change-me";
+
+const getAuthHeaders = (extraHeaders = {}) => {
+  const headers = { ...extraHeaders };
+  if (INTERNAL_API_KEY) {
+    headers["X-Internal-Key"] = INTERNAL_API_KEY;
+  }
+  return headers;
+};
+
 function App() {
   const PROTECTION_SCAN_ENDPOINTS = [
     "http://127.0.0.1:8003/protection/scan",
@@ -132,7 +142,9 @@ function App() {
     setLoading(true);
 
     try {
-      const scanRes = await fetch("http://127.0.0.1:8000/scan");
+      const scanRes = await fetch("http://127.0.0.1:8000/scan", {
+        headers: getAuthHeaders(),
+      });
       const scanData = await scanRes.json();
 
       if (!scanData.apps) throw new Error("Scan failed");
@@ -144,7 +156,7 @@ function App() {
 
       const versionRes = await fetch("http://127.0.0.1:8002/check-versions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(installedDict),
       });
 
@@ -178,7 +190,9 @@ function App() {
   // Fetch drivers (missing + installed)
   const fetchDrivers = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8001/drivers");
+      const res = await fetch("http://127.0.0.1:8001/drivers", {
+        headers: getAuthHeaders(),
+      });
       const data = await res.json();
       setMissingDrivers(Array.isArray(data.missingDrivers) ? data.missingDrivers : []);
       setInstalledDrivers(Array.isArray(data.installedDrivers) ? data.installedDrivers : []);
@@ -216,7 +230,9 @@ function App() {
       );
     }, 50);
 
-    fetch(`http://127.0.0.1:8000/generate-offline-package?mode=${mode}`)
+    fetch(`http://127.0.0.1:8000/generate-offline-package?mode=${mode}`, {
+      headers: getAuthHeaders(),
+    })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`Offline package request failed with status ${response.status}`);
@@ -261,18 +277,19 @@ function App() {
       });
   };
 
-  const handleExportRemediationScript = async () => {
+  const handleExportRemediationScript = async (dryRun = false) => {
     try {
       setScriptDownloading(true);
       const targetApps = normalizedApps.filter((app) => app.status === "Update Available");
       const payload = {
         apps: targetApps.map((app) => app.name),
         drivers: missingDrivers.map((driver) => driver["Driver Name"]),
+        dryRun: dryRun,
       };
 
       const res = await fetch("http://127.0.0.1:8000/generate-remediation-script", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload),
       });
 
@@ -285,12 +302,15 @@ function App() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", "system_revamp_remediation.ps1");
+      link.setAttribute("download", dryRun ? "system_revamp_remediation_preview.ps1" : "system_revamp_remediation.ps1");
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      showToast("Remediation script exported successfully.", "success");
+      showToast(
+        dryRun ? "Remediation dry-run preview exported." : "Remediation script exported successfully.",
+        "success"
+      );
     } catch (err) {
       showToast(err?.message || "Failed to export remediation script", "error");
     } finally {
@@ -303,7 +323,7 @@ function App() {
       setDriversDownloading(true);
       const res = await fetch("http://127.0.0.1:8001/drivers/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           drivers: missingDrivers.map((driver) => driver["Driver Name"]),
         }),
@@ -338,7 +358,7 @@ function App() {
       const driverName = driver?.["Driver Name"] || "";
       const res = await fetch("http://127.0.0.1:8001/drivers/enable", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ deviceId, driverName }),
       });
       const data = await res.json();
@@ -376,12 +396,12 @@ function App() {
         try {
           const res = await fetch(endpoint, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getAuthHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify(payload),
           });
           const parsed = await res.json();
           if (!res.ok) {
-            lastError = new Error(parsed?.error || `Protection scan failed at ${endpoint} with status ${res.status}`);
+            lastError = new Error(parsed?.error || parsed?.detail || `Protection scan failed at ${endpoint} with status ${res.status}`);
             continue;
           }
           data = parsed;
@@ -983,7 +1003,32 @@ function App() {
                         <Button
                           variant="outlined"
                           startIcon={<Code />}
-                          onClick={handleExportRemediationScript}
+                          onClick={() => handleExportRemediationScript(true)}
+                          disabled={scriptDownloading}
+                          sx={{
+                            color: "#38bdf8",
+                            borderColor: "rgba(56, 189, 248, 0.3)",
+                            px: 2.5,
+                            py: 1,
+                            fontWeight: 600,
+                            fontSize: "0.85rem",
+                            borderRadius: "8px",
+                            textTransform: "none",
+                            backgroundColor: "rgba(56, 189, 248, 0.04)",
+                            "&:hover": {
+                              borderColor: "rgba(56, 189, 248, 0.6)",
+                              color: "#7dd3fc",
+                              backgroundColor: "rgba(56, 189, 248, 0.1)",
+                            },
+                          }}
+                        >
+                          Preview Script (Dry Run)
+                        </Button>
+
+                        <Button
+                          variant="outlined"
+                          startIcon={<Code />}
+                          onClick={() => handleExportRemediationScript(false)}
                           disabled={scriptDownloading}
                           sx={{
                             color: "#94a3b8",

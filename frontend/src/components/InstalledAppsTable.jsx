@@ -100,28 +100,68 @@ const InstalledAppsTable = ({ data = [] }) => {
     };
   }, []);
 
-  const handleAttack = useCallback((appName) => {
+  const handleAttack = useCallback(async (appName) => {
     if (eventSourceRef.current) eventSourceRef.current.close();
     setAttackingApp(appName);
-    setAttackLogs([`[INIT] Target selected: ${appName}`, "[INFO] Initializing sandboxed simulation environment..."]);
+    setAttackLogs([`[INIT] Target selected: ${appName}`, "[AUTH] Requesting ephemeral simulation token..."]);
     setIsAttacking(true);
 
-    const es = new EventSource(`http://localhost:8000/simulate-attack/${encodeURIComponent(appName)}`);
-    eventSourceRef.current = es;
+    try {
+      const internalKey = process.env.REACT_APP_INTERNAL_API_KEY || "system-revamp-internal-key-change-me";
+      const tokenRes = await fetch("http://localhost:8000/simulate-attack/token", {
+        method: "POST",
+        headers: { "X-Internal-Key": internalKey },
+      });
 
-    es.onmessage = (event) => {
-      setAttackLogs((prev) => [...prev, event.data]);
-      if (event.data.includes("Attack simulation complete!")) {
+      if (!tokenRes.ok) {
+        if (tokenRes.status === 401) {
+          setAttackLogs((prev) => [...prev, "[ERROR] 401 Unauthorized: Invalid or missing X-Internal-Key"]);
+        } else if (tokenRes.status === 429) {
+          const retryAfter = tokenRes.headers.get("Retry-After") || "a few";
+          setAttackLogs((prev) => [...prev, `[ERROR] 429 Rate limit exceeded. Please retry in ${retryAfter}s.`]);
+        } else {
+          setAttackLogs((prev) => [...prev, `[ERROR] Token request failed with status ${tokenRes.status}`]);
+        }
+        setIsAttacking(false);
+        return;
+      }
+
+      const tokenData = await tokenRes.json();
+      const token = tokenData.token;
+
+      setAttackLogs((prev) => [...prev, "[INFO] Simulation token validated. Starting real-time telemetry stream..."]);
+      const es = new EventSource(`http://localhost:8000/simulate-attack/${encodeURIComponent(appName)}?token=${encodeURIComponent(token)}`);
+      eventSourceRef.current = es;
+
+      es.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const msg = data.message || event.data;
+          setAttackLogs((prev) => [...prev, `[STEP ${data.step || '-'}] ${msg}`]);
+        } catch {
+          setAttackLogs((prev) => [...prev, event.data]);
+        }
+      };
+
+      es.addEventListener("summary", (event) => {
+        setAttackLogs((prev) => [...prev, `[SUMMARY] ${event.data}`]);
+      });
+
+      es.addEventListener("end", () => {
+        setAttackLogs((prev) => [...prev, "[COMPLETE] Simulation finished."]);
         setIsAttacking(false);
         es.close();
-      }
-    };
+      });
 
-    es.onerror = () => {
-      setAttackLogs((prev) => [...prev, "[ERROR] Simulation connection ended."]);
+      es.onerror = () => {
+        setAttackLogs((prev) => [...prev, "[INFO] Simulation stream closed."]);
+        setIsAttacking(false);
+        es.close();
+      };
+    } catch (err) {
+      setAttackLogs((prev) => [...prev, `[ERROR] Simulation initialization failed: ${err.message}`]);
       setIsAttacking(false);
-      es.close();
-    };
+    }
   }, []);
 
   const tableData = useMemo(() => filteredData.map((row) => ({ ...row, handleAttack })), [filteredData, handleAttack]);

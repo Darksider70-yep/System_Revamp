@@ -29,10 +29,10 @@ def get_configured_internal_key() -> str:
 
 async def verify_internal_key(
     request: Request,
-    x_internal_key: Optional[str] = Header(None, alias="X-Internal-Key"),
+    x_internal_key: Optional[str] = None,
 ) -> bool:
     """
-    FastAPI dependency validating the internal service/frontend shared key via HTTP header.
+    FastAPI dependency and helper validating the internal service/frontend shared key via HTTP header.
     - If INTERNAL_API_KEY is unset/empty in environment, access is permitted (local dev mode).
     - Checks header `X-Internal-Key`.
     - Query strings are NEVER accepted for raw internal keys.
@@ -42,7 +42,13 @@ async def verify_internal_key(
     if not configured_key:
         return True
 
-    provided_key = (x_internal_key or "").strip()
+    header_val = None
+    if isinstance(x_internal_key, str):
+        header_val = x_internal_key
+    elif request and hasattr(request, "headers"):
+        header_val = request.headers.get(INTERNAL_KEY_HEADER)
+
+    provided_key = (header_val or "").strip()
 
     if not provided_key or provided_key != configured_key:
         raise HTTPException(
@@ -62,14 +68,13 @@ def generate_sse_token(expires_in: int = DEFAULT_SSE_TTL_SECONDS) -> str:
     token = secrets.token_urlsafe(32)
     key = f"{SSE_TOKEN_PREFIX}{token}"
 
-    if redis_client and redis_client.cache_set(key, "active", ttl_seconds=expires_in):
-        return token
-
-    # In-memory fallback
-    now = time.time()
-    with _MEMORY_SSE_LOCK:
-        _clean_memory_sse_tokens(now)
-        _MEMORY_SSE_TOKENS[token] = now + expires_in
+    if redis_client:
+        redis_client.cache_set(key, "active", ttl_seconds=expires_in)
+    else:
+        now = time.time()
+        with _MEMORY_SSE_LOCK:
+            _clean_memory_sse_tokens(now)
+            _MEMORY_SSE_TOKENS[token] = now + expires_in
 
     return token
 
@@ -93,26 +98,29 @@ def consume_sse_token(token: Optional[str]) -> bool:
 
     key = f"{SSE_TOKEN_PREFIX}{token_str}"
 
-    # Try Redis first
     if redis_client:
         r = redis_client.get_redis_client()
         if r:
             try:
-                # Atomically get and delete the token
+                # Atomically get and delete the token in Redis
                 val = r.getdel(key) if hasattr(r, "getdel") else None
                 if val is None:
-                    # Fallback for older redis versions: pipeline GET + DELETE
                     pipe = r.pipeline()
                     pipe.get(key)
                     pipe.delete(key)
                     results = pipe.execute()
                     val = results[0]
-                if val:
-                    return True
+                return bool(val)
             except Exception as e:
                 print(f"[Auth] Redis error checking SSE token: {e}")
 
-    # Check in-memory fallback
+        # Fallback to in-memory cache in redis_client
+        val = redis_client.cache_get(key)
+        if val is not None:
+            redis_client.cache_delete(key)
+            return True
+
+    # Standalone memory fallback
     now = time.time()
     with _MEMORY_SSE_LOCK:
         _clean_memory_sse_tokens(now)

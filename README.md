@@ -130,17 +130,24 @@ pip install fastapi uvicorn requests packaging
 
 ---
 
-### 3. Optional: Configure VirusTotal API Key
+### 3. Optional: Configure API Keys & Shared Authentication
 
-For live VirusTotal threat intelligence:
-```powershell
-# Set as an environment variable in PowerShell
-$env:VT_API_KEY="your_virustotal_api_key_here"
+1. **VirusTotal API Key (Threat Intelligence)**:
+   ```powershell
+   # Set in .env or as environment variable:
+   $env:VT_API_KEY="your_virustotal_api_key_here"
+   # OR save in your user home directory: C:\Users\<YourUser>\.system_revamp_vt_api_key
+   ```
+   *(If omitted, the Protection Center will automatically use local Authenticode signature validation.)*
 
-# OR save in your user home directory:
-# C:\Users\<YourUser>\.system_revamp_vt_api_key
-```
-*(If omitted, the Protection Center will automatically use local Authenticode signature validation.)*
+2. **Internal Service Authentication (`INTERNAL_API_KEY`)**:
+   - Microservices support internal header-based authentication via `X-Internal-Key`.
+   - Set `INTERNAL_API_KEY=your-secret-key` in `.env` to enforce authentication across all REST endpoints.
+   - Attack simulations use ticket-based single-use tokens (`POST /simulate-attack/token`) to keep API keys completely out of URLs and browser logs.
+   - If `INTERNAL_API_KEY` is not set, services default to frictionless local development mode.
+
+> [!TIP]
+> **Secrets Safety Guarantee**: VirusTotal API keys, internal auth tokens, and credentials are never logged to execution logs or written to exported remediation scripts. All generated scripts run with `--disable-interactivity` and safe logging practices.
 
 ---
 

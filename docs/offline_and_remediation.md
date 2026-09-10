@@ -29,7 +29,19 @@ Air-gapped or secured networks often lack direct internet connectivity to query 
 
 ## 2. Automated PowerShell Remediation Generator
 
-The **Export Remediation Script** feature generates an executable PowerShell script (`system_revamp_remediation.ps1`) tailored specifically to the system's current vulnerabilities and missing drivers.
+The **Export Remediation Script** feature generates an executable PowerShell script (`system_revamp_remediation.ps1` or `system_revamp_remediation_preview.ps1`) tailored specifically to the system's current vulnerabilities and missing drivers.
+
+### Safety Modes
+
+1. **Dry-Run Preview Mode (`dryRun: true`)**:
+   - Generates a non-mutating preview script (`system_revamp_remediation_preview.ps1`).
+   - Displays all planned Winget upgrade commands and driver synchronization routines with `[DRY RUN]` headers.
+   - Executes no system modifications, allowing administrators to audit changes before running them.
+
+2. **Execution Mode (`dryRun: false`)**:
+   - Generates an active remediation script with built-in audit logging (`system_revamp_remediation.ps1`).
+   - Creates a timestamped log file in `./logs/system_revamp_remediation_YYYYMMDD_HHMMSS.log`.
+   - Wraps every command in `Execute-LoggedCommand` to record command lines, timestamps, exit codes, and stdout/stderr output.
 
 ### How it Works:
 1. The frontend filters installed software with status `Update Available`.
@@ -53,3 +65,4 @@ The **Export Remediation Script** feature generates an executable PowerShell scr
    UsoClient StartInstall
    ```
 5. Lists specific unresolved `.sys` driver files for manual administrator validation.
+6. **Zero Secrets Guarantee**: No API keys, credentials, or internal tokens are ever written to remediation scripts or log files.
