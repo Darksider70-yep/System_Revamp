@@ -9,6 +9,10 @@ from server.app.auth.password import hash_password
 from server.app.api.auth_api import router as auth_router
 from server.app.api.agent_api import router as agent_router
 from server.app.api.admin_api import router as admin_router
+from server.app.api.commands_api import router as commands_router
+from server.app.api.threats_api import router as threats_router
+from server.app.api.exposure_api import router as exposure_router
+from server.app.api.offline_api import router as offline_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -29,6 +33,10 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(agent_router)
 app.include_router(admin_router)
+app.include_router(commands_router)
+app.include_router(threats_router)
+app.include_router(exposure_router)
+app.include_router(offline_router)
 
 
 def seed_initial_admin():

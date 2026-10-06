@@ -1,280 +1,147 @@
-# System Revamp - API Reference
+# System Revamp v2.0 — API Reference
 
-Complete documentation of all REST endpoints and real-time streaming interfaces across the System Revamp microservices.
-
-## Authentication & Headers
-When `INTERNAL_API_KEY` is configured in the environment, **all endpoints across all 4 services (except root heartbeat `GET /`) require the `X-Internal-Key` HTTP header**.
-
-```http
-X-Internal-Key: <INTERNAL_API_KEY>
-```
-
-> [!IMPORTANT]
-> - **401 Unauthorized**: If `INTERNAL_API_KEY` is active and the `X-Internal-Key` header is missing or incorrect, endpoints immediately return `HTTP 401 Unauthorized` with `{"detail": "Unauthorized: Invalid or missing X-Internal-Key header"}`.
-> - **CORS & Preflights**: Browser `OPTIONS` preflight requests automatically bypass authentication so cross-origin fetch requests succeed seamlessly.
-> - **Zero Dev Friction**: If `INTERNAL_API_KEY` is not set or empty in `.env`, services run in local development mode where authentication checks are bypassed.
+Complete documentation of all REST endpoints and Server-Sent Event (SSE) streaming interfaces for the System Revamp Fleet Platform.
 
 ---
 
-## 1. Scanner Service (`http://127.0.0.1:8000`)
+## 1. Authentication & Security
 
-### `GET /`
-- **Description**: Service health and heartbeat check.
-- **Auth**: None
-- **Response**:
-  ```json
-  {
-    "message": "Scanner Service running 🚀"
-  }
-  ```
+### Admin Authentication
+Admin endpoints require a Bearer token in the `Authorization` header:
+```http
+Authorization: Bearer <JWT_ACCESS_TOKEN>
+```
 
-### `GET /scan`
-- **Description**: Enumerates installed applications on the host OS across Windows, Linux, and macOS.
-- **Auth**: `X-Internal-Key`
-- **Response**:
-  ```json
-  {
-    "apps": [
-      { "name": "Google Chrome", "version": "128.0.6613.85" },
-      { "name": "Python 3.13.3", "version": "3.13.3" },
-      { "name": "Node.js", "version": "22.11.0" }
-    ]
-  }
-  ```
+### Agent Authentication
+Agent communication endpoints require an individual device token in the `X-Device-Token` header:
+```http
+X-Device-Token: sr_dev_<device_id>_<entropy>
+```
 
-### `GET /generate-offline-package`
-- **Auth**: `X-Internal-Key`
-- **Query Parameters**:
-  - `mode` *(string, optional, default: `"full"`)*: Either `"full"` or `"delta"`.
-- **Description**: Bundles application inventory, version catalog, missing driver status, and differential delta data into a ZIP archive.
-- **Response**: Streamed `application/zip` download (`offline_update_package.zip` or `offline_delta_package.zip`).
+---
 
-### `POST /generate-remediation-script`
-- **Auth**: `X-Internal-Key`
-- **Description**: Generates a PowerShell remediation script. Supports safe dry-run preview and execution logging modes.
+## 2. Agent Communication Endpoints (`/api/v2/agent`)
+
+### `POST /api/v2/agent/enroll`
+- **Description**: Exchanges a one-time enrollment token for an individual device token.
 - **Request Body**:
   ```json
   {
-    "apps": ["Python 3", "Google Chrome"],
-    "drivers": ["nvlddmkm", "rt640x64"],
-    "dryRun": false
+    "enrollment_token": "sr_enroll_...",
+    "hostname": "LAB-PC-01",
+    "os_name": "Windows",
+    "os_version": "11 (22631)",
+    "ip_address": "192.168.1.105",
+    "agent_version": "2.0.0"
   }
   ```
-- **Response**: Streamed `text/plain` file download (`system_revamp_remediation.ps1` or `system_revamp_remediation_preview.ps1`).
-
-### `POST /simulate-attack/token`
-- **Auth**: `X-Internal-Key`
-- **Rate Limit**: 5 requests / min / IP
-- **Description**: Issues a short-lived (30s), single-use ticket token for initiating an SSE attack simulation without exposing API keys in URLs.
 - **Response**:
   ```json
   {
-    "token": "dGhpc19pc19hX3NhbXBsZV90b2tlbg...",
-    "expiresIn": 30,
-    "tokenType": "SingleUseSSE"
+    "device_id": "8a329d91-...",
+    "device_token": "sr_dev_8a329d91_...",
+    "org_id": "7b119c82-...",
+    "lab_id": "4c901a12-...",
+    "poll_interval_seconds": 300,
+    "server_time": "2026-10-06T12:00:00Z"
   }
   ```
 
-### `GET /simulate-attack/{app_name}`
-- **Auth**: Ephemeral token via `?token=<ticket_token>` (obtained from `POST /simulate-attack/token`). The token is verified and immediately burned upon connection.
-- **Description**: Server-Sent Events (SSE) stream simulating a penetration test / security assessment on the targeted application.
-- **Response Stream Event Types**:
-  - `data: {"timestamp": "...", "step": 1, "progress": 10, "level": "INFO", "message": "Reconnaissance started..."}`
-  - `event: summary` $\rightarrow$ `data: {"app": "...", "status": "Simulation finished", "issues_found": ["CVE-2023-12345"]}`
-  - `event: end` $\rightarrow$ `data: {"done": true}`
-
----
-
-## 2. Driver Risk Service (`http://127.0.0.1:8001`)
-
-### `GET /drivers`
-- **Auth**: `X-Internal-Key`
-- **Description**: Scans installed Windows device drivers and cross-references them against critical system driver profiles.
-- **Response**:
+### `POST /api/v2/agent/heartbeat`
+- **Auth**: `X-Device-Token`
+- **Description**: Periodic agent heartbeat updating online status, IP address, and uptime.
+- **Request Body**:
   ```json
   {
-    "missingDrivers": [
+    "device_id": "8a329d91-...",
+    "ip_address": "192.168.1.105",
+    "uptime_seconds": 14400,
+    "disk_free_gb": 450.2
+  }
+  ```
+
+### `POST /api/v2/agent/telemetry`
+- **Auth**: `X-Device-Token`
+- **Description**: Ingests full/delta software inventories, PnP driver error codes, and hardware metrics.
+- **Request Body**:
+  ```json
+  {
+    "device_id": "8a329d91-...",
+    "snapshot_type": "full",
+    "software": [
       {
-        "Driver Name": "nvlddmkm",
-        "Device": "NVIDIA GPU",
-        "Impact": "Medium",
-        "RiskScore": 50,
-        "Status": "Missing"
+        "name": "Node.js",
+        "version": "20.10.0",
+        "publisher": "OpenJS Foundation",
+        "install_path": "C:\\Program Files\\nodejs\\node.exe",
+        "binary_sha256": "4b5c7e3f89012a...",
+        "signature_status": "Valid",
+        "signer_name": "OpenJS Foundation"
       }
     ],
-    "installedDrivers": [
+    "drivers": [
       {
-        "Driver Name": "iaStorA",
-        "Device": "Unknown",
-        "Impact": "Low",
-        "RiskScore": 0,
-        "Status": "Installed"
+        "device_name": "NVIDIA GPU",
+        "device_id_pnp": "PCI\\VEN_10DE&DEV_1C82",
+        "error_code": 28,
+        "reason": "The drivers for this device are not installed.",
+        "impact": "Medium",
+        "risk_score": 50,
+        "status": "Missing"
       }
     ],
-    "riskSummary": {
-      "critical": 0,
-      "high": 1,
-      "medium": 2,
-      "low": 0
+    "system_metrics": {
+      "cpu_model": "Intel Core i7-12700K",
+      "cpu_cores": 12,
+      "ram_total_gb": 32.0,
+      "disk_free_gb": 450.0,
+      "uptime_seconds": 14400
     }
   }
   ```
 
-### `POST /drivers/download`
-- **Auth**: `X-Internal-Key`
-- **Description**: Executes automated driver update sequence via `UsoClient` and `pnputil`.
-- **Request Body**:
-  ```json
-  {
-    "drivers": ["nvlddmkm", "rt640x64"]
-  }
-  ```
+### `GET /api/v2/agent/commands`
+- **Auth**: `X-Device-Token`
+- **Description**: Agent polls for approved commands scoped to this device, its lab, or the fleet.
 - **Response**:
   ```json
-  {
-    "requestedDrivers": ["nvlddmkm", "rt640x64"],
-    "steps": [
-      {
-        "step": "Rescan Plug and Play hardware devices",
-        "command": "pnputil /scan-devices",
-        "returnCode": 0,
-        "stdout": "",
-        "stderr": ""
-      }
-    ],
-    "success": true,
-    "message": "Hardware rescan and driver synchronization completed successfully."
-  }
+  [
+    {
+      "id": "cmd-12345",
+      "command_type": "upgrade-package",
+      "params": { "package_id": "OpenJS.NodeJS" },
+      "signature": "hmac_sha256_sig...",
+      "dry_run": true
+    }
+  ]
   ```
 
-### `POST /drivers/enable`
-- **Auth**: `X-Internal-Key`
-- **Description**: Enables a disabled hardware device via PowerShell `Enable-PnpDevice`.
-- **Request Body**:
-  ```json
-  {
-    "deviceId": "PCI\\VEN_10DE&DEV_1C82...",
-    "driverName": "NVIDIA GeForce GTX 1050 Ti"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "message": "Device 'NVIDIA GeForce GTX 1050 Ti' enabled successfully."
-  }
-  ```
+### `POST /api/v2/agent/commands/result`
+- **Auth**: `X-Device-Token`
+- **Description**: Agent reports command execution status and terminal logs.
 
 ---
 
-## 3. Version Intelligence Service (`http://127.0.0.1:8002`)
+## 3. Admin Fleet Management Endpoints (`/api/v2/admin`)
 
-### `GET /`
-- **Description**: Service health check.
-- **Auth**: None
-- **Response**:
-  ```json
-  {
-    "message": "Version Intelligence Service running 🚀"
-  }
-  ```
-
-### `POST /check-versions`
-- **Auth**: `X-Internal-Key`
-- **Description**: Compares current installed software versions against live package registries (Winget, PyPI) and cached database to evaluate update status and version drift risks.
-- **Request Body**:
-  ```json
-  {
-    "Node.js": "20.10.0",
-    "Python 3": "3.11.0",
-    "Google Chrome": "128.0.6613.85"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "apps": [
-      {
-        "name": "Node.js",
-        "current": "20.10.0",
-        "latest": "22.11.0",
-        "status": "Update Available",
-        "riskLevel": "High"
-      },
-      {
-        "name": "Google Chrome",
-        "current": "128.0.6613.85",
-        "latest": "128.0.6613.85",
-        "status": "Up-to-date",
-        "riskLevel": "Low"
-      }
-    ]
-  }
-  ```
+- `POST /api/v2/auth/login`: Admin login returning access & refresh JWT tokens.
+- `GET /api/v2/admin/fleet/overview`: Fleet-wide KPIs, compliance percentage, top outdated software, and missing drivers.
+- `GET /api/v2/admin/devices`: Lists managed endpoints with lab filters and risk tags.
+- `GET /api/v2/admin/devices/{id}`: Detailed inspection of a single machine's specs, software, drivers, and history.
+- `POST /api/v2/admin/enrollment-tokens`: Creates scoped, multi-use enrollment tokens with expiry.
+- `GET /api/v2/admin/audit-logs`: Paginated administrative audit logs.
 
 ---
 
-## 4. Software Protection Service (`http://127.0.0.1:8003`)
+## 4. Commands & Remediation (`/api/v2/commands`)
 
-### `GET /`
-- **Description**: Health check.
-- **Auth**: None
-- **Response**:
-  ```json
-  {
-    "message": "Software Protection Service running"
-  }
-  ```
+- `POST /api/v2/commands/queue`: Queues a command (`rescan`, `scan-drivers`, `enable-device`, `upgrade-package`) with dry-run support.
+- `POST /api/v2/commands/approve`: Approves or rejects a queued command requiring review.
+- `GET /api/v2/commands/list`: Lists recent command dispatches.
 
-### `GET /protection/debug-key`
-- **Auth**: `X-Internal-Key`
-- **Description**: Returns debug information regarding active VirusTotal API key configuration.
-- **Response**:
-  ```json
-  {
-    "envKeyLen": 64,
-    "fileKeyLen": 0,
-    "fallbackPath": "C:\\Users\\<User>\\.system_revamp_vt_api_key"
-  }
-  ```
+---
 
-### `POST /protection/scan`
-- **Auth**: `X-Internal-Key`
-- **Rate Limit**: 10 requests / min / IP
-- **Description**: Resolves binaries for installed applications on disk, calculates SHA256 hashes, performs VirusTotal reputation queries or Authenticode signature verifications.
-- **Request Body**:
-  ```json
-  {
-    "apps": [
-      { "name": "Google Chrome", "version": "128.0.6613.85" }
-    ],
-    "maxApps": 20
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "results": [
-      {
-        "name": "Google Chrome",
-        "version": "128.0.6613.85",
-        "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-        "sha256": "4b5c7e3f89012a...",
-        "threatStatus": "Clean",
-        "threatScore": 10,
-        "summary": "Engines: malicious=0, suspicious=0, harmless=72, undetected=0",
-        "source": "VirusTotal",
-        "vtLink": "https://www.virustotal.com/gui/file/4b5c7e3f89012a..."
-      }
-    ],
-    "summary": {
-      "malicious": 0,
-      "suspicious": 0,
-      "clean": 1,
-      "unknown": 0,
-      "error": 0
-    },
-    "scannedCount": 1,
-    "note": "Set VT_API_KEY environment variable to enable live VirusTotal reputation."
-  }
-  ```
+## 5. Exposure Assessment & Real-Time SSE (`/api/v2/exposure`)
+
+- `POST /api/v2/exposure/token`: Issues a single-use 30-second ticket token for SSE streaming.
+- `GET /api/v2/exposure/stream/{device_id}?ticket=<token>`: Streams real-time vulnerability matching telemetry against NVD & OSV.dev databases.

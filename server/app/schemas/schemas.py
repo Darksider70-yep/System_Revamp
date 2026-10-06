@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr, Field
 # --- Auth & User Schemas ---
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     totp_code: Optional[str] = None
 
@@ -33,7 +33,7 @@ class TOTPVerifyRequest(BaseModel):
 
 
 class AdminUserCreate(BaseModel):
-    email: EmailStr
+    email: str
     name: str
     password: str
     role: str = "LabAdmin"
