@@ -49,7 +49,7 @@ pip install -r backend/requirements.txt
 pip install pyotp argon2-cffi
 
 # 2. Launch Central Server (Port 8080)
-python -m server.main
+python -m server.main..
 ```
 *Default SuperAdmin seeded: `admin@systemrevamp.local` / `Admin@123456`.*
 

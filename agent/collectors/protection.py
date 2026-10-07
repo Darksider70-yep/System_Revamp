@@ -65,6 +65,8 @@ def check_authenticode_signature(exe_path: str) -> Tuple[str, str]:
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=8,
             check=False,
         )
