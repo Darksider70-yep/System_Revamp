@@ -113,7 +113,7 @@ export const DataTable = ({
         boxShadow: 'var(--shadow-sm)',
       }}
     >
-      <div className="data-table-container" style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+      <div className="data-table-container" style={{ border: 'none', borderRadius: 'inherit', boxShadow: 'none' }}>
         <table className="data-table">
           <thead>
             <tr>

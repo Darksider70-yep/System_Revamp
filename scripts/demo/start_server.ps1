@@ -53,9 +53,8 @@ Write-Host "   • Central Server URL:   http://${localIp}:${ServerPort}" -Foreg
 Write-Host "   • Admin Dashboard URL:  http://localhost:${DashboardPort}" -ForegroundColor Cyan
 Write-Host "   • Default Credentials:  admin@systemrevamp.local / Admin@123456`n" -ForegroundColor Gray
 
-# 3. Seed Demo Topology Idempotently
-Write-Host "🌱 Seeding demo hierarchy (Org, Sites, Labs)..." -ForegroundColor Yellow
-python scripts/demo/seed_demo_org.py
+# 3. Hierarchy Initialized automatically on Central Server startup
+Write-Host "[INIT] Hierarchy and default SuperAdmin auto-seeded on server boot." -ForegroundColor Yellow
 
 # 4. Start Central Server
 Write-Host "🚀 Starting Central Server on port $ServerPort..." -ForegroundColor Green

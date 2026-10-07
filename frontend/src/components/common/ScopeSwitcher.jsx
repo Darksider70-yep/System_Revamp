@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, ChevronDown, Check } from 'lucide-react';
+import { Layers, ChevronDown, Check, Globe, MapPin, Monitor } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../api/client';
 
@@ -113,7 +113,9 @@ export const ScopeSwitcher = () => {
                 textAlign: 'left',
               }}
             >
-              <span>🌍 All Fleet (Global)</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={14} /> All Fleet (Global)
+              </span>
               {!scope.labId && !scope.siteId && <Check size={14} />}
             </button>
 
@@ -130,7 +132,9 @@ export const ScopeSwitcher = () => {
                     borderRadius: 'var(--radius-xs)',
                   }}
                 >
-                  📍 {site.name}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <MapPin size={12} /> {site.name}
+                  </span>
                 </div>
 
                 {labs
@@ -161,7 +165,9 @@ export const ScopeSwitcher = () => {
                           textAlign: 'left',
                         }}
                       >
-                        <span>💻 {lab.name}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <Monitor size={13} /> {lab.name}
+                        </span>
                         {isSelected && <Check size={14} />}
                       </button>
                     );

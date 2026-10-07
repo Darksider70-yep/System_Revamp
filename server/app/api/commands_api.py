@@ -133,6 +133,7 @@ def approve_command(
 
 
 @router.get("/list")
+@router.get("/history")
 def list_commands(
     status_filter: Optional[str] = None,
     limit: int = 50,
