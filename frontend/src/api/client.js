@@ -78,7 +78,23 @@ class ApiClient {
     return false;
   }
 
-  // Auth
+  // Auth & Setup
+  getSetupStatus() {
+    return this.request("/api/v2/auth/setup-status");
+  }
+
+  setupInitialAdmin(orgName, adminEmail, adminPassword, adminName = "Fleet Administrator") {
+    return this.request("/api/v2/auth/setup", {
+      method: "POST",
+      body: JSON.stringify({
+        org_name: orgName,
+        admin_email: adminEmail,
+        admin_password: adminPassword,
+        admin_name: adminName,
+      }),
+    });
+  }
+
   login(email, password, totp_code = null) {
     return this.request("/api/v2/auth/login", {
       method: "POST",
@@ -148,6 +164,17 @@ class ApiClient {
 
   getAuditLogs(limit = 50) {
     return this.request(`/api/v2/admin/audit-logs?limit=${limit}`);
+  }
+
+  // Threats & Reputation
+  getThreatsOverview() {
+    return this.request("/api/v2/threats/overview");
+  }
+
+  processThreatsQueue() {
+    return this.request("/api/v2/threats/process-queue", {
+      method: "POST",
+    });
   }
 }
 

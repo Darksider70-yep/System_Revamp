@@ -51,6 +51,20 @@ class AdminUserResponse(BaseModel):
     created_at: datetime.datetime
 
 
+class SetupStatusResponse(BaseModel):
+    setup_required: bool
+    admin_count: int
+    app_name: str
+    app_version: str
+
+
+class InitialSetupRequest(BaseModel):
+    org_name: str = "System Revamp Enterprise"
+    admin_email: str
+    admin_password: str
+    admin_name: str = "Fleet Administrator"
+
+
 # --- Multi-Tenant Hierarchy Schemas ---
 
 class OrgCreate(BaseModel):
@@ -154,11 +168,13 @@ class SoftwareReportItem(BaseModel):
     binary_sha256: Optional[str] = None
     signature_status: Optional[str] = "Unsigned"  # Valid, Unsigned, HashMismatch, NotTrusted
     signer_name: Optional[str] = ""
+    winget_id: Optional[str] = None
 
 
 class DriverReportItem(BaseModel):
     device_name: str
     device_id_pnp: Optional[str] = ""
+    device_class_guid: Optional[str] = ""
     error_code: int = 0
     reason: Optional[str] = ""
     impact: Optional[str] = "Low"
@@ -231,12 +247,16 @@ class FleetOverview(BaseModel):
     total_devices: int
     online_devices: int
     offline_devices: int
-    compliance_percent: float
+    compliance_percent: Optional[float] = None
     critical_risk_devices: int
     high_risk_devices: int
     top_outdated_apps: List[Dict[str, Any]]
     top_missing_drivers: List[Dict[str, Any]]
     threats_flagged: int
+    source: str = "fleet_telemetry"
+    fetched_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
+    stale: bool = False
+    status_message: Optional[str] = None
 
 
 class DeviceDetailResponse(BaseModel):

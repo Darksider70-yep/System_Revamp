@@ -164,7 +164,7 @@ def ingest_telemetry(
 
     # Ingest and classify software
     for sw in report.software:
-        latest_ver, risk_level = evaluate_software_risk(sw.name, sw.version, db)
+        latest_ver, risk_level, ver_source, ver_fetched_at, is_stale = evaluate_software_risk(sw.name, sw.version, db)
         if risk_level == "Critical":
             critical_risks_count += 1
 
@@ -180,6 +180,10 @@ def ingest_telemetry(
                 signer_name=sw.signer_name or "",
                 risk_level=risk_level,
                 latest_version=latest_ver,
+                winget_id=sw.winget_id,
+                version_source=ver_source,
+                version_fetched_at=ver_fetched_at,
+                is_stale=is_stale,
                 last_scanned_at=now,
             )
         )
@@ -192,6 +196,8 @@ def ingest_telemetry(
                     ThreatReputation(
                         sha256=sw.binary_sha256,
                         vt_status="Unknown",
+                        source="virustotal",
+                        is_stale=False,
                         last_checked_at=now,
                     )
                 )
@@ -207,6 +213,7 @@ def ingest_telemetry(
                 device_id=device.id,
                 device_name=drv.device_name,
                 device_id_pnp=drv.device_id_pnp or "",
+                device_class_guid=getattr(drv, "device_class_guid", "") or "",
                 error_code=drv.error_code,
                 reason=drv.reason or "",
                 impact=drv.impact or "Low",
@@ -214,6 +221,8 @@ def ingest_telemetry(
                 status=drv.status or "Installed",
                 manufacturer=drv.manufacturer or "Unknown",
                 is_disabled=drv.is_disabled or False,
+                source="pnp_entity",
+                is_stale=False,
                 last_scanned_at=now,
             )
         )
@@ -225,7 +234,7 @@ def ingest_telemetry(
         software_count=len(report.software),
         driver_issues_count=driver_issues_count,
         critical_risks_count=critical_risks_count,
-        system_metrics_json=json.dumps(report.system_metrics.dict() if report.system_metrics else {}),
+        system_metrics_json=json.dumps(report.system_metrics.model_dump() if report.system_metrics else {}),
         created_at=now,
     )
     db.add(snapshot)

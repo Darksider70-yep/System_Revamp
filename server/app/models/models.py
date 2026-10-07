@@ -179,6 +179,9 @@ class DeviceSoftware(Base):
     risk_level = Column(String(32), default="Low")  # Critical, High, Medium, Low, Unknown
     latest_version = Column(String(128), default="Unknown")
     winget_id = Column(String(128), nullable=True)
+    version_source = Column(String(64), default="unknown")  # winget, pypi, endoflife, local_heuristic
+    version_fetched_at = Column(DateTime, nullable=True)
+    is_stale = Column(Boolean, default=False)
     last_scanned_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     device = relationship("Device", back_populates="software")
@@ -191,6 +194,7 @@ class DeviceDriver(Base):
     device_id = Column(String(36), ForeignKey("devices.id", ondelete="CASCADE"), nullable=False, index=True)
     device_name = Column(String(255), nullable=False)
     device_id_pnp = Column(String(512), default="")
+    device_class_guid = Column(String(128), default="")
     error_code = Column(Integer, default=0)
     reason = Column(String(255), default="")
     impact = Column(String(32), default="Low")  # Critical, High, Medium, Low
@@ -198,6 +202,8 @@ class DeviceDriver(Base):
     status = Column(String(32), default="Installed")  # Installed, Missing, Disabled, Error
     manufacturer = Column(String(255), default="Unknown")
     is_disabled = Column(Boolean, default=False)
+    source = Column(String(64), default="pnp_entity")
+    is_stale = Column(Boolean, default=False)
     last_scanned_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     device = relationship("Device", back_populates="drivers")
@@ -211,6 +217,8 @@ class ThreatReputation(Base):
     vt_status = Column(String(32), default="Unknown")  # Clean, Suspicious, Malicious, Unknown
     positives_count = Column(Integer, default=0)
     total_engines = Column(Integer, default=0)
+    source = Column(String(64), default="virustotal")
+    is_stale = Column(Boolean, default=False)
     raw_vt_json = Column(Text, default="{}")
     last_checked_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -226,7 +234,20 @@ class VulnerabilityCatalog(Base):
     severity = Column(String(32), default="MEDIUM")  # CRITICAL, HIGH, MEDIUM, LOW
     fixed_in_version = Column(String(128), default="")
     summary = Column(Text, default="")
+    cve_source = Column(String(64), default="osv")  # osv, nvd, manual
+    cve_fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
     published_date = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class LatestVersionCache(Base):
+    __tablename__ = "latest_version_cache"
+
+    app_name = Column(String(255), primary_key=True, index=True)
+    latest_version = Column(String(128), nullable=False)
+    source = Column(String(64), default="winget")  # winget, pypi, endoflife, manual
+    fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
+    ttl_seconds = Column(Integer, default=86400)
+    is_stale = Column(Boolean, default=False)
 
 
 class AppWingetMapping(Base):

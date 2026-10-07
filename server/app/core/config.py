@@ -1,11 +1,33 @@
 import os
+import secrets
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 DATA_DIR = BASE_DIR / "server_data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _get_or_create_secret(env_var_name: str, secret_filename: str) -> str:
+    env_val = os.getenv(env_var_name)
+    if env_val:
+        return env_val
+    secret_path = DATA_DIR / secret_filename
+    if secret_path.exists():
+        try:
+            stored = secret_path.read_text(encoding="utf-8").strip()
+            if stored:
+                return stored
+        except Exception:
+            pass
+    # Generate cryptographically strong 256-bit key
+    new_secret = secrets.token_hex(32)
+    try:
+        secret_path.write_text(new_secret, encoding="utf-8")
+    except Exception:
+        pass
+    return new_secret
 
 
 class Settings(BaseModel):
@@ -24,19 +46,13 @@ class Settings(BaseModel):
     )
     
     # Security & Auth
-    SECRET_KEY: str = os.getenv(
-        "SECRET_KEY", 
-        "system-revamp-super-secure-production-jwt-secret-key-change-in-env"
-    )
+    SECRET_KEY: str = Field(default_factory=lambda: _get_or_create_secret("SECRET_KEY", ".jwt_secret"))
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # Device Token signing secret (HMAC)
-    DEVICE_SIGNING_KEY: str = os.getenv(
-        "DEVICE_SIGNING_KEY",
-        "system-revamp-device-signing-secret-key-change-in-env"
-    )
+    DEVICE_SIGNING_KEY: str = Field(default_factory=lambda: _get_or_create_secret("DEVICE_SIGNING_KEY", ".device_signing_key"))
     
     # Threat Intel
     VIRUSTOTAL_API_KEY: Optional[str] = os.getenv("VT_API_KEY", None)

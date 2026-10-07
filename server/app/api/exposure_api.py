@@ -39,14 +39,13 @@ async def stream_exposure_assessment(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
-    seed_vulnerability_catalog(db)
     software_list = db.query(DeviceSoftware).filter(DeviceSoftware.device_id == device_id).all()
 
     async def event_generator():
         yield f"data: {json.dumps({'step': 1, 'progress': 10, 'level': 'INFO', 'message': f'Starting Exposure Assessment on {device.hostname}...' })}\n\n"
         await asyncio.sleep(0.3)
 
-        yield f"data: {json.dumps({'step': 2, 'progress': 30, 'level': 'INFO', 'message': f'Analyzing {len(software_list)} installed packages against National Vulnerability Database (NVD) & OSV.dev...' })}\n\n"
+        yield f"data: {json.dumps({'step': 2, 'progress': 30, 'level': 'INFO', 'message': f'Analyzing {len(software_list)} installed packages against OSV.dev & National Vulnerability Database (NVD)...' })}\n\n"
         await asyncio.sleep(0.4)
 
         total_cves = []
@@ -56,9 +55,10 @@ async def stream_exposure_assessment(
                 total_cves.append(cve)
                 cve_id = cve["cve_id"]
                 cvss = cve["cvss_score"]
-                fix = cve["fixed_in_version"]
-                msg = f"Identified {cve_id} in {sw.app_name} v{sw.version} (CVSS {cvss}) - Fixed in {fix}"
-                payload_json = json.dumps({"step": 3, "progress": 60, "level": "WARN", "message": msg})
+                fix = cve.get("fixed_in_version") or "Latest Patch"
+                cve_src = cve.get("source", "osv.dev")
+                msg = f"Identified {cve_id} in {sw.app_name} v{sw.version} (CVSS {cvss}) via {cve_src} - Fixed in {fix}"
+                payload_json = json.dumps({"step": 3, "progress": 60, "level": "WARN", "message": msg, "source": cve_src, "cve_id": cve_id})
                 yield f"data: {payload_json}\n\n"
                 await asyncio.sleep(0.3)
 
@@ -70,6 +70,8 @@ async def stream_exposure_assessment(
             "hostname": device.hostname,
             "total_packages_audited": len(software_list),
             "vulnerabilities_found": total_cves,
+            "sources": ["osv.dev", "nvd.nist.gov"],
+            "fetched_at": datetime.datetime.utcnow().isoformat(),
             "status": "Assessment Complete",
         }
 

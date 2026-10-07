@@ -253,7 +253,24 @@ def get_fleet_overview(
     )
 
     threats_flagged = db.query(ThreatReputation).filter(ThreatReputation.vt_status.in_(["Malicious", "Suspicious"])).count()
-    compliance = round(((total_devices - crit_devices) / total_devices * 100), 1) if total_devices > 0 else 100.0
+    
+    now = datetime.datetime.utcnow()
+    is_stale = False
+    if total_devices > 0:
+        latest_heartbeat = db.query(func.max(Device.last_heartbeat)).scalar()
+        if latest_heartbeat and (now - latest_heartbeat).total_seconds() > 3600:
+            is_stale = True
+
+    compliance = (
+        round(((total_devices - crit_devices) / total_devices * 100), 1)
+        if total_devices > 0
+        else None
+    )
+    status_msg = (
+        f"Fleet telemetry active ({total_devices} devices)"
+        if total_devices > 0
+        else "No devices enrolled in fleet yet"
+    )
 
     return FleetOverview(
         total_devices=total_devices,
@@ -265,6 +282,10 @@ def get_fleet_overview(
         top_outdated_apps=[{"app_name": a[0], "latest_version": a[1], "risk_level": a[2], "affected_devices": a[3]} for a in top_apps],
         top_missing_drivers=[{"device_name": d[0], "impact": d[1], "affected_devices": d[2]} for d in top_drivers],
         threats_flagged=threats_flagged,
+        source="fleet_telemetry",
+        fetched_at=now,
+        stale=is_stale,
+        status_message=status_msg,
     )
 
 
@@ -350,6 +371,9 @@ def get_device_detail(
             "signature_status": s.signature_status,
             "signer_name": s.signer_name,
             "binary_sha256": s.binary_sha256,
+            "version_source": getattr(s, "version_source", "unknown") or "unknown",
+            "version_fetched_at": getattr(s, "version_fetched_at", None),
+            "is_stale": getattr(s, "is_stale", False),
         } for s in software],
         drivers=[{
             "id": drv.id,
@@ -361,6 +385,9 @@ def get_device_detail(
             "reason": drv.reason,
             "manufacturer": drv.manufacturer,
             "is_disabled": drv.is_disabled,
+            "device_class_guid": getattr(drv, "device_class_guid", "") or "",
+            "source": getattr(drv, "source", "pnp_entity") or "pnp_entity",
+            "is_stale": getattr(drv, "is_stale", False),
         } for drv in drivers],
         recent_commands=[{
             "id": c.id,

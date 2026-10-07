@@ -72,29 +72,33 @@ def seed_vulnerability_catalog(db: Session):
     db.commit()
 
 
-def check_app_vulnerabilities(app_name: str, app_version: str, db: Session) -> List[Dict[str, Any]]:
-    norm_name = app_name.strip().lower()
-    cves = db.query(VulnerabilityCatalog).all()
+from server.app.services.cve_connectors import sync_and_check_app_vulnerabilities
 
-    matches = []
-    for cve in cves:
-        if cve.app_name.lower() in norm_name or norm_name in cve.app_name.lower():
-            # Check version threshold if specified
-            if "<" in cve.affected_versions_expr:
-                threshold_str = cve.affected_versions_expr.replace("<", "").strip()
-                try:
-                    cur_v = version.parse(app_version)
-                    thresh_v = version.parse(threshold_str)
-                    if cur_v < thresh_v:
-                        matches.append({
-                            "cve_id": cve.cve_id,
-                            "app_name": app_name,
-                            "installed_version": app_version,
-                            "cvss_score": cve.cvss_score,
-                            "severity": cve.severity,
-                            "fixed_in_version": cve.fixed_in_version,
-                            "summary": cve.summary,
-                        })
-                except Exception:
-                    pass
-    return matches
+
+def check_app_vulnerabilities(app_name: str, app_version: str, db: Session) -> List[Dict[str, Any]]:
+    """
+    Checks real vulnerabilities for an installed application using live OSV.dev
+    and NVD feeds, cached in the vulnerability catalog.
+    """
+    try:
+        return sync_and_check_app_vulnerabilities(app_name, app_version, db)
+    except Exception as e:
+        print(f"[EXPOSURE ENGINE] Error during CVE check: {e}")
+        # Fallback to local DB queries if live lookup fails
+        norm_name = app_name.strip().lower()
+        cves = db.query(VulnerabilityCatalog).filter(
+            VulnerabilityCatalog.app_name.ilike(f"%{norm_name}%")
+        ).all()
+        matches = []
+        for cve in cves:
+            matches.append({
+                "cve_id": cve.cve_id,
+                "app_name": app_name,
+                "installed_version": app_version,
+                "cvss_score": cve.cvss_score,
+                "severity": cve.severity,
+                "fixed_in_version": cve.fixed_in_version or "Patched Release",
+                "summary": cve.summary,
+                "source": getattr(cve, "cve_source", "osv.dev") or "osv.dev",
+            })
+        return matches

@@ -2,7 +2,8 @@ import pyotp
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from server.app.core.database import get_db
-from server.app.models.models import AdminUser, AuditLog
+from server.app.core.config import settings
+from server.app.models.models import AdminUser, AuditLog, Organization, Site, Lab
 from server.app.schemas.schemas import (
     LoginRequest,
     TokenResponse,
@@ -10,12 +11,96 @@ from server.app.schemas.schemas import (
     TOTPSetupResponse,
     TOTPVerifyRequest,
     AdminUserResponse,
+    SetupStatusResponse,
+    InitialSetupRequest,
 )
-from server.app.auth.password import verify_password
+from server.app.auth.password import verify_password, hash_password
 from server.app.auth.jwt_handler import create_access_token, create_refresh_token, decode_token
 from server.app.auth.rbac import get_current_admin
 
 router = APIRouter(prefix="/api/v2/auth", tags=["Admin Authentication"])
+
+
+@router.get("/setup-status", response_model=SetupStatusResponse)
+def get_setup_status(db: Session = Depends(get_db)):
+    admin_count = db.query(AdminUser).count()
+    return SetupStatusResponse(
+        setup_required=(admin_count == 0),
+        admin_count=admin_count,
+        app_name=settings.APP_NAME,
+        app_version=settings.APP_VERSION,
+    )
+
+
+@router.post("/setup", response_model=TokenResponse)
+def initial_setup(request: InitialSetupRequest, db: Session = Depends(get_db)):
+    admin_count = db.query(AdminUser).count()
+    if admin_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Initial setup has already been completed. Use /api/v2/auth/login to sign in.",
+        )
+    if len(request.admin_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Admin password must be at least 8 characters long.",
+        )
+
+    # Create root organization
+    org = Organization(name=request.org_name.strip())
+    db.add(org)
+    db.flush()
+
+    # Create default Site and Lab
+    site = Site(org_id=org.id, name="Main Campus", location="Primary Site")
+    db.add(site)
+    db.flush()
+
+    lab = Lab(site_id=site.id, name="Default Lab", network_subnet="192.168.1.0/24")
+    db.add(lab)
+    db.flush()
+
+    # Create SuperAdmin user
+    admin_user = AdminUser(
+        org_id=org.id,
+        email=request.admin_email.strip().lower(),
+        name=request.admin_name.strip() or "Fleet Administrator",
+        password_hash=hash_password(request.admin_password),
+        role="SuperAdmin",
+        is_active=True,
+    )
+    db.add(admin_user)
+    db.flush()
+
+    # Audit log
+    db.add(
+        AuditLog(
+            org_id=org.id,
+            user_id=admin_user.id,
+            action="initial_setup_completed",
+            target_type="organization",
+            target_id=org.id,
+            details_json=f'{{"email": "{admin_user.email}", "org_name": "{org.name}"}}',
+        )
+    )
+    db.commit()
+
+    access_token = create_access_token(data={"sub": admin_user.id, "role": admin_user.role, "org_id": admin_user.org_id})
+    refresh_token = create_refresh_token(data={"sub": admin_user.id})
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=3600,
+        user={
+            "id": admin_user.id,
+            "email": admin_user.email,
+            "name": admin_user.name,
+            "role": admin_user.role,
+            "org_id": admin_user.org_id,
+            "totp_enabled": False,
+        },
+    )
 
 
 @router.post("/login", response_model=TokenResponse)

@@ -48,11 +48,21 @@ app.include_router(exposure_router)
 app.include_router(offline_router)
 
 
-def seed_initial_admin():
+def seed_initial_admin(admin_email=None, admin_password=None):
     db = SessionLocal()
     try:
         super_admin = db.query(AdminUser).filter(AdminUser.role == "SuperAdmin").first()
         if not super_admin:
+            env_email = admin_email or os.getenv("ADMIN_EMAIL") or os.getenv("INITIAL_ADMIN_EMAIL")
+            env_pass = admin_password or os.getenv("ADMIN_PASSWORD") or os.getenv("INITIAL_ADMIN_PASSWORD")
+
+            if settings.ENV == "production" and not (env_email and env_pass):
+                print("[SERVER] Production mode: No SuperAdmin exists. Complete initial setup via /api/v2/auth/setup")
+                return
+
+            email = env_email or "admin@systemrevamp.local"
+            password = env_pass or "Admin@123456"
+
             # Create default Organization
             default_org = db.query(Organization).filter(Organization.name == "System Revamp University Lab").first()
             if not default_org:
@@ -69,18 +79,21 @@ def seed_initial_admin():
                 db.add(default_lab)
                 db.flush()
 
-            # Create default SuperAdmin
+            # Create initial SuperAdmin
             default_user = AdminUser(
                 org_id=default_org.id,
-                email="admin@systemrevamp.local",
+                email=email,
                 name="Fleet Administrator",
-                password_hash=hash_password("Admin@123456"),
+                password_hash=hash_password(password),
                 role="SuperAdmin",
                 is_active=True,
             )
             db.add(default_user)
             db.commit()
-            print("[SERVER] Seeded default SuperAdmin: admin@systemrevamp.local / Admin@123456")
+            if settings.ENV == "development":
+                print(f"[SERVER] Development mode: Initial SuperAdmin ready ({email})")
+            else:
+                print(f"[SERVER] Initial SuperAdmin initialized for {email}")
     except Exception as e:
         db.rollback()
         print(f"[SERVER] Error during seeding: {e}")

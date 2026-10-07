@@ -1,6 +1,8 @@
+import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from server.app.core.database import get_db
+from server.app.core.config import settings
 from server.app.models.models import ThreatReputation, DeviceSoftware, AdminUser
 from server.app.auth.rbac import get_current_admin
 from server.app.services.vt_service import process_pending_vt_hashes
@@ -37,7 +39,16 @@ def get_threats_overview(
                 "total_engines": r.total_engines,
                 "affected_devices_count": len(installed),
                 "apps": list(set(s.app_name for s in installed)),
+                "source": getattr(r, "source", "virustotal") or "virustotal",
+                "last_checked_at": r.last_checked_at,
             })
+
+    vt_configured = bool(settings.VIRUSTOTAL_API_KEY)
+    status_msg = (
+        "VirusTotal reputation feed active"
+        if vt_configured
+        else "VirusTotal API key not configured (VT_API_KEY). Automated reputation lookup is paused."
+    )
 
     return {
         "total_unique_hashes": total_hashes,
@@ -46,6 +57,10 @@ def get_threats_overview(
         "malicious_hashes": malicious_hashes,
         "pending_vt_queue": pending_hashes,
         "flagged_threats": flagged,
+        "vt_api_configured": vt_configured,
+        "source": "virustotal_api" if vt_configured else "local_catalog",
+        "fetched_at": datetime.datetime.utcnow(),
+        "status_message": status_msg,
     }
 
 
@@ -54,5 +69,14 @@ def trigger_vt_queue_processing(
     user: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
+    if not settings.VIRUSTOTAL_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="VirusTotal API key is not configured (VT_API_KEY). Set the environment variable to process pending hashes.",
+        )
     processed = process_pending_vt_hashes(db, max_items=4)
-    return {"processed_count": processed, "message": f"Processed {processed} hashes against VirusTotal queue"}
+    return {
+        "processed_count": processed,
+        "source": "virustotal_api",
+        "message": f"Processed {processed} hashes against VirusTotal queue",
+    }
