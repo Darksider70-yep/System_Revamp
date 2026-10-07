@@ -12,7 +12,7 @@ QUEUE_DB_PATH = AGENT_DATA_DIR / "agent_queue.db"
 
 class AgentConfig:
     def __init__(self):
-        self.server_url: str = os.getenv("SERVER_URL", "http://127.0.0.1:8080")
+        self.server_url: str = os.getenv("SERVER_URL", "http://127.0.0.1:8000")
         self.device_id: Optional[str] = None
         self.device_token: Optional[str] = None
         self.org_id: Optional[str] = None

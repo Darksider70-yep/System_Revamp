@@ -14,10 +14,19 @@ from server.app.api.threats_api import router as threats_router
 from server.app.api.exposure_api import router as exposure_router
 from server.app.api.offline_api import router as offline_router
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    seed_initial_admin()
+    yield
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="Enterprise Fleet Management Server for System Revamp",
+    lifespan=lifespan,
 )
 
 # CORS setup
@@ -79,10 +88,6 @@ def seed_initial_admin():
         db.close()
 
 
-@app.on_event("startup")
-def on_startup():
-    init_db()
-    seed_initial_admin()
 
 
 @app.get("/")

@@ -44,7 +44,7 @@ export default function ExposureAssessment({ devices }) {
       const ticket = res.ticket;
 
       // 2. Open EventSource stream
-      const serverUrl = process.env.REACT_APP_SERVER_URL || "http://127.0.0.1:8080";
+      const serverUrl = process.env.REACT_APP_SERVER_URL || "http://127.0.0.1:8000";
       const es = new EventSource(`${serverUrl}/api/v2/exposure/stream/${selectedDeviceId}?ticket=${ticket}`);
 
       es.onmessage = (event) => {

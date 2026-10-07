@@ -15,7 +15,7 @@ class Settings(BaseModel):
     
     # Server network config
     HOST: str = os.getenv("SERVER_HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("SERVER_PORT", "8080"))
+    PORT: int = int(os.getenv("SERVER_PORT", "8000"))
     
     # Database
     DATABASE_URL: str = os.getenv(

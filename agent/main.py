@@ -108,7 +108,7 @@ def main():
 
     # Enroll command
     enroll_parser = subparsers.add_parser("enroll", help="Enroll this device with the central server")
-    enroll_parser.add_argument("--server", default="http://127.0.0.1:8080", help="Central server URL")
+    enroll_parser.add_argument("--server", default="http://127.0.0.1:8000", help="Central server URL")
     enroll_parser.add_argument("--token", required=True, help="One-time enrollment token")
 
     # Scan command
