@@ -8,11 +8,9 @@ export const ScopeSwitcher = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [sites, setSites] = useState([]);
   const [labs, setLabs] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchHierarchy = async () => {
-      setLoading(true);
       try {
         const [sitesData, labsData] = await Promise.all([
           api.getSites().catch(() => []),
@@ -22,8 +20,6 @@ export const ScopeSwitcher = () => {
         setLabs(Array.isArray(labsData) ? labsData : []);
       } catch (err) {
         console.error('Failed to load scope hierarchy:', err);
-      } finally {
-        setLoading(false);
       }
     };
 

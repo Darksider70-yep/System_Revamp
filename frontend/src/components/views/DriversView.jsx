@@ -1,54 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DataTable } from '../common/DataTable';
 import { FilterBar } from '../common/FilterBar';
 import { ConfirmDialog } from '../common/ConfirmDialog';
-import { Cpu, AlertTriangle, Play, ShieldAlert } from 'lucide-react';
+import { Cpu, Play, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { api } from '../../api/client';
 
 export const DriversView = () => {
   const { scope } = useTheme();
   const [search, setSearch] = useState('');
-  const [codeFilter, setCodeFilter] = useState('all');
+  const [driverIssues, setDriverIssues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
+  const [actionSuccess, setActionSuccess] = useState(null);
 
-  const driverIssues = [
-    {
-      id: 'drv-1',
-      device_name: 'Realtek High Definition Audio Device',
-      hardware_id: 'HDAUDIO\\FUNC_01&VEN_10EC&DEV_0892',
-      status_code: 28,
-      code_label: 'Code 28 (Driver Missing)',
-      impact: 'Audio input/output non-functional',
-      device_count: 18,
-      recommended_action: 'pnputil /add-driver RealtekAudio.inf /install',
-    },
-    {
-      id: 'drv-2',
-      device_name: 'Intel(R) Ethernet Connection I219-V',
-      hardware_id: 'PCI\\VEN_8086&DEV_15BC',
-      status_code: 10,
-      code_label: 'Code 10 (Device Failed to Start)',
-      impact: 'Gigabit LAN throughput degraded',
-      device_count: 4,
-      recommended_action: 'pnputil /restart-device "PCI\\VEN_8086&DEV_15BC"',
-    },
-    {
-      id: 'drv-3',
-      device_name: 'NVIDIA GeForce RTX 3060',
-      hardware_id: 'PCI\\VEN_10DE&DEV_2504',
-      status_code: 22,
-      code_label: 'Code 22 (Device Disabled in OS)',
-      impact: 'GPU CUDA acceleration disabled',
-      device_count: 2,
-      recommended_action: 'pnputil /enable-device "PCI\\VEN_10DE&DEV_2504"',
-    },
-  ];
+  const fetchDrivers = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getFleetDrivers(true);
+      setDriverIssues(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch driver diagnostics');
+      setDriverIssues([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDrivers();
+  }, []);
+
+  const filteredDrivers = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return driverIssues.filter((d) => {
+      if (q && !d.device_name.toLowerCase().includes(q) && !(d.manufacturer || '').toLowerCase().includes(q)) {
+        return false;
+      }
+      return true;
+    });
+  }, [driverIssues, search]);
+
+  const handleRemediateDriver = async () => {
+    if (!selectedDriver) return;
+    setConfirmOpen(false);
+    try {
+      // Queue command to enable or scan drivers on affected devices
+      const cmdType = selectedDriver.error_code === 22 ? 'enable-device' : 'scan-drivers';
+      for (const devId of selectedDriver.device_ids || []) {
+        await api.queueCommand('device', devId, cmdType, {
+          device_name: selectedDriver.device_name,
+          error_code: selectedDriver.error_code,
+        });
+      }
+      setActionSuccess(`Dispatched ${cmdType} command to ${selectedDriver.device_count} affected endpoints.`);
+      setTimeout(() => setActionSuccess(null), 5000);
+      fetchDrivers();
+    } catch (err) {
+      alert(`Failed to queue remediation command: ${err.message}`);
+    }
+  };
 
   const columns = [
     {
       id: 'device_name',
-      header: 'Hardware Device & Hardware ID',
+      header: 'Hardware Device & Manufacturer',
       accessor: 'device_name',
       sortable: true,
       render: (val, row) => (
@@ -58,19 +77,19 @@ export const DriversView = () => {
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val}</span>
           </div>
           <span className="font-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            {row.hardware_id}
+            {row.manufacturer} {row.device_class_guid ? `• Class: ${row.device_class_guid.slice(0, 13)}...` : ''}
           </span>
         </div>
       ),
     },
     {
-      id: 'status_code',
+      id: 'error_code',
       header: 'CIM Problem Code',
-      accessor: 'code_label',
+      accessor: 'error_code',
       sortable: true,
-      render: (val) => (
+      render: (val, row) => (
         <span className="tag-mono" style={{ color: 'var(--status-critical-text)', borderColor: 'var(--status-critical-border)' }}>
-          {val}
+          Code {val} ({row.status || 'Error'})
         </span>
       ),
     },
@@ -78,7 +97,7 @@ export const DriversView = () => {
       id: 'impact',
       header: 'Operational Impact',
       accessor: 'impact',
-      render: (val) => <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{val}</span>,
+      render: (val) => <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{val || 'Unclassified'}</span>,
     },
     {
       id: 'device_count',
@@ -115,33 +134,51 @@ export const DriversView = () => {
           Hardware & Driver Diagnostics
         </h2>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-          CIM/WMI diagnostics filtering for PnP problem codes (Code 28 missing drivers, Code 10 failed start, Code 22 disabled)
+          Live CIM/WMI diagnostics filtering for PnP problem codes (Code 28 missing drivers, Code 10 failed start, Code 22 disabled) across {scope.name}
         </p>
       </div>
+
+      {actionSuccess && (
+        <div style={{ padding: '8px 12px', backgroundColor: 'var(--status-ok-bg)', color: 'var(--status-ok-text)', borderRadius: 'var(--radius-sm)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckCircle2 size={16} />
+          <span>{actionSuccess}</span>
+        </div>
+      )}
+
+      {error && (
+        <div style={{ padding: '8px 12px', backgroundColor: 'var(--status-critical-bg)', color: 'var(--status-critical-text)', borderRadius: 'var(--radius-sm)', fontSize: '12px' }}>
+          {error}
+        </div>
+      )}
 
       <FilterBar
         search={search}
         onSearchChange={setSearch}
-        placeholder="Filter hardware devices by name or hardware ID..."
+        placeholder="Filter hardware devices by name or manufacturer..."
         totalCount={driverIssues.length}
+        filteredCount={filteredDrivers.length}
       />
 
-      <DataTable columns={columns} data={driverIssues} pageSize={25} />
+      <DataTable
+        columns={columns}
+        data={filteredDrivers}
+        loading={loading}
+        emptyTitle="No Driver Hardware Errors"
+        emptyDescription="No PnP device hardware errors (Code 28, Code 10, Code 22) were reported across the fleet."
+        pageSize={25}
+      />
 
       <ConfirmDialog
         isOpen={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        onConfirm={() => {
-          setConfirmOpen(false);
-          alert(`Dispatched Pnputil fix across ${selectedDriver?.device_count} endpoints.`);
-        }}
+        onConfirm={handleRemediateDriver}
         title={`Batch Driver Remediation: ${selectedDriver?.device_name}`}
-        description={`Will dispatch unattended pnputil driver installation across ${selectedDriver?.device_count} endpoints in ${scope.name}.`}
+        description={`Will queue unattended driver repair commands across ${selectedDriver?.device_count} endpoints in ${scope.name}.`}
         commandDetails={{
           target: `${selectedDriver?.device_count} endpoints`,
-          type: 'PNPUTIL_DRIVER_INSTALL',
+          type: selectedDriver?.error_code === 22 ? 'ENABLE_DEVICE' : 'SCAN_AND_FIX_DRIVERS',
           dryRun: false,
-          rawPayload: { hardware_id: selectedDriver?.hardware_id, action: selectedDriver?.recommended_action },
+          rawPayload: { device_name: selectedDriver?.device_name, error_code: selectedDriver?.error_code },
         }}
       />
     </div>

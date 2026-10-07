@@ -4,17 +4,14 @@ import {
   Sun,
   Moon,
   Laptop,
-  Maximize2,
   FoldVertical,
   UnfoldVertical,
   LogOut,
-  User,
   Shield,
   Cast,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { ScopeSwitcher } from '../common/ScopeSwitcher';
-import { api } from '../../api/client';
 
 export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
   const {
@@ -214,14 +211,16 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
               >
                 <div style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
                   <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {user?.name || 'Fleet Administrator'}
+                    {user?.name || 'Administrator'}
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    {user?.email || 'admin@systemrevamp.local'}
-                  </div>
+                  {user?.email && (
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {user.email}
+                    </div>
+                  )}
                   <div style={{ marginTop: '4px' }}>
                     <span className="tag-mono" style={{ fontSize: '10px', color: 'var(--accent-text)' }}>
-                      <Shield size={10} /> {user?.role || 'SuperAdmin'}
+                      <Shield size={10} /> {user?.role || 'Admin'}
                     </span>
                   </div>
                 </div>

@@ -166,6 +166,51 @@ class ApiClient {
     return this.request(`/api/v2/admin/audit-logs?limit=${limit}`);
   }
 
+  getCommands(statusFilter = null, limit = 50) {
+    const q = statusFilter ? `?status_filter=${statusFilter}&limit=${limit}` : `?limit=${limit}`;
+    return this.request(`/api/v2/commands/list${q}`);
+  }
+
+  getFleetSoftware(riskFilter = 'all') {
+    const q = riskFilter && riskFilter !== 'all' ? `?risk_filter=${riskFilter}` : '';
+    return this.request(`/api/v2/admin/fleet/software${q}`);
+  }
+
+  getFleetDrivers(errorsOnly = true) {
+    return this.request(`/api/v2/admin/fleet/drivers?errors_only=${errorsOnly}`);
+  }
+
+  getHierarchy() {
+    return this.request('/api/v2/admin/hierarchy');
+  }
+
+  getComplianceReport() {
+    return this.request('/api/v2/admin/reports/compliance');
+  }
+
+  downloadReportCsv(reportType = 'compliance') {
+    const url = `${API_BASE_URL}/api/v2/admin/reports/export?report_type=${reportType}`;
+    const headers = {};
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+    return fetch(url, { headers })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Export failed with status ${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => {
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `SystemRevamp_${reportType}_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+      });
+  }
+
   // Threats & Reputation
   getThreatsOverview() {
     return this.request("/api/v2/threats/overview");
@@ -179,3 +224,4 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
+

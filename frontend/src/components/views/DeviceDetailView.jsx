@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DataTable } from '../common/DataTable';
 import { StatusBadge, RiskBadge } from '../common/StatusBadge';
-import { CopyField } from '../common/CopyField';
 import { CodeBlock } from '../common/CodeBlock';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Skeleton } from '../common/Skeleton';
@@ -14,8 +13,6 @@ import {
   Terminal,
   ArrowLeft,
   RefreshCw,
-  Wrench,
-  CheckCircle2,
   AlertTriangle,
   FileCheck,
   Play,
@@ -25,7 +22,7 @@ import { api } from '../../api/client';
 export const DeviceDetailView = ({ deviceId, onBack }) => {
   const [device, setDevice] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('software'); // 'summary' | 'software' | 'drivers' | 'threats' | 'history' | 'commands'
+  const [activeTab, setActiveTab] = useState('software'); // 'software' | 'drivers' | 'threats' | 'history' | 'commands'
   
   // Confirmation Modal
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -82,19 +79,18 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
   if (loading || !device) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        <button type="button" className="btn btn-sm" onClick={onBack} style={{ width: 'fit-content', gap: '4px' }}>
-          <ArrowLeft size={12} />
+        <button type="button" className="btn btn-sm" onClick={onBack} style={{ width: 'fit-content', gap: '6px' }}>
+          <ArrowLeft size={14} />
           <span>Back to Devices</span>
         </button>
-        <Skeleton height="140px" borderRadius="var(--radius-lg)" />
-        <Skeleton height="360px" borderRadius="var(--radius-lg)" />
+        <Skeleton height="140px" borderRadius="var(--radius-card)" />
+        <Skeleton height="360px" borderRadius="var(--radius-card)" />
       </div>
     );
   }
 
   const softwareList = device.software || [];
   const driverList = device.drivers || [];
-  const metrics = device.system_metrics || {};
 
   // Software Columns
   const softwareColumns = [
@@ -105,8 +101,11 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
       sortable: true,
       render: (val, row) => (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val}</span>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{row.publisher || 'Unknown Publisher'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Package size={15} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val}</span>
+          </div>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '23px' }}>{row.publisher || 'Unknown Publisher'}</span>
         </div>
       ),
     },
@@ -153,7 +152,7 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
         return (
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
             {cves.slice(0, 2).map((cve, i) => (
-              <span key={i} className="tag-mono" style={{ color: 'var(--status-critical-text)' }}>
+              <span key={i} className="tag-mono" style={{ color: 'var(--status-critical-text)', borderColor: 'var(--status-critical-border)' }}>
                 {typeof cve === 'string' ? cve : cve.id || 'CVE'}
               </span>
             ))}
@@ -192,7 +191,7 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
           type="button"
           className="btn btn-sm btn-primary"
           onClick={() => handleQueueSingleRemediation(row)}
-          style={{ height: '24px', padding: '0 8px', fontSize: '11px', gap: '4px' }}
+          style={{ height: '26px', padding: '0 8px', fontSize: '11px', gap: '4px' }}
         >
           <Play size={10} />
           <span>Upgrade</span>
@@ -210,8 +209,11 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
       sortable: true,
       render: (val, row) => (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val || row.name || 'PnP Entity'}</span>
-          <span className="font-mono" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Cpu size={15} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val || row.name || 'PnP Entity'}</span>
+          </div>
+          <span className="font-mono" style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '23px' }}>
             {row.hardware_id || row.device_id || 'PCI\\VEN_...'}
           </span>
         </div>
@@ -273,7 +275,7 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
           onClick={onBack}
           style={{ gap: '6px' }}
         >
-          <ArrowLeft size={12} />
+          <ArrowLeft size={13} />
           <span>Back to Devices</span>
         </button>
 
@@ -289,61 +291,62 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
       <div
         className="panel"
         style={{
-          padding: 'var(--space-4)',
+          padding: 'var(--space-5)',
           display: 'flex',
           flexDirection: 'column',
           gap: 'var(--space-3)',
           backgroundColor: 'var(--bg-surface)',
+          borderRadius: 'var(--radius-card)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: 'var(--radius-md)',
+                width: '44px',
+                height: '44px',
+                borderRadius: 'var(--radius-container)',
                 backgroundColor: 'var(--accent-subtle)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--accent-text)',
+                color: 'var(--accent-primary)',
               }}
             >
-              <Monitor size={22} />
+              <Monitor size={22} strokeWidth={2} />
             </div>
 
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                   {device.hostname || 'Endpoint Workstation'}
                 </h2>
                 <StatusBadge status={device.status || 'online'} size="sm" />
                 <RiskBadge level={device.risk_level || 'LOW'} score={device.risk_score} size="sm" />
               </div>
-              <p className="font-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              <p className="font-mono" style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0, marginTop: '2px' }}>
                 GUID: {device.id || device.device_id}
               </p>
             </div>
           </div>
 
           {/* Quick Hardware Specs */}
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
             <div>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>IP Address</span>
-              <div className="font-mono" style={{ fontWeight: 600, fontSize: '12px' }}>{device.ip_address || '10.0.1.42'}</div>
+              <div className="font-mono" style={{ fontWeight: 600, fontSize: '12px', marginTop: '2px' }}>{device.ip_address || '127.0.0.1'}</div>
             </div>
             <div>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Operating System</span>
-              <div style={{ fontWeight: 500, fontSize: '12px' }}>{device.os_info || 'Windows 11 Pro 23H2'}</div>
+              <div style={{ fontWeight: 500, fontSize: '12px', marginTop: '2px' }}>{device.os_info || 'Windows'}</div>
             </div>
             <div>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Agent Daemon</span>
-              <div className="tag-mono" style={{ fontSize: '11px' }}>v{device.agent_version || '2.0.0'}</div>
+              <div className="tag-mono" style={{ fontSize: '11px', marginTop: '2px' }}>v{device.agent_version || '2.0.0'}</div>
             </div>
             <div>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Last Seen</span>
-              <div className="tabular-nums" style={{ fontWeight: 500, fontSize: '12px' }}>
+              <div className="tabular-nums" style={{ fontWeight: 500, fontSize: '12px', marginTop: '2px' }}>
                 {device.last_seen ? new Date(device.last_seen).toLocaleTimeString() : 'Just now'}
               </div>
             </div>
@@ -356,7 +359,7 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
         style={{
           display: 'flex',
           borderBottom: '1px solid var(--border-subtle)',
-          gap: '4px',
+          gap: '6px',
         }}
       >
         {[
@@ -375,18 +378,20 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
               className="btn btn-sm"
               onClick={() => setActiveTab(tab.id)}
               style={{
-                height: '34px',
-                borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+                height: '36px',
+                borderRadius: 'var(--radius-container) var(--radius-container) 0 0',
                 border: isActive ? '1px solid var(--border-default)' : '1px solid transparent',
                 borderBottom: isActive ? '1px solid var(--bg-surface)' : '1px solid transparent',
                 backgroundColor: isActive ? 'var(--bg-surface)' : 'transparent',
                 color: isActive ? 'var(--accent-text)' : 'var(--text-secondary)',
                 fontWeight: isActive ? 600 : 500,
                 marginBottom: '-1px',
-                gap: '6px',
+                gap: '8px',
+                padding: '0 14px',
+                boxShadow: 'none',
               }}
             >
-              <Icon size={14} />
+              <Icon size={14} style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)' }} />
               <span>{tab.label}</span>
             </button>
           );
@@ -415,9 +420,11 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
       )}
 
       {activeTab === 'threats' && (
-        <div className="panel" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>Zero-Upload Binary Integrity & VirusTotal Intelligence</h3>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+        <div className="panel" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', borderRadius: 'var(--radius-card)' }}>
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, margin: 0 }}>
+            Zero-Upload Binary Integrity & VirusTotal Intelligence
+          </h3>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: 0 }}>
             All executable binaries on this machine have their SHA-256 hashes matched against the central threat cache without sending executable binaries over the network.
           </p>
 
@@ -426,10 +433,10 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
               <div
                 key={idx}
                 style={{
-                  padding: '10px 12px',
+                  padding: '12px 14px',
                   backgroundColor: 'var(--bg-surface-elevated)',
                   border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
+                  borderRadius: 'var(--radius-container)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -455,7 +462,7 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
       )}
 
       {activeTab === 'history' && (
-        <div className="panel" style={{ padding: 'var(--space-4)' }}>
+        <div className="panel" style={{ padding: 'var(--space-5)', borderRadius: 'var(--radius-card)' }}>
           <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, marginBottom: '8px' }}>Scan Snapshot History</h3>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
             Timestamped historical telemetry snapshots comparing version changes and driver drift over time.
@@ -463,17 +470,19 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
           <div style={{ marginTop: '16px' }}>
             <div
               style={{
-                padding: '12px',
+                padding: '14px',
                 border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
+                borderRadius: 'var(--radius-container)',
                 backgroundColor: 'var(--bg-code)',
                 fontSize: '12px',
               }}
             >
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Snapshot #104 — Full Baseline</div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Recorded: Today at {new Date().toLocaleTimeString()}</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Endpoint Baseline Assessment</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                Last Reported: {device.last_heartbeat ? new Date(device.last_heartbeat).toLocaleString() : 'Initial scan'}
+              </div>
               <div style={{ marginTop: '8px', color: 'var(--text-secondary)' }}>
-                • 77 packages cataloged • 14 PnP drivers inspected • 0 binary anomalies
+                • {device.software?.length || 0} packages cataloged • {device.drivers?.length || 0} PnP drivers inspected
               </div>
             </div>
           </div>
@@ -481,16 +490,23 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
       )}
 
       {activeTab === 'commands' && (
-        <div className="panel" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>Command Execution & Audit Log</h3>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+        <div className="panel" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', borderRadius: 'var(--radius-card)' }}>
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, margin: 0 }}>Command Execution & Audit Log</h3>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
             Cryptographically signed remediation commands dispatched via HMAC token verification.
           </p>
 
           <CodeBlock
-            code={`// Recent Command Dispatch Log
-[2026-10-07 19:30:00] DISPATCH: RESCAN_BASELINE -> Device (${deviceId}) [HMAC Verified] -> Status: SUCCESS
-[2026-10-07 18:15:22] DISPATCH: WINGET_UPGRADE (Node.js) -> Device (${deviceId}) [Dry Run] -> Status: PREVIEW_OK`}
+            code={
+              device.recent_commands && device.recent_commands.length > 0
+                ? device.recent_commands
+                    .map(
+                      (c) =>
+                        `[${c.created_at ? new Date(c.created_at).toLocaleString() : 'Recent'}] TYPE: ${c.type} ${c.dry_run ? '(Dry Run)' : ''}\nStatus: ${c.status.toUpperCase()}\nDetails: ${JSON.stringify(c.result || {}, null, 2)}`
+                    )
+                    .join('\n---\n')
+                : '// No remediation or audit commands queued or dispatched to this workstation yet.'
+            }
             language="bash"
             title="Endpoint HMAC Command Queue"
           />

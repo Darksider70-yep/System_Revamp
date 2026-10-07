@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Radio,
+  Shield,
 } from 'lucide-react';
 
 export const Sidebar = ({ currentTab, onSelectTab, collapsed, onToggleCollapse }) => {
@@ -30,15 +31,15 @@ export const Sidebar = ({ currentTab, onSelectTab, collapsed, onToggleCollapse }
   return (
     <aside
       style={{
-        width: collapsed ? '56px' : '220px',
-        minWidth: collapsed ? '56px' : '220px',
+        width: collapsed ? '60px' : '230px',
+        minWidth: collapsed ? '60px' : '230px',
         height: '100vh',
         backgroundColor: 'var(--bg-surface)',
         borderRight: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transition: 'width var(--transition-fast)',
+        transition: 'width var(--transition-normal)',
         userSelect: 'none',
         zIndex: 'var(--z-sticky)',
       }}
@@ -47,7 +48,7 @@ export const Sidebar = ({ currentTab, onSelectTab, collapsed, onToggleCollapse }
       <div>
         <div
           style={{
-            height: '52px',
+            height: '56px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'space-between',
@@ -56,54 +57,52 @@ export const Sidebar = ({ currentTab, onSelectTab, collapsed, onToggleCollapse }
           }}
         >
           {!collapsed ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div
                 style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: 'var(--radius-sm)',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: 'var(--radius-chip)', // 10px
                   backgroundColor: 'var(--accent-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#ffffff',
-                  fontWeight: 800,
-                  fontSize: '13px',
+                  color: 'var(--text-inverse)',
+                  boxShadow: 'var(--shadow-sm)',
                 }}
               >
-                ⚡
+                <Shield size={16} strokeWidth={2.5} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>
                   System Revamp
                 </span>
                 <span className="font-mono sidebar-subtext" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                  v2.0 Console
+                  v2.0 Fleet Console
                 </span>
               </div>
             </div>
           ) : (
             <div
               style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: 'var(--radius-sm)',
+                width: '28px',
+                height: '28px',
+                borderRadius: 'var(--radius-chip)',
                 backgroundColor: 'var(--accent-primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#ffffff',
-                fontWeight: 800,
-                fontSize: '13px',
+                color: 'var(--text-inverse)',
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
-              ⚡
+              <Shield size={16} strokeWidth={2.5} />
             </div>
           )}
         </div>
 
         {/* Navigation List */}
-        <nav style={{ padding: '8px 6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <nav style={{ padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
@@ -117,18 +116,21 @@ export const Sidebar = ({ currentTab, onSelectTab, collapsed, onToggleCollapse }
                 title={collapsed ? item.label : undefined}
                 style={{
                   width: '100%',
-                  height: '36px',
-                  padding: collapsed ? '0' : '0 10px',
+                  height: '38px',
+                  padding: collapsed ? '0' : '0 12px',
                   justifyContent: collapsed ? 'center' : 'flex-start',
                   backgroundColor: isActive ? 'var(--accent-subtle)' : 'transparent',
                   border: isActive ? '1px solid var(--accent-border)' : '1px solid transparent',
                   color: isActive ? 'var(--accent-text)' : 'var(--text-secondary)',
                   fontWeight: isActive ? 600 : 500,
                   fontSize: 'var(--text-base)',
-                  gap: '10px',
+                  borderRadius: 'var(--radius-input)', // 10px
+                  boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                  gap: '12px',
+                  transition: 'all var(--transition-fast)',
                 }}
               >
-                <Icon size={16} style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)', flexShrink: 0 }} />
+                <Icon size={17} strokeWidth={isActive ? 2.5 : 2} style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)', flexShrink: 0 }} />
                 {!collapsed && <span>{item.label}</span>}
               </button>
             );
@@ -137,21 +139,22 @@ export const Sidebar = ({ currentTab, onSelectTab, collapsed, onToggleCollapse }
       </div>
 
       {/* Footer / Server Status & Collapse Toggle */}
-      <div style={{ padding: '8px 6px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ padding: '10px 8px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {!collapsed && (
           <div
             style={{
-              padding: '6px 8px',
+              padding: '8px 10px',
               backgroundColor: 'var(--bg-surface-hover)',
-              borderRadius: 'var(--radius-md)',
+              borderRadius: 'var(--radius-input)', // 10px
+              border: '1px solid var(--border-subtle)',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '8px',
             }}
           >
-            <Radio size={12} color="var(--status-ok-solid)" />
+            <Radio size={13} strokeWidth={2.5} style={{ color: 'var(--status-ok-solid)' }} />
             <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-              Fleet Server: <strong>Online</strong>
+              Fleet Server: <strong style={{ color: 'var(--status-ok-text)' }}>Connected</strong>
             </span>
           </div>
         )}
@@ -163,11 +166,13 @@ export const Sidebar = ({ currentTab, onSelectTab, collapsed, onToggleCollapse }
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           style={{
             width: '100%',
-            height: '28px',
+            height: '30px',
             justifyContent: collapsed ? 'center' : 'space-between',
             border: 'none',
             color: 'var(--text-muted)',
-            padding: collapsed ? '0' : '0 8px',
+            padding: collapsed ? '0' : '0 10px',
+            borderRadius: 'var(--radius-input)',
+            boxShadow: 'none',
           }}
         >
           {!collapsed && <span style={{ fontSize: '11px' }}>Collapse Menu</span>}

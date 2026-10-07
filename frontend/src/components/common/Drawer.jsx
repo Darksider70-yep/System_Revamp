@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
-export const Drawer = ({ isOpen, onClose, title, subtitle, children, width = '520px', footer = null }) => {
+export const Drawer = ({ isOpen, onClose, title, subtitle, children, width = '540px', footer = null }) => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && isOpen) {
@@ -30,25 +30,29 @@ export const Drawer = ({ isOpen, onClose, title, subtitle, children, width = '52
         style={{
           position: 'absolute',
           inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(1px)',
+          backgroundColor: 'rgba(7, 20, 38, 0.45)',
+          backdropFilter: 'blur(2px)',
+          animation: 'fadeIn 150ms ease-out',
         }}
       />
 
-      {/* Drawer Panel */}
+      {/* Drawer Panel (Zero hard corners: curved left edge 20px) */}
       <div
         style={{
           position: 'relative',
           width,
-          maxWidth: '90vw',
+          maxWidth: '92vw',
           height: '100%',
           backgroundColor: 'var(--bg-surface)',
           borderLeft: '1px solid var(--border-default)',
+          borderTopLeftRadius: 'var(--radius-drawer)', // 20px
+          borderBottomLeftRadius: 'var(--radius-drawer)', // 20px
           boxShadow: 'var(--shadow-drawer)',
           display: 'flex',
           flexDirection: 'column',
           zIndex: 1,
-          animation: 'drawer-slide 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+          animation: 'drawerSlide 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+          overflow: 'hidden',
         }}
       >
         {/* Header */}
@@ -63,11 +67,11 @@ export const Drawer = ({ isOpen, onClose, title, subtitle, children, width = '52
           }}
         >
           <div>
-            <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
               {title}
             </h3>
             {subtitle && (
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: '2px' }}>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: '2px', margin: 0 }}>
                 {subtitle}
               </p>
             )}
@@ -78,7 +82,7 @@ export const Drawer = ({ isOpen, onClose, title, subtitle, children, width = '52
             className="btn btn-icon btn-sm"
             onClick={onClose}
             aria-label="Close drawer"
-            style={{ border: 'none', background: 'transparent' }}
+            style={{ border: 'none', background: 'transparent', borderRadius: 'var(--radius-input)' }}
           >
             <X size={16} />
           </button>
@@ -102,13 +106,13 @@ export const Drawer = ({ isOpen, onClose, title, subtitle, children, width = '52
         {footer && (
           <div
             style={{
-              padding: 'var(--space-4) var(--space-5)',
+              padding: 'var(--space-3) var(--space-5)',
               borderTop: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-surface-hover)',
+              backgroundColor: 'var(--bg-surface-elevated)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'flex-end',
-              gap: 'var(--space-3)',
+              gap: 'var(--space-2)',
             }}
           >
             {footer}

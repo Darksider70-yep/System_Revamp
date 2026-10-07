@@ -11,8 +11,9 @@ export const DataTable = ({
   selectedRowIds = [],
   onSelectionChange = null,
   onRowClick = null,
-  emptyTitle = 'No data available',
-  emptyDescription = 'No records match your query.',
+  emptyTitle = 'No records found',
+  emptyDescription = 'There is currently no data matching your query.',
+  emptyAction = null,
   defaultSort = { field: null, direction: 'asc' },
   pageSize = 25,
   showPagination = true,
@@ -82,7 +83,7 @@ export const DataTable = ({
 
   if (loading) {
     return (
-      <div className="panel" style={{ overflow: 'hidden' }}>
+      <div className="panel" style={{ overflow: 'hidden', borderRadius: 'var(--radius-container)' }}>
         <TableSkeleton rows={rowsPerPage > 10 ? 10 : rowsPerPage} cols={columns.length + (selectable ? 1 : 0)} />
       </div>
     );
@@ -90,8 +91,8 @@ export const DataTable = ({
 
   if (!data || data.length === 0) {
     return (
-      <div className="panel" style={{ overflow: 'hidden' }}>
-        <EmptyState title={emptyTitle} description={emptyDescription} />
+      <div className="panel" style={{ overflow: 'hidden', borderRadius: 'var(--radius-container)' }}>
+        <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />
       </div>
     );
   }
@@ -101,18 +102,34 @@ export const DataTable = ({
     paginatedData.every((d) => selectedRowIds.includes(d.id || d.device_id || d.name));
 
   return (
-    <div className="panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div className="data-table-container" style={{ border: 'none', borderRadius: 0 }}>
+    <div
+      className="panel data-table-wrapper"
+      style={{
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: 'var(--radius-container)',
+        border: '1px solid var(--border-subtle)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      <div className="data-table-container" style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
         <table className="data-table">
           <thead>
             <tr>
               {selectable && (
-                <th style={{ width: '36px', textAlign: 'center' }}>
+                <th style={{ width: '40px', textAlign: 'center' }}>
                   <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={handleSelectAll}
-                    style={{ cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+                    style={{
+                      cursor: 'pointer',
+                      accentColor: 'var(--accent-primary)',
+                      borderRadius: 'var(--radius-xs)',
+                      width: '15px',
+                      height: '15px',
+                    }}
                   />
                 </th>
               )}
@@ -136,16 +153,16 @@ export const DataTable = ({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start',
-                        gap: '4px',
+                        gap: '6px',
                       }}
                     >
                       <span>{col.header}</span>
                       {col.sortable && (
                         <span style={{ color: isSorted ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
                           {isSorted && sortDirection === 'asc' ? (
-                            <ChevronUp size={13} />
+                            <ChevronUp size={13} strokeWidth={2.5} />
                           ) : isSorted && sortDirection === 'desc' ? (
-                            <ChevronDown size={13} />
+                            <ChevronDown size={13} strokeWidth={2.5} />
                           ) : (
                             <ChevronsUpDown size={13} />
                           )}
@@ -178,7 +195,13 @@ export const DataTable = ({
                         type="checkbox"
                         checked={isSelected}
                         onChange={(e) => handleSelectRow(rowId, e)}
-                        style={{ cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+                        style={{
+                          cursor: 'pointer',
+                          accentColor: 'var(--accent-primary)',
+                          borderRadius: 'var(--radius-xs)',
+                          width: '15px',
+                          height: '15px',
+                        }}
                       />
                     </td>
                   )}
@@ -206,14 +229,14 @@ export const DataTable = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '8px 16px',
+            padding: '10px 18px',
             borderTop: '1px solid var(--border-subtle)',
             backgroundColor: 'var(--bg-surface-elevated)',
             fontSize: 'var(--text-xs)',
             color: 'var(--text-secondary)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span>Rows per page:</span>
             <select
               className="input"
@@ -222,31 +245,46 @@ export const DataTable = ({
                 setRowsPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              style={{ height: '26px', padding: '0 6px', fontSize: '11px' }}
+              style={{
+                height: '28px',
+                padding: '0 8px',
+                fontSize: '12px',
+                borderRadius: 'var(--radius-input)',
+              }}
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
             </select>
-            <span className="tabular-nums">
+            <span className="tabular-nums" style={{ color: 'var(--text-muted)' }}>
               Showing {(currentPage - 1) * rowsPerPage + 1}–
               {Math.min(currentPage * rowsPerPage, sortedData.length)} of {sortedData.length}
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <button
               type="button"
               className="btn btn-sm btn-icon"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
               aria-label="Previous Page"
+              style={{ borderRadius: 'var(--radius-button)' }}
             >
               <ChevronLeft size={14} />
             </button>
 
-            <span className="tabular-nums font-mono" style={{ padding: '0 8px', fontWeight: 600 }}>
+            <span
+              className="tabular-nums font-mono"
+              style={{
+                padding: '3px 10px',
+                fontWeight: 600,
+                borderRadius: 'var(--radius-chip)',
+                backgroundColor: 'var(--bg-base)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
               Page {currentPage} of {totalPages}
             </span>
 
@@ -256,6 +294,7 @@ export const DataTable = ({
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
               aria-label="Next Page"
+              style={{ borderRadius: 'var(--radius-button)' }}
             >
               <ChevronRight size={14} />
             </button>

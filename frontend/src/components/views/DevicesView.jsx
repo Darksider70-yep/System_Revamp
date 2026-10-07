@@ -10,11 +10,6 @@ import {
   RefreshCw,
   ExternalLink,
   Wrench,
-  FolderInput,
-  ShieldAlert,
-  Cpu,
-  Layers,
-  CheckCircle2,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { useTheme } from '../../context/ThemeContext';
@@ -35,7 +30,7 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
 
   // Confirmation Modal
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null); // 'rescan' | 'remediate'
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const fetchDevices = async () => {
     setLoading(true);
@@ -61,7 +56,6 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
   const filteredDevices = useMemo(() => {
     const q = (search || globalSearch).toLowerCase().trim();
     return devices.filter((d) => {
-      // Search text
       if (q) {
         const matchesName = (d.hostname || '').toLowerCase().includes(q);
         const matchesIp = (d.ip_address || '').toLowerCase().includes(q);
@@ -70,17 +64,14 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
         if (!matchesName && !matchesIp && !matchesOs && !matchesId) return false;
       }
 
-      // Status filter
       if (statusFilter !== 'all' && (d.status || '').toLowerCase() !== statusFilter.toLowerCase()) {
         return false;
       }
 
-      // Risk filter
       if (riskFilter !== 'all' && (d.risk_level || 'LOW').toUpperCase() !== riskFilter.toUpperCase()) {
         return false;
       }
 
-      // Lab filter
       if (labFilter !== 'all' && String(d.lab_id) !== String(labFilter)) {
         return false;
       }
@@ -136,11 +127,11 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
       sortable: true,
       render: (val, row) => (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Monitor size={14} style={{ color: 'var(--text-secondary)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Monitor size={15} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val || row.name || 'Workstation'}</span>
           </div>
-          <span className="font-mono tabular-nums" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+          <span className="font-mono tabular-nums" style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '23px' }}>
             {row.ip_address || '127.0.0.1'}
           </span>
         </div>
@@ -155,7 +146,7 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
         const lab = labs.find((l) => l.id === row.lab_id);
         return (
           <span className="tag-mono" style={{ fontSize: '11px' }}>
-            💻 {lab?.name || val || 'Lab 1'}
+            {lab?.name || val || 'Lab 1'}
           </span>
         );
       },
@@ -253,7 +244,7 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
             e.stopPropagation();
             onSelectDevice(row.id || row.device_id);
           }}
-          style={{ height: '24px', padding: '0 8px', fontSize: '11px', gap: '4px' }}
+          style={{ height: '26px', padding: '0 8px', fontSize: '11px', gap: '4px' }}
         >
           <span>Detail</span>
           <ExternalLink size={11} />
@@ -265,12 +256,12 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
       {/* View Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
         <div>
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
             Managed Devices
           </h2>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0, marginTop: '2px' }}>
             Showing {filteredDevices.length} endpoints registered under {scope.name}
           </p>
         </div>
@@ -312,8 +303,8 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
             onChange: setStatusFilter,
             options: [
               { label: 'All Statuses', value: 'all' },
-              { label: '🟢 Online', value: 'online' },
-              { label: '⚪ Offline', value: 'offline' },
+              { label: 'Online', value: 'online' },
+              { label: 'Offline', value: 'offline' },
             ],
           },
           {
@@ -323,10 +314,10 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
             onChange: setRiskFilter,
             options: [
               { label: 'All Risks', value: 'all' },
-              { label: '🚨 Critical', value: 'CRITICAL' },
-              { label: '⚠️ High', value: 'HIGH' },
-              { label: '🟡 Medium', value: 'MEDIUM' },
-              { label: '✅ Low / OK', value: 'LOW' },
+              { label: 'Critical Risk', value: 'CRITICAL' },
+              { label: 'High Risk', value: 'HIGH' },
+              { label: 'Medium Risk', value: 'MEDIUM' },
+              { label: 'Low / OK', value: 'LOW' },
             ],
           },
           {
@@ -336,7 +327,7 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
             onChange: setLabFilter,
             options: [
               { label: 'All Labs', value: 'all' },
-              ...labs.map((l) => ({ label: `💻 ${l.name}`, value: l.id })),
+              ...labs.map((l) => ({ label: l.name, value: l.id })),
             ],
           },
         ]}
@@ -402,28 +393,28 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
-                gap: '8px',
+                gap: '10px',
                 backgroundColor: 'var(--bg-surface-elevated)',
-                padding: '12px',
-                borderRadius: 'var(--radius-md)',
+                padding: '14px',
+                borderRadius: 'var(--radius-container)',
                 border: '1px solid var(--border-subtle)',
               }}
             >
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>IP Address:</span>
-                <div className="font-mono" style={{ fontWeight: 600 }}>{activeDrawerDevice.ip_address || '10.0.1.42'}</div>
+                <div className="font-mono" style={{ fontWeight: 600, marginTop: '2px' }}>{activeDrawerDevice.ip_address || '127.0.0.1'}</div>
               </div>
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>MAC Address:</span>
-                <div className="font-mono" style={{ fontWeight: 600 }}>{activeDrawerDevice.mac_address || '00:1A:2B:3C:4D:5E'}</div>
+                <div className="font-mono" style={{ fontWeight: 600, marginTop: '2px' }}>{activeDrawerDevice.mac_address || '00:00:00:00:00:00'}</div>
               </div>
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Operating System:</span>
-                <div style={{ fontWeight: 500, fontSize: '12px' }}>{activeDrawerDevice.os_info || 'Windows 11 Enterprise'}</div>
+                <div style={{ fontWeight: 500, fontSize: '12px', marginTop: '2px' }}>{activeDrawerDevice.os_info || 'Windows'}</div>
               </div>
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Last Seen Heartbeat:</span>
-                <div style={{ fontWeight: 500, fontSize: '12px' }}>
+                <div style={{ fontWeight: 500, fontSize: '12px', marginTop: '2px' }}>
                   {activeDrawerDevice.last_seen ? new Date(activeDrawerDevice.last_seen).toLocaleString() : 'Just now'}
                 </div>
               </div>
@@ -436,29 +427,29 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
             />
 
             {/* Vulnerability & Driver Summary */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Findings Overview
               </span>
               <div
                 style={{
-                  padding: '10px',
-                  borderRadius: 'var(--radius-md)',
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-container)',
                   backgroundColor: 'var(--bg-surface-elevated)',
                   border: '1px solid var(--border-subtle)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px',
+                  gap: '8px',
                   fontSize: '12px',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Outdated Software Packages:</span>
                   <strong style={{ color: activeDrawerDevice.outdated_count > 0 ? 'var(--status-critical-text)' : 'inherit' }}>
                     {activeDrawerDevice.outdated_count || 0} items
                   </strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>PnP Driver Error Codes:</span>
                   <strong style={{ color: activeDrawerDevice.driver_issues_count > 0 ? 'var(--status-critical-text)' : 'inherit' }}>
                     {activeDrawerDevice.driver_issues_count || 0} issues

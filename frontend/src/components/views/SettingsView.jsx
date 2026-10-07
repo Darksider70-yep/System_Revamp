@@ -1,26 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { DataTable } from '../common/DataTable';
-import { CopyField } from '../common/CopyField';
-import { StatusBadge } from '../common/StatusBadge';
 import {
-  Settings,
   Users,
   Shield,
   Layers,
   FileText,
   UploadCloud,
-  CheckCircle2,
-  Lock,
   Plus,
+  Building,
+  MapPin,
+  Monitor,
 } from 'lucide-react';
 import { api } from '../../api/client';
-import { useTheme } from '../../context/ThemeContext';
 
 export const SettingsView = () => {
-  const { scope } = useTheme();
   const [activeTab, setActiveTab] = useState('roles'); // 'roles' | 'topology' | 'audit' | 'offline'
   const [auditLogs, setAuditLogs] = useState([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
+  const [hierarchy, setHierarchy] = useState([]);
+  const [loadingHierarchy, setLoadingHierarchy] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'audit') {
@@ -30,6 +28,13 @@ export const SettingsView = () => {
         .then((data) => setAuditLogs(Array.isArray(data) ? data : []))
         .catch(() => setAuditLogs([]))
         .finally(() => setLoadingAudit(false));
+    } else if (activeTab === 'topology') {
+      setLoadingHierarchy(true);
+      api
+        .getHierarchy()
+        .then((data) => setHierarchy(Array.isArray(data) ? data : []))
+        .catch(() => setHierarchy([]))
+        .finally(() => setLoadingHierarchy(false));
     }
   }, [activeTab]);
 
@@ -85,7 +90,7 @@ export const SettingsView = () => {
       header: 'Admin User',
       accessor: 'admin_email',
       sortable: true,
-      render: (val) => <span style={{ fontWeight: 600 }}>{val || 'admin@systemrevamp.local'}</span>,
+      render: (val) => <span style={{ fontWeight: 600 }}>{val || 'System'}</span>,
     },
     {
       id: 'action',
@@ -109,16 +114,16 @@ export const SettingsView = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <div>
-        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>
+        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
           System Configuration & Settings
         </h2>
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0, marginTop: '2px' }}>
           RBAC user roles, campus lab hierarchy, central immutable audit trail, and offline air-gapped intelligence sync
         </p>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', gap: '4px' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', gap: '6px' }}>
         {[
           { id: 'roles', label: 'Users & RBAC Roles', icon: Users },
           { id: 'topology', label: 'Org, Sites & Labs', icon: Layers },
@@ -134,18 +139,20 @@ export const SettingsView = () => {
               className="btn btn-sm"
               onClick={() => setActiveTab(tab.id)}
               style={{
-                height: '34px',
-                borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+                height: '36px',
+                borderRadius: 'var(--radius-container) var(--radius-container) 0 0',
                 border: isActive ? '1px solid var(--border-default)' : '1px solid transparent',
                 borderBottom: isActive ? '1px solid var(--bg-surface)' : '1px solid transparent',
                 backgroundColor: isActive ? 'var(--bg-surface)' : 'transparent',
                 color: isActive ? 'var(--accent-text)' : 'var(--text-secondary)',
                 fontWeight: isActive ? 600 : 500,
                 marginBottom: '-1px',
-                gap: '6px',
+                gap: '8px',
+                padding: '0 14px',
+                boxShadow: 'none',
               }}
             >
-              <Icon size={14} />
+              <Icon size={14} style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)' }} />
               <span>{tab.label}</span>
             </button>
           );
@@ -156,7 +163,9 @@ export const SettingsView = () => {
       {activeTab === 'roles' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>Role-Based Access Control (RBAC) Matrix</h3>
+            <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, margin: 0 }}>
+              Role-Based Access Control (RBAC) Matrix
+            </h3>
             <button type="button" className="btn btn-sm btn-primary" onClick={() => alert('Add Administrator user modal')}>
               <Plus size={12} />
               <span>Add Administrator</span>
@@ -169,11 +178,12 @@ export const SettingsView = () => {
                 key={r.role}
                 className="panel"
                 style={{
-                  padding: 'var(--space-4)',
+                  padding: 'var(--space-4) var(--space-5)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px',
+                  gap: '8px',
                   backgroundColor: 'var(--bg-surface)',
+                  borderRadius: 'var(--radius-container)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -186,7 +196,7 @@ export const SettingsView = () => {
                   <span className="tag-mono">{r.scope}</span>
                 </div>
 
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
                   {r.permissions}
                 </p>
               </div>
@@ -197,32 +207,69 @@ export const SettingsView = () => {
 
       {/* Topology Tab */}
       {activeTab === 'topology' && (
-        <div className="panel" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>University Campuses & Lab Hierarchies</h3>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+        <div className="panel" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', borderRadius: 'var(--radius-card)' }}>
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, margin: 0 }}>
+            University Campuses & Lab Hierarchies
+          </h3>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
             Endpoints automatically map to these labs during enrollment token assignment.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-            <div
-              style={{
-                padding: '12px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <div style={{ fontWeight: 700, fontSize: '14px' }}>🏛️ System Revamp University Lab (Primary Org)</div>
-              <div style={{ marginTop: '6px', marginLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>📍 Main Campus (Block A)</div>
-                <div style={{ fontSize: '12px', marginLeft: '16px', color: 'var(--text-secondary)' }}>
-                  • 💻 Computer Lab 1 (Subnet: 192.168.1.0/24) — 45 Workstations
-                </div>
-                <div style={{ fontSize: '12px', marginLeft: '16px', color: 'var(--text-secondary)' }}>
-                  • 💻 Computer Lab 2 (Subnet: 192.168.2.0/24) — 32 Workstations
-                </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+            {loadingHierarchy ? (
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                Loading organizational hierarchy...
               </div>
-            </div>
+            ) : hierarchy && hierarchy.length > 0 ? (
+              hierarchy.map((org) => (
+                <div
+                  key={org.id}
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: 'var(--radius-container)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>
+                    <Building size={16} style={{ color: 'var(--accent-primary)' }} />
+                    <span>{org.name}</span>
+                  </div>
+                  <div style={{ marginTop: '8px', marginLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {org.sites && org.sites.length > 0 ? (
+                      org.sites.map((site) => (
+                        <div key={site.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            <MapPin size={14} style={{ color: 'var(--accent-primary)' }} />
+                            <span>{site.name} {site.location ? `(${site.location})` : ''}</span>
+                          </div>
+                          <div style={{ marginLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {site.labs && site.labs.length > 0 ? (
+                              site.labs.map((lab) => (
+                                <div key={lab.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                  <Monitor size={13} style={{ color: 'var(--accent-primary)' }} />
+                                  <span>
+                                    <strong>{lab.name}</strong> {lab.network_subnet ? `(Subnet: ${lab.network_subnet})` : ''} — {lab.device_count} Workstations ({lab.online_count} Online)
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No labs configured under this campus.</div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No campus sites configured under this organization.</div>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-container)' }}>
+                No organizational topology configured. Configure organizations, sites, and labs in the setup wizard or via API.
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -230,7 +277,7 @@ export const SettingsView = () => {
       {/* Audit Log Tab */}
       {activeTab === 'audit' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>Central Administrative Audit Trail</h3>
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, margin: 0 }}>Central Administrative Audit Trail</h3>
           <DataTable
             columns={auditColumns}
             data={auditLogs}
@@ -244,17 +291,19 @@ export const SettingsView = () => {
 
       {/* Offline Air-Gapped Sync Tab */}
       {activeTab === 'offline' && (
-        <div className="panel" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>Offline & Air-Gapped Intelligence Bundles</h3>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+        <div className="panel" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', borderRadius: 'var(--radius-card)' }}>
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, margin: 0 }}>
+            Offline & Air-Gapped Intelligence Bundles
+          </h3>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
             Import cryptographically signed offline vulnerability definitions (NVD, OSV.dev, VirusTotal hashes) for air-gapped lab deployments.
           </p>
 
           <div
             style={{
-              padding: '24px',
+              padding: '28px',
               border: '2px dashed var(--border-default)',
-              borderRadius: 'var(--radius-lg)',
+              borderRadius: 'var(--radius-card)',
               backgroundColor: 'var(--bg-code)',
               textAlign: 'center',
               display: 'flex',
@@ -263,12 +312,12 @@ export const SettingsView = () => {
               gap: '12px',
             }}
           >
-            <UploadCloud size={32} style={{ color: 'var(--accent-primary)' }} />
+            <UploadCloud size={36} style={{ color: 'var(--accent-primary)' }} />
             <div>
               <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                 Drag and drop signed bundle file (.tar.gz / .zip)
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
                 Must be signed with System Revamp ECDSA Master Release Key
               </div>
             </div>

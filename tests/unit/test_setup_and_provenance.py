@@ -90,12 +90,12 @@ def test_fleet_overview_provenance_fields():
 def test_evaluate_software_risk_provenance():
     db = SessionLocal()
     try:
-        # Seed catalog fallback returns is_stale=True
+        # Live connector returns real version from endoflife.date with provenance
         ver, risk, src, fetched, is_stale = evaluate_software_risk("Node.js", "20.10.0", db)
-        assert ver == "22.11.0"
+        assert ver is not None and ver != "Unknown"
         assert risk == "Critical"
-        assert src == "seed_catalog"
-        assert is_stale is True
+        assert src in ("endoflife.date", "nodejs.org")
+        assert is_stale is False
 
         # Test database cache lookup
         db.query(LatestVersionCache).filter(LatestVersionCache.app_name == "customapp").delete()

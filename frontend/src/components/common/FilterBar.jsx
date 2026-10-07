@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, X, SlidersHorizontal } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 export const FilterBar = ({
   search,
@@ -26,7 +26,8 @@ export const FilterBar = ({
         padding: 'var(--space-2) var(--space-3)',
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
+        borderRadius: 'var(--radius-container)', // 14px
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
       {/* Left: Search & Filter dropdowns */}
@@ -37,7 +38,7 @@ export const FilterBar = ({
             size={14}
             style={{
               position: 'absolute',
-              left: '10px',
+              left: '12px',
               top: '50%',
               transform: 'translateY(-50%)',
               color: 'var(--text-muted)',
@@ -51,9 +52,10 @@ export const FilterBar = ({
             placeholder={placeholder}
             style={{
               width: '100%',
-              paddingLeft: '32px',
-              height: '32px',
+              paddingLeft: '34px',
+              height: '34px',
               fontSize: 'var(--text-base)',
+              borderRadius: 'var(--radius-input)', // 10px
             }}
           />
           {search && (
@@ -62,7 +64,7 @@ export const FilterBar = ({
               onClick={() => onSearchChange('')}
               style={{
                 position: 'absolute',
-                right: '8px',
+                right: '10px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 background: 'transparent',
@@ -71,6 +73,7 @@ export const FilterBar = ({
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
+                padding: 0,
               }}
             >
               <X size={14} />
@@ -86,10 +89,11 @@ export const FilterBar = ({
               value={filter.value || 'all'}
               onChange={(e) => filter.onChange(e.target.value)}
               style={{
-                height: '32px',
-                padding: '0 8px',
+                height: '34px',
+                padding: '0 10px',
                 fontSize: 'var(--text-xs)',
                 fontWeight: 500,
+                borderRadius: 'var(--radius-input)', // 10px
                 color: filter.value && filter.value !== 'all' ? 'var(--accent-text)' : 'var(--text-secondary)',
                 borderColor: filter.value && filter.value !== 'all' ? 'var(--accent-border)' : 'var(--border-default)',
                 backgroundColor:
@@ -111,7 +115,12 @@ export const FilterBar = ({
             type="button"
             className="btn btn-sm"
             onClick={onReset}
-            style={{ color: 'var(--text-muted)', height: '32px', padding: '0 8px' }}
+            style={{
+              color: 'var(--text-muted)',
+              height: '34px',
+              padding: '0 10px',
+              borderRadius: 'var(--radius-input)',
+            }}
             title="Clear all filters"
           >
             <X size={12} />
@@ -120,24 +129,23 @@ export const FilterBar = ({
         )}
       </div>
 
-      {/* Right: Record count & Action buttons */}
+      {/* Right: Record count & custom actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
         {totalCount !== null && (
-          <span
-            className="tabular-nums font-mono"
-            style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}
-          >
+          <span className="tabular-nums" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
             {filteredCount !== null && filteredCount !== totalCount ? (
               <>
-                <strong style={{ color: 'var(--text-primary)' }}>{filteredCount}</strong> of {totalCount} records
+                <strong style={{ color: 'var(--accent-text)' }}>{filteredCount}</strong> of {totalCount} records
               </>
             ) : (
-              <>{totalCount} records</>
+              <>
+                <strong>{totalCount}</strong> records
+              </>
             )}
           </span>
         )}
 
-        {actions}
+        {actions && <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>{actions}</div>}
       </div>
     </div>
   );

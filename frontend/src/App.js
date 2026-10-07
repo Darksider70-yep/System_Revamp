@@ -29,9 +29,13 @@ function MainConsole() {
 
   // Check auth on mount
   useEffect(() => {
-    if (api.isAuthenticated()) {
+    if (api.isAuthenticated() && api.user) {
       setIsAuthenticated(true);
-      setCurrentUser(api.user || { name: 'Fleet Administrator', email: 'admin@systemrevamp.local', role: 'SuperAdmin' });
+      setCurrentUser(api.user);
+    } else {
+      api.clearSession();
+      setIsAuthenticated(false);
+      setCurrentUser(null);
     }
   }, []);
 

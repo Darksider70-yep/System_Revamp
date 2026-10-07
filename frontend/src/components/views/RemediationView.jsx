@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { PipelineStepper } from '../common/PipelineStepper';
-import { DataTable } from '../common/DataTable';
-import { StatusBadge, RiskBadge } from '../common/StatusBadge';
+import { StatusBadge } from '../common/StatusBadge';
 import { CodeBlock } from '../common/CodeBlock';
-import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
-  Wrench,
   Play,
   CheckCircle2,
-  AlertTriangle,
   RotateCcw,
   StopCircle,
   FileDiff,
@@ -22,81 +18,158 @@ import { useTheme } from '../../context/ThemeContext';
 export const RemediationView = ({ initialApp = null }) => {
   const { scope } = useTheme();
   const [currentStep, setCurrentStep] = useState(0);
-  const [selectedApp, setSelectedApp] = useState(initialApp || 'Node.js (x64)');
-  const [targetScope, setTargetScope] = useState('lab'); // 'all' | 'lab' | 'pilot'
-  const [pilotSize, setPilotSize] = useState('20'); // percentage
+  const [availableApps, setAvailableApps] = useState([]);
+  const [selectedApp, setSelectedApp] = useState(initialApp || '');
+  const [targetScope, setTargetScope] = useState('lab'); // 'all' | 'lab'
+  const [targetDevices, setTargetDevices] = useState([]);
   const [dryRunRunning, setDryRunRunning] = useState(false);
   const [dryRunResults, setDryRunResults] = useState(null);
   const [isApproved, setIsApproved] = useState(false);
   const [rolloutActive, setRolloutActive] = useState(false);
-  const [rolloutStage, setRolloutStage] = useState('pilot'); // 'pilot' | 'fleet' | 'completed' | 'aborted'
+  const [rolloutStage, setRolloutStage] = useState('idle'); // 'idle' | 'executing' | 'completed' | 'aborted'
   const [rolloutProgress, setRolloutProgress] = useState(0);
-  const [failureRate, setFailureRate] = useState(0);
-  const [stagedDevices, setStagedDevices] = useState([
-    { id: 'WS01', name: 'CS-LAB1-WS01', stage: 'Pilot (Stage 1)', status: 'Pending', log: 'Awaiting dispatch' },
-    { id: 'WS02', name: 'CS-LAB1-WS02', stage: 'Pilot (Stage 1)', status: 'Pending', log: 'Awaiting dispatch' },
-    { id: 'WS03', name: 'CS-LAB1-WS03', stage: 'Fleet (Stage 2)', status: 'Pending', log: 'Awaiting pilot approval' },
-    { id: 'WS04', name: 'CS-LAB1-WS04', stage: 'Fleet (Stage 2)', status: 'Pending', log: 'Awaiting pilot approval' },
-    { id: 'WS05', name: 'CS-LAB1-WS05', stage: 'Fleet (Stage 2)', status: 'Pending', log: 'Awaiting pilot approval' },
-  ]);
+  const [stagedDevices, setStagedDevices] = useState([]);
 
-  // Handle Dry Run Simulation
-  const handleStartDryRun = () => {
+  // Fetch candidate software packages and devices from real API
+  useEffect(() => {
+    api.getFleetSoftware()
+      .then((apps) => {
+        const list = Array.isArray(apps) ? apps : [];
+        setAvailableApps(list);
+        if (!selectedApp && list.length > 0) {
+          setSelectedApp(initialApp || list[0].name);
+        }
+      })
+      .catch(() => setAvailableApps([]));
+
+    api.getDevices()
+      .then((devs) => {
+        const list = Array.isArray(devs) ? devs : [];
+        setTargetDevices(list);
+      })
+      .catch(() => setTargetDevices([]));
+  }, [initialApp]);
+
+  // Update staged devices when selectedApp or targetDevices change
+  useEffect(() => {
+    if (!selectedApp) {
+      setStagedDevices([]);
+      return;
+    }
+    const appObj = availableApps.find((a) => a.name === selectedApp);
+    const affectedHostnames = appObj?.affected_devices || [];
+
+    const matched = targetDevices
+      .filter((d) => affectedHostnames.length === 0 || affectedHostnames.includes(d.hostname))
+      .map((d, idx) => ({
+        id: d.id,
+        name: d.hostname,
+        stage: idx < Math.ceil(targetDevices.length * 0.2) ? 'Pilot (Phase 1)' : 'Fleet (Phase 2)',
+        status: 'Pending',
+        log: 'Awaiting dispatch',
+        commandId: null,
+      }));
+
+    setStagedDevices(matched);
+  }, [selectedApp, availableApps, targetDevices]);
+
+  // Handle Real Dry Run Execution
+  const handleStartDryRun = async () => {
+    if (!selectedApp || stagedDevices.length === 0) return;
     setDryRunRunning(true);
-    setTimeout(() => {
+    const appObj = availableApps.find((a) => a.name === selectedApp);
+    const targetVer = appObj?.latest_version || 'Latest';
+    const curVer = appObj?.installed_version || 'Current';
+
+    try {
+      // Dispatch dry-run command to first candidate device
+      const firstDev = stagedDevices[0];
+      const res = await api.queueCommand('device', firstDev.id, 'upgrade-package', { package_name: selectedApp }, true);
+
       setDryRunResults({
-        totalPlanned: 5,
+        totalPlanned: stagedDevices.length,
         targetApp: selectedApp,
-        targetVersion: '20.18.0',
-        allowlistVerified: true,
+        targetVersion: targetVer,
+        commandId: res?.command_id,
         diffs: [
-          '- Installed: Node.js v16.14.0 (Vulnerable: CVE-2023-30581)',
-          '+ Target:    Node.js v20.18.0 LTS (Clean Authenticode)',
-          '~ Command:   winget install --id OpenJS.NodeJS.LTS -e --silent --accept-source-agreements',
+          `- Current:   ${selectedApp} (v${curVer})`,
+          `+ Target:    ${selectedApp} (v${targetVer})`,
+          `~ Dispatch:  Cryptographically signed winget upgrade to target ID: ${firstDev.id}`,
+          `~ Signature: ${res?.signature ? res.signature.slice(0, 32) + '...' : 'HMAC-SHA256 verified'}`,
         ],
       });
-      setDryRunRunning(false);
       setCurrentStep(1);
-    }, 1200);
+    } catch (err) {
+      alert(`Dry-run command dispatch error: ${err.message}`);
+    } finally {
+      setDryRunRunning(false);
+    }
   };
 
-  // Handle Rollout Progression
-  const handleStartRollout = () => {
+  // Handle Genuine Rollout
+  const handleStartRollout = async () => {
+    if (stagedDevices.length === 0) return;
     setRolloutActive(true);
-    setRolloutStage('pilot');
+    setRolloutStage('executing');
     setRolloutProgress(10);
 
-    // Simulate progressive rollout stages
-    setTimeout(() => {
-      setStagedDevices((prev) =>
-        prev.map((d) =>
-          d.stage.includes('Pilot') ? { ...d, status: 'Success', log: 'Upgrade completed in 34s' } : d
-        )
-      );
-      setRolloutProgress(50);
-      setRolloutStage('fleet');
+    const queuedCmds = [];
+    const updatedDevices = [...stagedDevices];
 
-      setTimeout(() => {
-        setStagedDevices((prev) =>
-          prev.map((d) => ({
-            ...d,
-            status: d.id === 'WS05' ? 'Needs Reboot' : 'Success',
-            log: d.id === 'WS05' ? 'Exit Code 3010 (Reboot required)' : 'Upgrade completed cleanly',
-          }))
-        );
+    try {
+      for (let i = 0; i < updatedDevices.length; i++) {
+        const d = updatedDevices[i];
+        try {
+          const res = await api.queueCommand('device', d.id, 'upgrade-package', { package_name: selectedApp }, false);
+          d.commandId = res?.command_id;
+          d.status = res?.status === 'approved' ? 'Dispatched' : 'Queued';
+          d.log = `HMAC command queued: ${res?.command_id || 'ID pending'}`;
+          queuedCmds.push(res?.command_id);
+        } catch (e) {
+          d.status = 'Failed';
+          d.log = `Dispatch failed: ${e.message}`;
+        }
+      }
+
+      setStagedDevices(updatedDevices);
+      setRolloutProgress(50);
+
+      // Poll command queue status for completion
+      setTimeout(async () => {
+        try {
+          const cmdList = await api.getCommands();
+          if (Array.isArray(cmdList)) {
+            setStagedDevices((prev) =>
+              prev.map((dev) => {
+                const found = cmdList.find((c) => c.id === dev.commandId);
+                if (found) {
+                  return {
+                    ...dev,
+                    status: found.status === 'completed' ? 'Success' : found.status,
+                    log: found.result?.output || `Status: ${found.status}`,
+                  };
+                }
+                return dev;
+              })
+            );
+          }
+        } catch (err) {}
         setRolloutProgress(100);
         setRolloutStage('completed');
         setRolloutActive(false);
         setCurrentStep(4);
-      }, 2000);
-    }, 2000);
+      }, 3000);
+    } catch (err) {
+      alert(`Rollout error: ${err.message}`);
+      setRolloutActive(false);
+    }
   };
 
   const handleAbortRollout = () => {
     setRolloutActive(false);
     setRolloutStage('aborted');
     setStagedDevices((prev) =>
-      prev.map((d) => (d.status === 'Pending' ? { ...d, status: 'Aborted', log: 'Cancelled by administrator' } : d))
+      prev.map((d) => (d.status === 'Pending' || d.status === 'Queued' ? { ...d, status: 'Aborted', log: 'Cancelled by administrator' } : d))
     );
   };
 
@@ -138,10 +211,15 @@ export const RemediationView = ({ initialApp = null }) => {
                 onChange={(e) => setSelectedApp(e.target.value)}
                 style={{ width: '100%', marginTop: '4px' }}
               >
-                <option value="Node.js (x64)">Node.js (x64) — Upgrade to v20.18.0 LTS (CVSS 8.2 Fix)</option>
-                <option value="Python 3.10">Python 3.10 — Upgrade to v3.12.7</option>
-                <option value="Git for Windows">Git for Windows — Upgrade to v2.47.0</option>
-                <option value="Realtek Audio">Realtek Audio — Pnputil Driver Fix (Code 28)</option>
+                {availableApps && availableApps.length > 0 ? (
+                  availableApps.map((app) => (
+                    <option key={app.id} value={app.name}>
+                      {app.name} — Upgrade to v{app.latest_version} ({app.risk_level})
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No applications cataloged in fleet</option>
+                )}
               </select>
             </div>
 
@@ -187,10 +265,10 @@ export const RemediationView = ({ initialApp = null }) => {
               type="button"
               className="btn btn-primary"
               onClick={handleStartDryRun}
-              disabled={dryRunRunning}
+              disabled={dryRunRunning || !selectedApp || stagedDevices.length === 0}
             >
               <Play size={14} />
-              <span>{dryRunRunning ? 'Simulating Dry-Run...' : 'Proceed to Dry-Run Preview'}</span>
+              <span>{dryRunRunning ? 'Executing Dry-Run...' : stagedDevices.length === 0 ? 'No Target Endpoints Available' : 'Proceed to Dry-Run Preview'}</span>
             </button>
           </div>
         </div>

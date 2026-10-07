@@ -75,7 +75,7 @@ async def stream_exposure_assessment(
             "status": "Assessment Complete",
         }
 
-        yield f"event: summary\ndata: {json.dumps(summary_data)}\n\n"
+        yield f"event: summary\ndata: {json.dumps(summary_data, default=str)}\n\n"
         yield f"event: end\ndata: {json.dumps({'done': True})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

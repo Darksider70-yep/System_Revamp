@@ -1,25 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { KpiTile } from '../common/KpiTile';
-import { StatusBadge, RiskBadge } from '../common/StatusBadge';
+import { RiskBadge } from '../common/StatusBadge';
 import { EmptyState } from '../common/EmptyState';
 import { Skeleton } from '../common/Skeleton';
 import {
   ShieldAlert,
   Cpu,
-  AlertTriangle,
   ArrowRight,
-  Clock,
-  CheckCircle2,
   RefreshCw,
   Terminal,
-  KeyRound,
   Layers,
+  Package,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { useTheme } from '../../context/ThemeContext';
 
 export const OverviewView = ({ onNavigate }) => {
-  const { scope, globalSearch } = useTheme();
+  const { scope } = useTheme();
   const [loading, setLoading] = useState(true);
   const [overviewData, setOverviewData] = useState(null);
   const [devices, setDevices] = useState([]);
@@ -79,10 +76,10 @@ export const OverviewView = ({ onNavigate }) => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} height="80px" borderRadius="var(--radius-lg)" />
+            <Skeleton key={i} height="88px" borderRadius="var(--radius-card)" />
           ))}
         </div>
-        <Skeleton height="320px" borderRadius="var(--radius-lg)" />
+        <Skeleton height="340px" borderRadius="var(--radius-card)" />
       </div>
     );
   }
@@ -90,17 +87,17 @@ export const OverviewView = ({ onNavigate }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       {/* Top Header Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
         <div>
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
             Fleet Overview
           </h2>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0, marginTop: '2px' }}>
             Authoritative fleet health, active risks, and real-time telemetry across {scope.name}
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span className="font-mono tabular-nums" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
             Live Polling (15s)
           </span>
@@ -109,7 +106,7 @@ export const OverviewView = ({ onNavigate }) => {
             className="btn btn-sm"
             onClick={handleRefresh}
             disabled={refreshing}
-            style={{ gap: '4px' }}
+            style={{ gap: '6px' }}
           >
             <RefreshCw size={12} className={refreshing ? 'status-spin' : ''} />
             <span>{refreshing ? 'Syncing...' : 'Refresh'}</span>
@@ -123,31 +120,34 @@ export const OverviewView = ({ onNavigate }) => {
           title="Total Devices"
           value={`${onlineDevices}/${totalDevices}`}
           subtitle={`${onlineDevices} online now`}
-          sparklineData={[onlineDevices - 2, onlineDevices - 1, onlineDevices, onlineDevices, onlineDevices]}
-          delta="+2% vs yesterday"
+          sparklineData={null}
+          delta={totalDevices > 0 ? `${Math.round((onlineDevices / totalDevices) * 100)}% connected` : 'No devices enrolled'}
           deltaType="positive"
+          lineageSource="devices (status=online)"
           onClick={() => onNavigate('devices')}
         />
 
         <KpiTile
           title="Fleet Compliance"
-          value={`${compliantPercent}%`}
+          value={compliantPercent !== null ? `${compliantPercent}%` : 'N/A'}
           subtitle="Patch & driver compliant"
-          sparklineData={[92, 94, 95, 94.5, Number(compliantPercent)]}
-          delta={Number(compliantPercent) >= 95 ? '+1.2%' : '-0.8%'}
-          deltaType={Number(compliantPercent) >= 95 ? 'positive' : 'negative'}
-          status={Number(compliantPercent) < 90 ? 'warning' : 'ok'}
+          sparklineData={null}
+          delta={compliantPercent !== null ? (Number(compliantPercent) >= 90 ? 'Healthy' : 'Below target') : 'Awaiting scans'}
+          deltaType={compliantPercent !== null && Number(compliantPercent) >= 90 ? 'positive' : 'negative'}
+          status={compliantPercent !== null && Number(compliantPercent) < 90 ? 'warning' : 'ok'}
+          lineageSource="devices (risk_level=LOW / total)"
           onClick={() => onNavigate('devices')}
         />
 
         <KpiTile
           title="Critical Findings"
           value={criticalDevices}
-          subtitle="CVSS >=7.0 or Major Jump >=2"
-          sparklineData={[criticalDevices + 3, criticalDevices + 1, criticalDevices + 2, criticalDevices]}
-          delta={criticalDevices > 0 ? `${criticalDevices} machines` : 'Zero critical'}
+          subtitle="CVSS >=7.0 or major version drift"
+          sparklineData={null}
+          delta={criticalDevices > 0 ? `${criticalDevices} machines affected` : 'Zero critical'}
           deltaType={criticalDevices > 0 ? 'negative' : 'positive'}
           status={criticalDevices > 0 ? 'critical' : 'ok'}
+          lineageSource="devices (risk_level=CRITICAL)"
           onClick={() => onNavigate('devices', { risk: 'CRITICAL' })}
         />
 
@@ -155,9 +155,10 @@ export const OverviewView = ({ onNavigate }) => {
           title="Pending Commands"
           value={overviewData?.pending_commands_count || 0}
           subtitle="Awaiting agent poll or approval"
-          sparklineData={[0, 1, 3, 2, overviewData?.pending_commands_count || 0]}
+          sparklineData={null}
           delta="HMAC signed"
           deltaType="neutral"
+          lineageSource="commands (status=pending)"
           onClick={() => onNavigate('remediation')}
         />
 
@@ -165,10 +166,11 @@ export const OverviewView = ({ onNavigate }) => {
           title="Stale Agents (>24h)"
           value={offline24h}
           subtitle="Heartbeat communication lost"
-          sparklineData={[offline24h + 1, offline24h, offline24h]}
-          delta={offline24h > 0 ? 'Action needed' : 'All responsive'}
+          sparklineData={null}
+          delta={offline24h > 0 ? `${offline24h} unresponsive` : 'All responsive'}
           deltaType={offline24h > 0 ? 'negative' : 'positive'}
           status={offline24h > 0 ? 'warning' : 'default'}
+          lineageSource="devices (last_seen < 24h)"
           onClick={() => onNavigate('devices', { status: 'offline' })}
         />
       </div>
@@ -178,13 +180,13 @@ export const OverviewView = ({ onNavigate }) => {
         {/* Left Column: Risk Heatmap & Activity */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {/* Lab Risk Heatmap */}
-          <div className="panel" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div className="panel" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
                   Lab Risk & Severity Heatmap
                 </h3>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0, marginTop: '2px' }}>
                   Aggregated vulnerability breakdown across physical lab environments
                 </p>
               </div>
@@ -208,7 +210,7 @@ export const OverviewView = ({ onNavigate }) => {
                 onAction={() => onNavigate('settings')}
               />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {labs.map((lab) => {
                   const labDevices = devices.filter((d) => d.lab_id === lab.id);
                   const labCrit = labDevices.filter((d) => (d.risk_level || '').toUpperCase() === 'CRITICAL').length;
@@ -222,18 +224,24 @@ export const OverviewView = ({ onNavigate }) => {
                       key={lab.id}
                       onClick={() => onNavigate('devices', { labId: lab.id })}
                       style={{
-                        padding: '10px 12px',
+                        padding: '12px 14px',
                         backgroundColor: 'var(--bg-surface-elevated)',
                         border: '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-md)',
+                        borderRadius: 'var(--radius-container)', // 14px
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '6px',
-                        transition: 'border-color var(--transition-fast)',
+                        gap: '8px',
+                        transition: 'all var(--transition-fast)',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--border-strong)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-strong)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -241,7 +249,7 @@ export const OverviewView = ({ onNavigate }) => {
                             {lab.name}
                           </span>
                           <span className="tag-mono" style={{ fontSize: '10px' }}>
-                            {lab.network_subnet || '192.168.1.0/24'}
+                            {lab.network_subnet || 'No subnet configured'}
                           </span>
                         </div>
 
@@ -254,7 +262,7 @@ export const OverviewView = ({ onNavigate }) => {
                       <div
                         style={{
                           height: '8px',
-                          borderRadius: 'var(--radius-xs)',
+                          borderRadius: 'var(--radius-pill)',
                           overflow: 'hidden',
                           display: 'flex',
                           backgroundColor: 'var(--bg-code)',
@@ -267,18 +275,18 @@ export const OverviewView = ({ onNavigate }) => {
                       </div>
 
                       {/* Badge Breakdown */}
-                      <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                        <span style={{ color: labCrit > 0 ? 'var(--status-critical-text)' : 'inherit' }}>
-                          <strong>{labCrit}</strong> Critical
+                      <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: 'var(--text-secondary)', alignItems: 'center' }}>
+                        <span style={{ color: labCrit > 0 ? 'var(--status-critical-text)' : 'inherit', fontWeight: labCrit > 0 ? 600 : 400 }}>
+                          {labCrit} Critical
                         </span>
                         <span>•</span>
-                        <span style={{ color: labHigh > 0 ? 'var(--status-high-text)' : 'inherit' }}>
-                          <strong>{labHigh}</strong> High
+                        <span style={{ color: labHigh > 0 ? 'var(--status-high-text)' : 'inherit', fontWeight: labHigh > 0 ? 600 : 400 }}>
+                          {labHigh} High
                         </span>
                         <span>•</span>
-                        <span><strong>{labMed}</strong> Medium</span>
+                        <span>{labMed} Medium</span>
                         <span>•</span>
-                        <span style={{ color: 'var(--status-ok-text)' }}><strong>{labLow}</strong> OK</span>
+                        <span style={{ color: 'var(--status-ok-text)' }}>{labLow} OK</span>
                       </div>
                     </div>
                   );
@@ -288,9 +296,9 @@ export const OverviewView = ({ onNavigate }) => {
           </div>
 
           {/* Recent Activity Timeline */}
-          <div className="panel" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div className="panel" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-primary)' }}>
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
                 Recent Operational Activity
               </h3>
               <span className="tag-mono" style={{ fontSize: '11px' }}>Audit Stream</span>
@@ -298,7 +306,7 @@ export const OverviewView = ({ onNavigate }) => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {activityLogs.length === 0 ? (
-                <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
                   No recent admin operations or command events recorded.
                 </div>
               ) : (
@@ -308,9 +316,9 @@ export const OverviewView = ({ onNavigate }) => {
                     style={{
                       display: 'flex',
                       alignItems: 'flex-start',
-                      gap: '10px',
-                      padding: '8px 10px',
-                      borderRadius: 'var(--radius-md)',
+                      gap: '12px',
+                      padding: '10px 12px',
+                      borderRadius: 'var(--radius-container)',
                       backgroundColor: 'var(--bg-surface-elevated)',
                       border: '1px solid var(--border-subtle)',
                       fontSize: 'var(--text-xs)',
@@ -340,135 +348,132 @@ export const OverviewView = ({ onNavigate }) => {
           <div
             className="panel"
             style={{
-              padding: 'var(--space-4)',
+              padding: 'var(--space-5)',
               display: 'flex',
               flexDirection: 'column',
-              gap: 'var(--space-3)',
-              borderTop: '3px solid var(--status-critical-solid)',
+              gap: 'var(--space-4)',
+              border: '1px solid var(--border-subtle)',
             }}
           >
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <ShieldAlert size={16} color="var(--status-critical-solid)" />
-                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldAlert size={18} style={{ color: 'var(--status-critical-solid)' }} />
+                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                   Needs Immediate Attention
                 </h3>
               </div>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: '2px' }}>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0, marginTop: '2px' }}>
                 Top vulnerable software packages, missing drivers, and unsigned binaries
               </p>
             </div>
 
             {/* Sub-section: Top Outdated Apps */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                🚨 High-Impact Vulnerable Apps
-              </span>
-
-              <div
-                style={{
-                  padding: '8px 10px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Node.js (x64)</span>
-                  <RiskBadge level="CRITICAL" size="sm" />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  <span className="font-mono">v16.14.0 → v20.18.0</span>
-                  <span className="tag-mono" style={{ color: 'var(--status-critical-text)' }}>CVE-2023-30581 (CVSS 8.2)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Affects 12 machines</span>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    onClick={() => onNavigate('remediation', { targetApp: 'Node.js' })}
-                    style={{ height: '22px', fontSize: '11px', padding: '0 6px' }}
-                  >
-                    Remediate
-                  </button>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Package size={13} style={{ color: 'var(--status-critical-solid)' }} />
+                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                  High-Impact Vulnerable Apps
+                </span>
               </div>
 
-              <div
-                style={{
-                  padding: '8px 10px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Python 3.10 (64-bit)</span>
-                  <RiskBadge level="HIGH" size="sm" />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  <span className="font-mono">v3.10.4 → v3.12.7</span>
-                  <span className="tag-mono">Major Drift (1 step)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Affects 45 machines</span>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    onClick={() => onNavigate('remediation', { targetApp: 'Python' })}
-                    style={{ height: '22px', fontSize: '11px', padding: '0 6px' }}
+              {overviewData?.top_outdated_apps && overviewData.top_outdated_apps.length > 0 ? (
+                overviewData.top_outdated_apps.map((app, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '10px 12px',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-container)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                    }}
                   >
-                    Remediate
-                  </button>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
+                        {app.app_name}
+                      </span>
+                      <RiskBadge level={app.risk_level || 'MEDIUM'} size="sm" />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      <span className="font-mono">Target: {app.latest_version || 'Latest'}</span>
+                      <span className="tag-mono" style={{ color: app.risk_level === 'Critical' ? 'var(--status-critical-text)' : 'inherit' }}>
+                        {app.affected_devices} machines affected
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-primary"
+                        onClick={() => onNavigate('remediation', { targetApp: app.app_name })}
+                        style={{ height: '26px', fontSize: '11px', padding: '0 8px' }}
+                      >
+                        Remediate
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '14px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-container)', border: '1px solid var(--border-subtle)' }}>
+                  No vulnerable or outdated packages identified across the fleet.
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Sub-section: Hardware Drivers */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                🔧 PnP Hardware Driver Errors
-              </span>
-
-              <div
-                style={{
-                  padding: '8px 10px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Realtek PCIe Audio</span>
-                  <span className="tag-mono" style={{ color: 'var(--status-critical-text)', borderColor: 'var(--status-critical-border)' }}>
-                    Code 28 (Missing)
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
-                  <span>Hardware ID: HDAUDIO\FUNC_01</span>
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    onClick={() => onNavigate('drivers')}
-                    style={{ height: '22px', fontSize: '11px', padding: '0 6px' }}
-                  >
-                    Inspect
-                  </button>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Cpu size={13} style={{ color: 'var(--accent-primary)' }} />
+                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                  PnP Hardware Driver Errors
+                </span>
               </div>
+
+              {overviewData?.top_missing_drivers && overviewData.top_missing_drivers.length > 0 ? (
+                overviewData.top_missing_drivers.map((drv, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '10px 12px',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-container)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
+                        {drv.device_name}
+                      </span>
+                      <span className="tag-mono" style={{ color: 'var(--status-critical-text)', borderColor: 'var(--status-critical-border)' }}>
+                        {drv.impact || 'Impact Flagged'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
+                      <span>Affects {drv.affected_devices} machines</span>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => onNavigate('drivers')}
+                        style={{ height: '26px', fontSize: '11px', padding: '0 8px' }}
+                      >
+                        Inspect
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '14px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-container)', border: '1px solid var(--border-subtle)' }}>
+                  No driver errors detected across the fleet.
+                </div>
+              )}
             </div>
 
             {/* Quick Action Link */}
-            <div style={{ marginTop: '8px', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
+            <div style={{ marginTop: '4px', borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
               <button
                 type="button"
                 className="btn btn-primary"

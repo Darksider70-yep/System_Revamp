@@ -76,6 +76,7 @@ def query_osv_vulnerabilities(
     )
 
     results: List[Dict[str, Any]] = []
+    seen_cves = set()
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
             if resp.status == 200:
@@ -89,6 +90,10 @@ def query_osv_vulnerabilities(
                         if a.startswith("CVE-"):
                             cve_id = a
                             break
+
+                    if not cve_id or cve_id in seen_cves:
+                        continue
+                    seen_cves.add(cve_id)
 
                     summary = v.get("summary") or v.get("details") or "Vulnerability reported in OSV advisory."
                     if len(summary) > 300:
@@ -139,7 +144,7 @@ def query_osv_vulnerabilities(
                         "summary": summary,
                         "source": "osv.dev",
                     })
-    except Exception as e:
+    except Exception:
         # Network timeout or unlisted package
         pass
 
@@ -245,8 +250,12 @@ def sync_and_check_app_vulnerabilities(
             # For major desktop apps, query NVD if OSV returned nothing
             live_cves = query_nvd_vulnerabilities(app_name)
 
+        seen_ids = set()
         for c in live_cves:
             cve_id = c["cve_id"]
+            if not cve_id or cve_id in seen_ids:
+                continue
+            seen_ids.add(cve_id)
             db_entry = db.query(VulnerabilityCatalog).filter(VulnerabilityCatalog.cve_id == cve_id).first()
             if not db_entry:
                 db_entry = VulnerabilityCatalog(
@@ -263,7 +272,8 @@ def sync_and_check_app_vulnerabilities(
                 db.add(db_entry)
         try:
             db.commit()
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to commit live CVEs to catalog: {e}")
             db.rollback()
 
         existing = (
@@ -295,7 +305,11 @@ def sync_and_check_app_vulnerabilities(
                 "fixed_in_version": cve.fixed_in_version or "Latest Patch",
                 "summary": cve.summary,
                 "source": getattr(cve, "cve_source", "osv.dev") or "osv.dev",
-                "fetched_at": getattr(cve, "cve_fetched_at", now),
+                "fetched_at": (
+                    cve.cve_fetched_at.isoformat()
+                    if hasattr(getattr(cve, "cve_fetched_at", None), "isoformat")
+                    else str(now.isoformat())
+                ),
             })
 
     return matches

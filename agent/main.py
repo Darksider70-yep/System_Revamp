@@ -99,8 +99,9 @@ def poll_and_execute_commands():
             success, result_data, log_output = dispatch_command(cmd_type, params, dry_run=dry_run)
             status_label = "success" if success else "failed"
 
-            # If rescan was requested and succeeded, trigger immediate telemetry collection
-            if cmd_type == "rescan" and success and not dry_run:
+            # If remediation action succeeded, trigger immediate post-remediation scan for verification
+            if success and not dry_run and cmd_type in ("rescan", "enable-device", "scan-drivers", "upgrade-package"):
+                print(f"[AGENT] 🔄 Triggering post-remediation verification telemetry scan for '{cmd_type}'...")
                 scan_and_report()
 
             print(f"[AGENT] ⚙️ Command executed: {status_label.upper()} -> {log_output.strip()[:100]}")

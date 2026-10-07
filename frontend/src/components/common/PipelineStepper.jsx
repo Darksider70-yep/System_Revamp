@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Clock, AlertTriangle } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 export const PipelineStepper = ({
   steps = [
@@ -20,16 +20,16 @@ export const PipelineStepper = ({
         width: '100%',
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 'var(--space-2) var(--space-4)',
+        borderRadius: 'var(--radius-container)', // 14px
+        padding: 'var(--space-3) var(--space-4)',
         gap: 'var(--space-2)',
         overflowX: 'auto',
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
       {steps.map((step, index) => {
         const isCompleted = index < currentStepIndex;
         const isCurrent = index === currentStepIndex;
-        const isUpcoming = index > currentStepIndex;
 
         return (
           <React.Fragment key={step.id}>
@@ -39,19 +39,20 @@ export const PipelineStepper = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-md)',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-input)', // 10px
                 backgroundColor: isCurrent ? 'var(--accent-subtle)' : 'transparent',
                 border: isCurrent ? '1px solid var(--accent-border)' : '1px solid transparent',
                 cursor: onStepClick ? 'pointer' : 'default',
                 whiteSpace: 'nowrap',
                 userSelect: 'none',
+                transition: 'all var(--transition-fast)',
               }}
             >
               <div
                 style={{
-                  width: '20px',
-                  height: '20px',
+                  width: '22px',
+                  height: '22px',
                   borderRadius: 'var(--radius-full)',
                   display: 'flex',
                   alignItems: 'center',
@@ -64,6 +65,7 @@ export const PipelineStepper = ({
                     ? 'var(--accent-primary)'
                     : 'var(--border-default)',
                   color: '#ffffff',
+                  boxShadow: isCurrent ? '0 0 0 2px var(--accent-subtle)' : 'none',
                 }}
               >
                 {isCompleted ? <Check size={12} strokeWidth={3} /> : index + 1}
@@ -89,8 +91,10 @@ export const PipelineStepper = ({
                 style={{
                   flex: 1,
                   minWidth: '16px',
-                  height: '1px',
+                  height: '2px',
+                  borderRadius: 'var(--radius-pill)',
                   backgroundColor: isCompleted ? 'var(--status-ok-solid)' : 'var(--border-subtle)',
+                  transition: 'background-color var(--transition-fast)',
                 }}
               />
             )}

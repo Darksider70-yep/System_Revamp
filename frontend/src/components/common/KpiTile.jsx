@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sparkline } from './Sparkline';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 
 export const KpiTile = ({
   title,
@@ -10,6 +10,7 @@ export const KpiTile = ({
   delta = null,
   deltaType = 'neutral', // 'positive' | 'negative' | 'neutral'
   status = 'default',   // 'default' | 'critical' | 'warning' | 'ok'
+  lineageSource = null,  // Provenance tooltip
   onClick,
   active = false,
 }) => {
@@ -31,38 +32,50 @@ export const KpiTile = ({
       className={`kpi-tile panel ${active ? 'kpi-tile-active' : ''}`}
       onClick={onClick}
       style={{
-        padding: 'var(--space-3) var(--space-4)',
+        padding: 'var(--space-4) var(--space-5)',
         cursor: onClick ? 'pointer' : 'default',
         backgroundColor: 'var(--bg-surface)',
         border: `1px solid ${active ? 'var(--accent-primary)' : borderColor}`,
-        borderRadius: 'var(--radius-lg)',
+        borderRadius: 'var(--radius-card)', // 20px card radius
         display: 'flex',
         flexDirection: 'column',
-        gap: 'var(--space-1)',
-        minWidth: '160px',
+        justifyContent: 'space-between',
+        gap: 'var(--space-2)',
+        minWidth: '180px',
         flex: 1,
+        boxShadow: 'var(--shadow-sm)',
         transition: 'all var(--transition-fast)',
         userSelect: 'none',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span
-          style={{
-            fontSize: 'var(--text-xs)',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          {title}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span
+            style={{
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            {title}
+          </span>
+          {lineageSource && (
+            <span
+              title={`Source: ${lineageSource}`}
+              style={{ cursor: 'help', color: 'var(--text-muted)', display: 'inline-flex' }}
+            >
+              <Info size={11} />
+            </span>
+          )}
+        </div>
         {sparklineData && sparklineData.length > 1 && (
-          <Sparkline data={sparklineData} color={sparkColor} width={48} height={16} />
+          <Sparkline data={sparklineData} color={sparkColor} width={52} height={18} />
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)', marginTop: '2px' }}>
         <span
           className="kpi-value tabular-nums"
           style={{
@@ -70,6 +83,7 @@ export const KpiTile = ({
             fontWeight: 700,
             color: 'var(--text-primary)',
             lineHeight: 1.1,
+            letterSpacing: '-0.02em',
           }}
         >
           {value}
@@ -79,10 +93,18 @@ export const KpiTile = ({
           <span
             style={{
               fontSize: 'var(--text-xs)',
-              fontWeight: 500,
+              fontWeight: 600,
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '2px',
+              gap: '3px',
+              padding: '1px 6px',
+              borderRadius: 'var(--radius-pill)',
+              backgroundColor:
+                deltaType === 'positive'
+                  ? 'var(--status-ok-bg)'
+                  : deltaType === 'negative'
+                  ? 'var(--status-critical-bg)'
+                  : 'var(--status-offline-bg)',
               color:
                 deltaType === 'positive'
                   ? 'var(--status-ok-text)'
@@ -91,9 +113,9 @@ export const KpiTile = ({
                   : 'var(--text-muted)',
             }}
           >
-            {deltaType === 'positive' && <TrendingUp size={12} />}
-            {deltaType === 'negative' && <TrendingDown size={12} />}
-            {deltaType === 'neutral' && <Minus size={12} />}
+            {deltaType === 'positive' && <TrendingUp size={11} strokeWidth={2.5} />}
+            {deltaType === 'negative' && <TrendingDown size={11} strokeWidth={2.5} />}
+            {deltaType === 'neutral' && <Minus size={11} strokeWidth={2.5} />}
             {delta}
           </span>
         )}
@@ -105,7 +127,7 @@ export const KpiTile = ({
           style={{
             fontSize: 'var(--text-xs)',
             color: 'var(--text-muted)',
-            marginTop: '2px',
+            lineHeight: 1.3,
           }}
         >
           {subtitle}

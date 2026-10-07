@@ -1,5 +1,7 @@
 /* ==========================================================================
    System Revamp v2.0 — Design Tokens & Core Theme Stylesheet
+   Part 3 Specification: Soft, smooth, calm, friendly-professional.
+   Zero hard edges. Navy / Cyan / Emerald / Cool Grey palette.
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -15,6 +17,7 @@
   --text-md: 1rem;        /* 16px */
   --text-lg: 1.25rem;     /* 20px */
   --text-xl: 1.75rem;     /* 28px */
+  --text-2xl: 2.25rem;    /* 36px */
 
   /* Spacing Grid (4px Base) */
   --space-1: 4px;
@@ -26,22 +29,42 @@
   --space-8: 32px;
   --space-10: 40px;
 
-  /* Border Radius */
-  --radius-xs: 3px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  /* ==========================================================================
+     GEOMETRY & SOFTNESS TOKENS
+     STRICT RULE: Nothing with 0 radius anywhere in the application.
+     10px (inputs, chips, tags)
+     14px (buttons, table containers)
+     20px (cards, drawers, dialogs, containers)
+     full pill 9999px (badges, toggles, filters)
+     ========================================================================== */
+  --radius-chip: 10px;
+  --radius-input: 10px;
+  --radius-button: 14px;
+  --radius-container: 14px;
+  --radius-card: 20px;
+  --radius-modal: 20px;
+  --radius-drawer: 20px;
+  --radius-pill: 9999px;
+
+  /* Scale Aliases for Backward Compatibility (All > 0px!) */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
   --radius-full: 9999px;
 
-  /* Elevation (Subtle border-focused instead of heavy shadows) */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-drawer: -4px 0 24px rgba(0, 0, 0, 0.12);
+  /* Elevation: Soft, diffuse, low-opacity shadows tinted with navy */
+  --shadow-sm: 0 2px 8px -2px rgba(11, 31, 58, 0.06);
+  --shadow-md: 0 8px 24px -4px rgba(11, 31, 58, 0.08), 0 4px 10px -2px rgba(11, 31, 58, 0.04);
+  --shadow-lg: 0 16px 36px -6px rgba(11, 31, 58, 0.12), 0 8px 16px -4px rgba(11, 31, 58, 0.06);
+  --shadow-drawer: -12px 0 40px rgba(7, 20, 38, 0.16);
+  --shadow-modal: 0 24px 48px -12px rgba(7, 20, 38, 0.22);
 
-  /* Transitions */
+  /* Motion & Transitions: Gentle ease-out 150-220ms */
   --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-normal: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 220ms cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Z-Index Hierarchy */
   --z-base: 0;
@@ -52,163 +75,237 @@
   --z-modal: 500;
   --z-toast: 600;
 
-  /* Table Density Default (Comfortable) */
+  /* Table Density Default (Comfortable 40px) */
   --table-row-height: 40px;
   --table-cell-padding-y: 8px;
-  --table-cell-padding-x: 12px;
+  --table-cell-padding-x: 14px;
+
+  /* Core Palette Reference Constants */
+  /* Navy Blue Family */
+  --navy-950: #071426;
+  --navy-900: #0B1F3A;
+  --navy-800: #12305A;
+  --navy-700: #1B4373;
+  --navy-600: #255896;
+
+  /* Cyan Family (Interactive accent, links, focus, selection) */
+  --cyan-300: #67E8F9;
+  --cyan-400: #22D3EE;
+  --cyan-500: #06B6D4;
+  --cyan-600: #0891B2;
+  --cyan-700: #0E7490;
+
+  /* Emerald Family (Healthy, success, compliant, positive) */
+  --emerald-300: #6EE7B7;
+  --emerald-400: #34D399;
+  --emerald-500: #10B981;
+  --emerald-600: #059669;
+  --emerald-700: #047857;
+
+  /* Cool Slate Grey Scale */
+  --slate-50: #F8FAFC;
+  --slate-100: #F1F5F9;
+  --slate-200: #E2E8F0;
+  --slate-300: #CBD5E1;
+  --slate-400: #94A3B8;
+  --slate-500: #64748B;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1E293B;
+  --slate-900: #0F172A;
+
+  /* Desaturated Warm Tone (strictly for High/Critical risk & destructive confirmation) */
+  --warm-coral-50: #FFF1F2;
+  --warm-coral-100: #FFE4E6;
+  --warm-coral-300: #FDA4AF;
+  --warm-coral-400: #FB7185;
+  --warm-coral-500: #E11D48;
+  --warm-coral-600: #BE123C;
+
+  --warm-amber-50: #FFFBEB;
+  --warm-amber-100: #FEF3C7;
+  --warm-amber-300: #FCD34D;
+  --warm-amber-400: #FBBF24;
+  --warm-amber-500: #D97706;
+  --warm-amber-600: #B45309;
 }
 
 /* ==========================================================================
    LIGHT THEME (Default)
+   Soft grey & white surfaces, navy text and headers, cyan accents
    ========================================================================== */
 :root, [data-theme="light"] {
-  --bg-base: #F8FAFC;
+  --bg-base: #F4F7FA;
   --bg-surface: #FFFFFF;
   --bg-surface-elevated: #FFFFFF;
-  --bg-surface-hover: #F1F5F9;
+  --bg-surface-hover: #EDF2F7;
   --bg-surface-active: #E2E8F0;
   --bg-input: #FFFFFF;
   --bg-code: #F1F5F9;
 
-  --border-subtle: #E2E8F0;
-  --border-default: #CBD5E1;
-  --border-strong: #94A3B8;
+  /* Hairline Tinted Borders (Navy at 8-12% opacity) */
+  --border-subtle: rgba(11, 31, 58, 0.08);
+  --border-default: rgba(11, 31, 58, 0.14);
+  --border-strong: rgba(11, 31, 58, 0.28);
 
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #64748B;
-  --text-disabled: #94A3B8;
+  /* Typography */
+  --text-primary: #0B1F3A;      /* Deep navy for primary headings & text */
+  --text-secondary: #334155;    /* Slate-700 */
+  --text-muted: #64748B;        /* Slate-500 */
+  --text-disabled: #94A3B8;     /* Slate-400 */
   --text-inverse: #FFFFFF;
 
-  /* Interactive Accent (Indigo) */
-  --accent-primary: #4F46E5;
-  --accent-hover: #4338CA;
-  --accent-active: #3730A3;
-  --accent-subtle: #EEF2FF;
-  --accent-border: #C7D2FE;
-  --accent-text: #4338CA;
+  /* Interactive Accent (Cyan / Electric Cyan) */
+  --accent-primary: #0891B2;    /* Cyan-600 (Accessible 4.5:1 on white) */
+  --accent-hover: #06B6D4;      /* Cyan-500 */
+  --accent-active: #0E7490;     /* Cyan-700 */
+  --accent-subtle: rgba(6, 182, 212, 0.08);
+  --accent-border: rgba(6, 182, 212, 0.28);
+  --accent-text: #0891B2;
+
+  /* Brand / Structural Navy (Never signals state!) */
+  --brand-navy-base: #0B1F3A;
+  --brand-navy-surface: #12305A;
+  --brand-navy-hover: #1B4373;
+  --brand-navy-text: #FFFFFF;
 
   /* Semantic Status Scale */
-  /* Critical (Red) */
-  --status-critical-bg: #FEF2F2;
-  --status-critical-border: #FECACA;
-  --status-critical-text: #B91C1C;
-  --status-critical-solid: #DC2626;
+  /* Healthy / Compliant / Online / Low Risk (Emerald) */
+  --status-ok-bg: rgba(16, 185, 129, 0.08);
+  --status-ok-border: rgba(16, 185, 129, 0.25);
+  --status-ok-text: #047857;
+  --status-ok-solid: #10B981;
 
-  /* High (Orange) */
-  --status-high-bg: #FFF7ED;
-  --status-high-border: #FED7AA;
-  --status-high-text: #C2410C;
-  --status-high-solid: #EA580C;
+  /* Active / In-Progress / Info / Medium Risk (Cyan) */
+  --status-info-bg: rgba(6, 182, 212, 0.08);
+  --status-info-border: rgba(6, 182, 212, 0.25);
+  --status-info-text: #0891B2;
+  --status-info-solid: #06B6D4;
 
-  /* Medium (Amber) */
-  --status-medium-bg: #FFFBEB;
-  --status-medium-border: #FDE68A;
-  --status-medium-text: #B45309;
-  --status-medium-solid: #D97706;
+  /* Medium Risk Badge Specifics */
+  --status-medium-bg: rgba(6, 182, 212, 0.08);
+  --status-medium-border: rgba(6, 182, 212, 0.35);
+  --status-medium-text: #0891B2;
+  --status-medium-solid: #06B6D4;
 
-  /* Low / OK (Emerald) */
-  --status-ok-bg: #F0FDF4;
-  --status-ok-border: #BBF7D0;
-  --status-ok-text: #15803D;
-  --status-ok-solid: #16A34A;
+  /* High Risk: Outlined Soft Warm Amber/Coral */
+  --status-high-bg: rgba(217, 119, 6, 0.08);
+  --status-high-border: rgba(217, 119, 6, 0.38);
+  --status-high-text: #B45309;
+  --status-high-solid: #D97706;
 
-  /* Offline / Unknown (Slate Gray) */
-  --status-offline-bg: #F1F5F9;
-  --status-offline-border: #E2E8F0;
-  --status-offline-text: #64748B;
-  --status-offline-solid: #94A3B8;
+  /* Critical Risk / Destructive: Filled Soft Warm Coral/Crimson */
+  --status-critical-bg: #FFE4E6;
+  --status-critical-border: rgba(225, 29, 72, 0.35);
+  --status-critical-text: #9F1239;
+  --status-critical-solid: #E11D48;
 
-  /* Info / Notice (Sky Blue) */
-  --status-info-bg: #F0F9FF;
-  --status-info-border: #BAE6FD;
-  --status-info-text: #0369A1;
-  --status-info-solid: #0284C7;
+  /* Offline / Unknown / Stale (Cool Slate Grey) */
+  --status-offline-bg: rgba(100, 116, 139, 0.08);
+  --status-offline-border: rgba(100, 116, 139, 0.22);
+  --status-offline-text: #475569;
+  --status-offline-solid: #64748B;
 
-  /* Chart Colors */
-  --chart-grid: #E2E8F0;
-  --chart-critical: #DC2626;
-  --chart-high: #EA580C;
-  --chart-medium: #D97706;
-  --chart-ok: #16A34A;
-  --chart-accent: #4F46E5;
+  /* Chart Colors (Strictly Palette-Compliant) */
+  --chart-grid: rgba(11, 31, 58, 0.06);
+  --chart-accent: #0891B2;
+  --chart-ok: #10B981;
+  --chart-medium: #06B6D4;
+  --chart-high: #D97706;
+  --chart-critical: #E11D48;
   --chart-gray: #94A3B8;
 }
 
 /* ==========================================================================
    DARK THEME
+   Deep navy / near-black surfaces, white & slate text, vibrant cyan accents
    ========================================================================== */
 [data-theme="dark"] {
-  --bg-base: #0B0F17;
-  --bg-surface: #111827;
-  --bg-surface-elevated: #1F2937;
-  --bg-surface-hover: #1E293B;
-  --bg-surface-active: #334155;
-  --bg-input: #0F172A;
-  --bg-code: #0F172A;
+  --bg-base: #071426;           /* Navy-950 */
+  --bg-surface: #0B1F3A;        /* Navy-900 */
+  --bg-surface-elevated: #12305A; /* Navy-800 */
+  --bg-surface-hover: #163866;
+  --bg-surface-active: #1B4373; /* Navy-700 */
+  --bg-input: #071426;
+  --bg-code: #071426;
 
-  --border-subtle: #1E293B;
-  --border-default: #334155;
-  --border-strong: #475569;
+  /* Hairline Borders in Dark Theme */
+  --border-subtle: rgba(103, 232, 249, 0.08);
+  --border-default: rgba(103, 232, 249, 0.16);
+  --border-strong: rgba(103, 232, 249, 0.32);
 
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --text-disabled: #475569;
-  --text-inverse: #0F172A;
+  /* Typography */
+  --text-primary: #F8FAFC;      /* Crisp white for clarity */
+  --text-secondary: #C2CCD8;    /* Cool slate */
+  --text-muted: #8896A8;        /* Mid slate */
+  --text-disabled: #5B6B7F;
+  --text-inverse: #071426;
 
-  /* Interactive Accent */
-  --accent-primary: #6366F1;
-  --accent-hover: #818CF8;
-  --accent-active: #4F46E5;
-  --accent-subtle: rgba(99, 102, 241, 0.12);
-  --accent-border: rgba(99, 102, 241, 0.3);
-  --accent-text: #A5B4FC;
+  /* Interactive Accent (Cyan / Electric Cyan) */
+  --accent-primary: #22D3EE;    /* Cyan-400 */
+  --accent-hover: #67E8F9;      /* Cyan-300 */
+  --accent-active: #06B6D4;     /* Cyan-500 */
+  --accent-subtle: rgba(34, 211, 238, 0.12);
+  --accent-border: rgba(34, 211, 238, 0.32);
+  --accent-text: #67E8F9;
+
+  /* Brand / Structural Navy */
+  --brand-navy-base: #071426;
+  --brand-navy-surface: #0B1F3A;
+  --brand-navy-hover: #12305A;
+  --brand-navy-text: #F8FAFC;
 
   /* Semantic Status Scale */
-  /* Critical (Red) */
-  --status-critical-bg: rgba(220, 38, 38, 0.12);
-  --status-critical-border: rgba(239, 68, 68, 0.3);
-  --status-critical-text: #FCA5A5;
-  --status-critical-solid: #EF4444;
+  /* Healthy / Compliant / Online / Low Risk (Emerald) */
+  --status-ok-bg: rgba(16, 185, 129, 0.14);
+  --status-ok-border: rgba(52, 211, 153, 0.35);
+  --status-ok-text: #6EE7B7;
+  --status-ok-solid: #34D399;
 
-  /* High (Orange) */
-  --status-high-bg: rgba(234, 88, 12, 0.12);
-  --status-high-border: rgba(249, 115, 22, 0.3);
-  --status-high-text: #FDBA74;
-  --status-high-solid: #F97316;
+  /* Active / In-Progress / Info / Medium Risk (Cyan) */
+  --status-info-bg: rgba(6, 182, 212, 0.14);
+  --status-info-border: rgba(34, 211, 238, 0.35);
+  --status-info-text: #67E8F9;
+  --status-info-solid: #22D3EE;
 
-  /* Medium (Amber) */
-  --status-medium-bg: rgba(217, 119, 6, 0.12);
-  --status-medium-border: rgba(245, 158, 11, 0.3);
-  --status-medium-text: #FDE047;
-  --status-medium-solid: #F59E0B;
+  /* Medium Risk Badge Specifics */
+  --status-medium-bg: rgba(6, 182, 212, 0.14);
+  --status-medium-border: rgba(34, 211, 238, 0.38);
+  --status-medium-text: #67E8F9;
+  --status-medium-solid: #22D3EE;
 
-  /* Low / OK (Emerald) */
-  --status-ok-bg: rgba(22, 163, 74, 0.12);
-  --status-ok-border: rgba(34, 197, 94, 0.3);
-  --status-ok-text: #86EFAC;
-  --status-ok-solid: #22C55E;
+  /* High Risk: Outlined Soft Warm Amber/Coral */
+  --status-high-bg: rgba(251, 191, 36, 0.12);
+  --status-high-border: rgba(251, 191, 36, 0.45);
+  --status-high-text: #FCD34D;
+  --status-high-solid: #FBBF24;
 
-  /* Offline / Unknown */
-  --status-offline-bg: rgba(148, 163, 184, 0.1);
-  --status-offline-border: rgba(148, 163, 184, 0.2);
+  /* Critical Risk: Filled Soft Warm Coral/Crimson */
+  --status-critical-bg: rgba(225, 29, 72, 0.22);
+  --status-critical-border: rgba(251, 113, 133, 0.5);
+  --status-critical-text: #FDA4AF;
+  --status-critical-solid: #FB7185;
+
+  /* Offline / Unknown / Stale (Cool Slate Grey) */
+  --status-offline-bg: rgba(148, 163, 184, 0.12);
+  --status-offline-border: rgba(148, 163, 184, 0.25);
   --status-offline-text: #94A3B8;
   --status-offline-solid: #64748B;
 
-  /* Info / Notice */
-  --status-info-bg: rgba(2, 132, 199, 0.12);
-  --status-info-border: rgba(56, 189, 248, 0.3);
-  --status-info-text: #7DD3FC;
-  --status-info-solid: #38BDF8;
+  /* Diffuse Shadows in Dark Theme (tinted navy-black) */
+  --shadow-sm: 0 2px 8px -2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.45), 0 4px 10px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 36px -6px rgba(0, 0, 0, 0.6), 0 8px 16px -4px rgba(0, 0, 0, 0.4);
+  --shadow-drawer: -12px 0 40px rgba(0, 0, 0, 0.65);
+  --shadow-modal: 0 24px 48px -12px rgba(0, 0, 0, 0.75);
 
-  /* Chart Colors */
-  --chart-grid: #1E293B;
-  --chart-critical: #EF4444;
-  --chart-high: #F97316;
-  --chart-medium: #F59E0B;
-  --chart-ok: #22C55E;
-  --chart-accent: #6366F1;
+  /* Chart Colors (Strictly Palette-Compliant) */
+  --chart-grid: rgba(103, 232, 249, 0.08);
+  --chart-accent: #22D3EE;
+  --chart-ok: #34D399;
+  --chart-medium: #22D3EE;
+  --chart-high: #FBBF24;
+  --chart-critical: #FB7185;
   --chart-gray: #64748B;
 }
 
@@ -218,9 +315,9 @@
 [data-density="compact"] {
   --table-row-height: 32px;
   --table-cell-padding-y: 4px;
-  --table-cell-padding-x: 8px;
-  --text-base: 0.8125rem; /* 13px */
-  --text-sm: 0.75rem;    /* 12px */
+  --table-cell-padding-x: 10px;
+  --text-base: 0.8125rem;
+  --text-sm: 0.75rem;
   --space-4: 12px;
   --space-6: 18px;
 }
@@ -228,7 +325,7 @@
 [data-density="comfortable"] {
   --table-row-height: 40px;
   --table-cell-padding-y: 8px;
-  --table-cell-padding-x: 12px;
+  --table-cell-padding-x: 14px;
 }
 
 /* ==========================================================================
@@ -267,14 +364,14 @@ html, body {
   height: 100%;
   font-family: var(--font-sans);
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--text-primary);
   background-color: var(--bg-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Tabular Numbers for all metrics and tables */
+/* Tabular Numbers for all metrics, IPs, versions, and tables */
 table, .tabular-nums, .kpi-value, .metric, code, pre {
   font-variant-numeric: tabular-nums;
 }
@@ -283,10 +380,11 @@ code, pre, .font-mono {
   font-family: var(--font-mono);
 }
 
-/* Focus Rings for WCAG AA Accessibility */
+/* Focus Rings: Soft Cyan Pill Focus (WCAG AA Compliant) */
 :focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
+  border-radius: var(--radius-chip);
 }
 
 button, input, select, textarea {

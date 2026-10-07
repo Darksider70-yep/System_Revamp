@@ -423,3 +423,319 @@ def list_audit_logs(
         }
         for l in logs
     ]
+
+
+# --- Fleet-Wide Aggregation & Reports ---
+
+@router.get("/fleet/software")
+def get_fleet_software(
+    risk_filter: Optional[str] = None,
+    user: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Aggregates all installed software packages across the fleet."""
+    query = db.query(DeviceSoftware, Device).join(Device, DeviceSoftware.device_id == Device.id).join(Lab, Device.lab_id == Lab.id).join(Site, Lab.site_id == Site.id)
+    if user.role != "SuperAdmin":
+        query = query.filter(Site.org_id == user.org_id)
+
+    if risk_filter and risk_filter.lower() != "all":
+        query = query.filter(DeviceSoftware.risk_level.ilike(risk_filter))
+
+    records = query.all()
+
+    # Group by app_name
+    grouped = {}
+    for sw, dev in records:
+        key = sw.app_name.strip()
+        if key not in grouped:
+            grouped[key] = {
+                "name": key,
+                "publisher": sw.publisher or "Unknown",
+                "latest_version": sw.latest_version or "Unknown",
+                "risk_level": sw.risk_level,
+                "version_source": getattr(sw, "version_source", "unknown") or "unknown",
+                "version_fetched_at": getattr(sw, "version_fetched_at", None),
+                "is_stale": getattr(sw, "is_stale", False),
+                "installed_versions": set(),
+                "affected_devices": set(),
+                "device_ids": set(),
+            }
+        grouped[key]["installed_versions"].add(sw.version or "Unknown")
+        grouped[key]["affected_devices"].add(dev.hostname)
+        grouped[key]["device_ids"].add(dev.id)
+
+        # Escalate risk level if any instance is higher
+        rank = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+        cur_rank = rank.get(str(grouped[key]["risk_level"]).upper(), 0)
+        new_rank = rank.get(str(sw.risk_level).upper(), 0)
+        if new_rank > cur_rank:
+            grouped[key]["risk_level"] = sw.risk_level
+
+    # Format result list
+    result = []
+    for key, data in grouped.items():
+        sorted_versions = sorted(list(data["installed_versions"]))
+        result.append({
+            "id": f"fleet-sw-{abs(hash(key)) % 100000}",
+            "name": data["name"],
+            "publisher": data["publisher"],
+            "installed_version": sorted_versions[0] if sorted_versions else "Unknown",
+            "installed_versions": sorted_versions,
+            "latest_version": data["latest_version"],
+            "risk_level": data["risk_level"],
+            "device_count": len(data["affected_devices"]),
+            "affected_devices": sorted(list(data["affected_devices"])),
+            "device_ids": sorted(list(data["device_ids"])),
+            "version_source": data["version_source"],
+            "version_fetched_at": data["version_fetched_at"].isoformat() if hasattr(data["version_fetched_at"], "isoformat") else None,
+            "is_stale": data["is_stale"],
+        })
+
+    # Sort by risk priority
+    risk_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    result.sort(key=lambda x: (risk_order.get(str(x["risk_level"]).upper(), 99), -x["device_count"]))
+    return result
+
+
+@router.get("/fleet/drivers")
+def get_fleet_drivers(
+    errors_only: bool = True,
+    user: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Aggregates all PnP hardware drivers across the fleet."""
+    query = db.query(DeviceDriver, Device).join(Device, DeviceDriver.device_id == Device.id).join(Lab, Device.lab_id == Lab.id).join(Site, Lab.site_id == Site.id)
+    if user.role != "SuperAdmin":
+        query = query.filter(Site.org_id == user.org_id)
+
+    if errors_only:
+        query = query.filter(DeviceDriver.error_code > 0)
+
+    records = query.all()
+
+    grouped = {}
+    for drv, dev in records:
+        key = f"{drv.device_name.strip()}::{drv.error_code}"
+        if key not in grouped:
+            grouped[key] = {
+                "id": f"fleet-drv-{drv.id}",
+                "device_name": drv.device_name,
+                "manufacturer": drv.manufacturer or "Generic / Standard",
+                "error_code": drv.error_code,
+                "status": drv.status,
+                "impact": drv.impact or "Unclassified",
+                "risk_score": drv.risk_score,
+                "reason": drv.reason,
+                "device_class_guid": getattr(drv, "device_class_guid", "") or "",
+                "source": getattr(drv, "source", "pnp_entity") or "pnp_entity",
+                "is_stale": getattr(drv, "is_stale", False),
+                "affected_devices": set(),
+                "device_ids": set(),
+            }
+        grouped[key]["affected_devices"].add(dev.hostname)
+        grouped[key]["device_ids"].add(dev.id)
+
+    result = []
+    for key, data in grouped.items():
+        result.append({
+            "id": data["id"],
+            "device_name": data["device_name"],
+            "manufacturer": data["manufacturer"],
+            "error_code": data["error_code"],
+            "status": data["status"],
+            "impact": data["impact"],
+            "risk_score": data["risk_score"],
+            "reason": data["reason"],
+            "device_class_guid": data["device_class_guid"],
+            "source": data["source"],
+            "is_stale": data["is_stale"],
+            "device_count": len(data["affected_devices"]),
+            "affected_devices": sorted(list(data["affected_devices"])),
+            "device_ids": sorted(list(data["device_ids"])),
+        })
+
+    result.sort(key=lambda x: (-x["device_count"], -x["risk_score"]))
+    return result
+
+
+@router.get("/hierarchy")
+def get_hierarchy(
+    user: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Returns organizational hierarchy tree for labs, campuses, and devices."""
+    org_query = db.query(Organization)
+    if user.role != "SuperAdmin":
+        org_query = org_query.filter(Organization.id == user.org_id)
+
+    orgs = org_query.all()
+    tree = []
+    for org in orgs:
+        org_data = {
+            "id": org.id,
+            "name": org.name,
+            "sites": [],
+        }
+        sites = db.query(Site).filter(Site.org_id == org.id).all()
+        for site in sites:
+            site_data = {
+                "id": site.id,
+                "name": site.name,
+                "location": site.location,
+                "labs": [],
+            }
+            labs = db.query(Lab).filter(Lab.site_id == site.id).all()
+            for lab in labs:
+                dev_count = db.query(Device).filter(Device.lab_id == lab.id).count()
+                online_count = db.query(Device).filter(Device.lab_id == lab.id, Device.is_online == True).count()
+                site_data["labs"].append({
+                    "id": lab.id,
+                    "name": lab.name,
+                    "network_subnet": lab.network_subnet or "",
+                    "device_count": dev_count,
+                    "online_count": online_count,
+                })
+            org_data["sites"].append(site_data)
+        tree.append(org_data)
+    return tree
+
+
+@router.get("/reports/compliance")
+def get_compliance_report(
+    user: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Computes real compliance posture statistics and device audits."""
+    query = db.query(Device).join(Lab).join(Site)
+    if user.role != "SuperAdmin":
+        query = query.filter(Site.org_id == user.org_id)
+
+    devices = query.all()
+    total_devices = len(devices)
+
+    critical_count = 0
+    high_count = 0
+    medium_count = 0
+    clean_count = 0
+
+    device_summaries = []
+    for d in devices:
+        crit_sw = db.query(DeviceSoftware).filter(DeviceSoftware.device_id == d.id, DeviceSoftware.risk_level == "Critical").all()
+        high_sw = db.query(DeviceSoftware).filter(DeviceSoftware.device_id == d.id, DeviceSoftware.risk_level == "High").all()
+        med_sw = db.query(DeviceSoftware).filter(DeviceSoftware.device_id == d.id, DeviceSoftware.risk_level == "Medium").all()
+        err_drv = db.query(DeviceDriver).filter(DeviceDriver.device_id == d.id, DeviceDriver.error_code > 0).all()
+
+        if crit_sw:
+            overall_risk = "CRITICAL"
+            critical_count += 1
+        elif high_sw:
+            overall_risk = "HIGH"
+            high_count += 1
+        elif med_sw or err_drv:
+            overall_risk = "MEDIUM"
+            medium_count += 1
+        else:
+            overall_risk = "LOW"
+            clean_count += 1
+
+        device_summaries.append({
+            "id": d.id,
+            "hostname": d.hostname,
+            "lab": d.lab.name if d.lab else "Unassigned",
+            "os": f"{d.os_name} {d.os_version}".strip(),
+            "overall_risk": overall_risk,
+            "critical_software_count": len(crit_sw),
+            "high_software_count": len(high_sw),
+            "driver_issue_count": len(err_drv),
+            "outdated_apps": [f"{s.app_name} ({s.version})" for s in (crit_sw + high_sw)[:3]],
+            "driver_issues": [f"{drv.device_name} (Code {drv.error_code})" for drv in err_drv[:2]],
+            "last_heartbeat": d.last_heartbeat.isoformat() if hasattr(d.last_heartbeat, "isoformat") else None,
+            "is_online": d.is_online,
+        })
+
+    compliance_percent = round((clean_count / total_devices * 100), 1) if total_devices > 0 else None
+
+    return {
+        "generated_at": datetime.datetime.utcnow().isoformat(),
+        "total_devices": total_devices,
+        "compliance_percent": compliance_percent,
+        "breakdown": {
+            "critical": critical_count,
+            "high": high_count,
+            "medium": medium_count,
+            "clean": clean_count,
+        },
+        "devices": device_summaries,
+    }
+
+
+@router.get("/reports/export")
+def export_report_csv(
+    report_type: str = "compliance",
+    user: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Exports live compliance, software, or driver fleet data as a genuine CSV download."""
+    import csv
+    import io
+    from fastapi.responses import Response
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if report_type == "software":
+        sw_list = get_fleet_software(risk_filter="all", user=user, db=db)
+        writer.writerow(["Application", "Publisher", "Installed Version", "Latest Version", "Risk Level", "Device Count", "Affected Hostnames", "Version Source"])
+        for sw in sw_list:
+            writer.writerow([
+                sw["name"],
+                sw["publisher"],
+                sw["installed_version"],
+                sw["latest_version"],
+                sw["risk_level"],
+                sw["device_count"],
+                "; ".join(sw["affected_devices"]),
+                sw["version_source"],
+            ])
+        filename = f"SystemRevamp_Fleet_Software_{datetime.date.today().isoformat()}.csv"
+    elif report_type == "drivers":
+        drv_list = get_fleet_drivers(errors_only=False, user=user, db=db)
+        writer.writerow(["Hardware Device", "Manufacturer", "Status", "Error Code", "Impact", "Risk Score", "Device Count", "Affected Hostnames"])
+        for drv in drv_list:
+            writer.writerow([
+                drv["device_name"],
+                drv["manufacturer"],
+                drv["status"],
+                drv["error_code"],
+                drv["impact"],
+                drv["risk_score"],
+                drv["device_count"],
+                "; ".join(drv["affected_devices"]),
+            ])
+        filename = f"SystemRevamp_Fleet_Drivers_{datetime.date.today().isoformat()}.csv"
+    else:
+        # Default compliance summary
+        rep = get_compliance_report(user=user, db=db)
+        writer.writerow(["Hostname", "Lab", "Operating System", "Overall Risk", "Critical Software Count", "High Software Count", "Driver Issues Count", "Outdated Apps Summary", "Driver Issues Summary", "Online", "Last Heartbeat"])
+        for d in rep["devices"]:
+            writer.writerow([
+                d["hostname"],
+                d["lab"],
+                d["os"],
+                d["overall_risk"],
+                d["critical_software_count"],
+                d["high_software_count"],
+                d["driver_issue_count"],
+                "; ".join(d["outdated_apps"]),
+                "; ".join(d["driver_issues"]),
+                d["is_online"],
+                d["last_heartbeat"] or "Never",
+            ])
+        filename = f"SystemRevamp_Compliance_Report_{datetime.date.today().isoformat()}.csv"
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+

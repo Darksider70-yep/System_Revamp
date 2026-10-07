@@ -1,7 +1,32 @@
 import os
 import platform
 import subprocess
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+
+COMMON_WINGET_MAPPINGS: Dict[str, str] = {
+    "google chrome": "Google.Chrome",
+    "git": "Git.Git",
+    "visual studio code": "Microsoft.VisualStudioCode",
+    "python": "Python.Python.3",
+    "node.js": "OpenJS.NodeJS",
+    "nodejs": "OpenJS.NodeJS",
+    "vlc media player": "VideoLAN.VLC",
+    "7-zip": "7zip.7zip",
+    "zoom": "Zoom.Zoom",
+    "docker desktop": "Docker.DockerDesktop",
+    "postman": "Postman.Postman",
+    "dbeaver": "dbeaver.dbeaver",
+    "notepad++": "Notepad++.Notepad++",
+    "mozilla firefox": "Mozilla.Firefox",
+}
+
+
+def _resolve_winget_id(app_name: str) -> Optional[str]:
+    norm = app_name.lower()
+    for k, v in COMMON_WINGET_MAPPINGS.items():
+        if k in norm:
+            return v
+    return None
 
 
 def scan_windows_registry() -> List[Dict[str, Any]]:
@@ -45,6 +70,7 @@ def scan_windows_registry() -> List[Dict[str, Any]]:
                                     "version": version,
                                     "publisher": publisher,
                                     "install_path": install_location or display_icon,
+                                    "winget_id": _resolve_winget_id(name),
                                 }
                     except OSError:
                         continue
