@@ -17,11 +17,12 @@
 
 ## Overview
 
-**System Revamp v2.0** is an enterprise-grade endpoint intelligence, hardware driver diagnostics, and automated software vulnerability platform designed for university computer labs and bulk enterprise workstation fleets.
+**System Revamp v2.0** is an enterprise-grade endpoint intelligence, hardware driver diagnostics, and automated software vulnerability platform designed for university computer labs, academic workstations, and large enterprise workstation fleets.
 
 ### Core Principles:
 1. **Zero Fake or Hardcoded Data**: Every metric, row, status, version, CVE, driver, and hash on screen originates from live agent telemetry, the database, or real upstream connectors (OSV.dev, NVD 2.0, endoflife.date, PyPI). Honest empty states are presented whenever telemetry has not yet been collected.
 2. **Soft, Fluid Human-Centric UI**: Built on an authoritative CSS token system (`tokens.css`) with zero hard edges (`border-radius > 0` on every element), a unified Navy / Slate / Cyan / Emerald palette, diffuse shadows, and Lucide React icons (zero emojis).
+3. **Outbound-Only Endpoint Design**: Managed workstations never expose listening network ports. Telemetry and heartbeat reports are transmitted outbound over TLS, with local SQLite buffering during network outages.
 
 ### Architecture Components:
 - **Endpoint Agent (`agent/`)**: Lightweight background daemon (Windows Service / Linux systemd). Uses outbound-only communication (no open listening network ports). Buffers reports in local SQLite queue during network partitions.
@@ -108,13 +109,26 @@ npm run build
 
 ---
 
-## In-Depth Documentation
+## Authoritative Documentation Suite
 
-- [**Data Lineage & Provenance Specification**](docs/DATA_LINEAGE.md): End-to-end mapping from Agent collectors through DB tables to Console UI widgets.
-- [**Design System Specification**](docs/DESIGN.md): Authoritative design token hierarchy, color palette, zero-hard-edge rules, and typography.
-- [**Hardcoded Audit & Remediation Log**](docs/HARDCODED_AUDIT.md): Comprehensive itemized log of all purged placeholder data.
-- [**Architecture & System Design**](docs/architecture.md): Topology, communication protocols, and sequence diagrams.
-- [**Threat Model & Security**](docs/THREAT_MODEL.md): Attack vectors, rogue agent assumptions, and HMAC mitigations.
+The complete technical and architectural documentation library is organized under [`docs/`](docs/README.md):
+
+| Document | Description |
+|---|---|
+| [**Documentation Portal & Sitemap**](docs/README.md) | Complete documentation index, visual sitemap, and topic overview. |
+| [**Architecture Blueprint**](docs/architecture.md) | Enterprise topology, agent queue state machine, database ER diagram, and sizing metrics. |
+| [**API Reference**](docs/api_reference.md) | Authoritative REST & streaming SSE API documentation with full request/response schemas. |
+| [**Production Setup & Installation**](docs/setup_and_installation.md) | Production server deployment (systemd / Nginx / TLS), database setup, and agent guides. |
+| [**Enterprise Bulk Deployment**](docs/ENTERPRISE_DEPLOYMENT_GPO.md) | Active Directory GPO startup scripts, Microsoft Intune Win32 apps, SCCM, and Ansible. |
+| [**Operations & Maintenance Runbook**](docs/OPERATIONS_AND_RUNBOOK.md) | Daily health checks, hot SQLite backups (`VACUUM INTO`), log rotation, and incident playbooks. |
+| [**PnP Driver & Protection Engine**](docs/driver_and_protection_engine.md) | Windows CIM diagnostics, Microsoft Setup Class GUIDs, problem error codes, and Authenticode. |
+| [**Air-Gapped Sync & Staged Remediation**](docs/offline_and_remediation.md) | Signed intelligence bundles, LAN installer cache, dry-run previews, and HMAC signing. |
+| [**STRIDE Threat Model & Security**](docs/THREAT_MODEL.md) | STRIDE analysis, adversary personas, cryptographic key hierarchy, and mitigations. |
+| [**Compliance & Standards Mapping**](docs/COMPLIANCE_AND_AUDITING.md) | Mapping crosswalk to NIST SP 800-53 Rev. 5, CIS Controls v8, ISO/IEC 27001, and CSV auditing. |
+| [**Data Lineage & Provenance Specification**](docs/DATA_LINEAGE.md) | Field-by-field lineage mapping from agent collectors through DB tables to Admin Console widgets. |
+| [**Design System Specification**](docs/DESIGN.md) | Authoritative CSS token hierarchy (`tokens.css`), color palette, zero-hard-edge rules, and typography. |
+| [**Hardcoded Audit & Remediation Log**](docs/HARDCODED_AUDIT.md) | Comprehensive itemized log of all purged placeholder data and mock keywords. |
+| [**v1.0 $\rightarrow$ v2.0 Migration Guide**](MIGRATION.md) | Architectural evolution from legacy multi-service model to consolidated fleet platform. |
 
 ---
 
