@@ -310,18 +310,31 @@ def list_devices(
     res = []
     for d in devices:
         crit_count = db.query(DeviceSoftware).filter(DeviceSoftware.device_id == d.id, DeviceSoftware.risk_level == "Critical").count()
+        high_count = db.query(DeviceSoftware).filter(DeviceSoftware.device_id == d.id, DeviceSoftware.risk_level == "High").count()
+        med_count = db.query(DeviceSoftware).filter(DeviceSoftware.device_id == d.id, DeviceSoftware.risk_level == "Medium").count()
         driver_issue_count = db.query(DeviceDriver).filter(DeviceDriver.device_id == d.id, DeviceDriver.error_code > 0).count()
+        outdated_count = crit_count + high_count + med_count
+        overall_risk = "CRITICAL" if crit_count > 0 else ("HIGH" if high_count > 0 else ("MEDIUM" if med_count > 0 else "LOW"))
+
         res.append({
             "id": d.id,
+            "device_id": d.id,
             "hostname": d.hostname,
             "os_name": d.os_name,
             "os_version": d.os_version,
+            "os_info": f"{d.os_name} {d.os_version}".strip(),
             "ip_address": d.ip_address,
             "is_online": d.is_online,
+            "status": "online" if d.is_online else "offline",
             "last_heartbeat": d.last_heartbeat,
+            "last_seen": d.last_heartbeat,
+            "lab_id": d.lab_id,
             "lab_name": d.lab.name if d.lab else "Unassigned",
             "critical_risks": crit_count,
+            "risk_level": overall_risk,
+            "outdated_count": outdated_count,
             "driver_issues": driver_issue_count,
+            "driver_issues_count": driver_issue_count,
         })
     return res
 
