@@ -46,7 +46,8 @@ def enroll_agent(request: AgentEnrollRequest, db: Session = Depends(get_db)):
             detail="Invalid or revoked enrollment token",
         )
 
-    if datetime.datetime.utcnow() > enroll_token.expires_at:
+    expires_at = enroll_token.expires_at.replace(tzinfo=datetime.timezone.utc) if enroll_token.expires_at.tzinfo is None else enroll_token.expires_at
+    if datetime.datetime.now(datetime.timezone.utc) > expires_at:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Enrollment token has expired",
@@ -108,7 +109,7 @@ def enroll_agent(request: AgentEnrollRequest, db: Session = Depends(get_db)):
         org_id=enroll_token.org_id,
         lab_id=target_lab_id,
         poll_interval_seconds=300,
-        server_time=datetime.datetime.utcnow(),
+        server_time=datetime.datetime.now(datetime.timezone.utc),
     )
 
 
@@ -122,7 +123,7 @@ def agent_heartbeat(
         raise HTTPException(status_code=403, detail="Device ID mismatch with token")
 
     device.is_online = True
-    device.last_heartbeat = datetime.datetime.utcnow()
+    device.last_heartbeat = datetime.datetime.now(datetime.timezone.utc)
     if request.ip_address:
         device.ip_address = request.ip_address
     if request.uptime_seconds:
@@ -131,7 +132,7 @@ def agent_heartbeat(
         device.disk_free_gb = request.disk_free_gb
 
     db.commit()
-    return {"status": "ok", "timestamp": datetime.datetime.utcnow()}
+    return {"status": "ok", "timestamp": datetime.datetime.now(datetime.timezone.utc)}
 
 
 @router.post("/telemetry", response_model=TelemetryIngestResponse)
@@ -144,7 +145,7 @@ def ingest_telemetry(
         raise HTTPException(status_code=403, detail="Device ID mismatch with token")
 
     device.is_online = True
-    device.last_heartbeat = datetime.datetime.utcnow()
+    device.last_heartbeat = datetime.datetime.now(datetime.timezone.utc)
 
     # Update system metrics if present
     if report.system_metrics:
@@ -160,7 +161,7 @@ def ingest_telemetry(
     db.query(DeviceDriver).filter(DeviceDriver.device_id == device.id).delete()
 
     critical_risks_count = 0
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     # Ingest and classify software
     for sw in report.software:
@@ -255,7 +256,7 @@ def poll_commands(
     db: Session = Depends(get_db),
 ):
     # Find approved / pending commands targeted at this device, its lab, or its org
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     commands = db.query(Command).filter(
         Command.status == "approved",
         (
@@ -298,7 +299,7 @@ def submit_command_result(
         raise HTTPException(status_code=404, detail="Command not found")
 
     cmd.status = submission.status
-    cmd.completed_at = datetime.datetime.utcnow()
+    cmd.completed_at = datetime.datetime.now(datetime.timezone.utc)
     cmd.result_json = json.dumps({
         "device_id": device.id,
         "hostname": device.hostname,

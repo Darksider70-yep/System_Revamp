@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { KpiTile } from '../common/KpiTile';
 import { RiskBadge } from '../common/StatusBadge';
 import { EmptyState } from '../common/EmptyState';
@@ -24,7 +24,7 @@ export const OverviewView = ({ onNavigate }) => {
   const [activityLogs, setActivityLogs] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchOverview = async () => {
+  const fetchOverview = useCallback(async () => {
     try {
       const [ov, devs, labsData, logs] = await Promise.all([
         api.getFleetOverview().catch(() => null),
@@ -43,14 +43,14 @@ export const OverviewView = ({ onNavigate }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [scope.labId, scope.siteId]);
 
   useEffect(() => {
     setLoading(true);
     fetchOverview();
     const interval = setInterval(fetchOverview, 15000);
     return () => clearInterval(interval);
-  }, [scope.labId, scope.siteId]);
+  }, [fetchOverview]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -61,8 +61,6 @@ export const OverviewView = ({ onNavigate }) => {
   const totalDevices = devices.length;
   const onlineDevices = devices.filter((d) => d.status === 'online').length;
   const criticalDevices = devices.filter((d) => (d.risk_level || '').toUpperCase() === 'CRITICAL').length;
-  const highDevices = devices.filter((d) => (d.risk_level || '').toUpperCase() === 'HIGH').length;
-  const mediumDevices = devices.filter((d) => (d.risk_level || '').toUpperCase() === 'MEDIUM').length;
   const compliantDevices = devices.filter((d) => (d.risk_level || 'LOW').toUpperCase() === 'LOW').length;
   const compliantPercent = totalDevices > 0 ? ((compliantDevices / totalDevices) * 100).toFixed(1) : '100.0';
   const offline24h = devices.filter((d) => {

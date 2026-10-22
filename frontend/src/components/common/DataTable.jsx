@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TableSkeleton } from './Skeleton';
 import { EmptyState } from './EmptyState';
 

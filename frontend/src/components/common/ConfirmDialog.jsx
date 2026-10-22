@@ -1,6 +1,5 @@
 import React from 'react';
 import { AlertTriangle, ShieldCheck, X } from 'lucide-react';
-import { CodeBlock } from './CodeBlock';
 
 export const ConfirmDialog = ({
   isOpen,

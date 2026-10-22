@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DataTable } from '../common/DataTable';
 import { StatusBadge, RiskBadge } from '../common/StatusBadge';
 import { CodeBlock } from '../common/CodeBlock';
@@ -29,7 +29,7 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
   const [pendingCommand, setPendingCommand] = useState(null);
   const [executing, setExecuting] = useState(false);
 
-  const fetchDetail = async () => {
+  const fetchDetail = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.getDeviceDetail(deviceId);
@@ -39,11 +39,11 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [deviceId]);
 
   useEffect(() => {
     if (deviceId) fetchDetail();
-  }, [deviceId]);
+  }, [deviceId, fetchDetail]);
 
   const handleQueueSingleRemediation = (pkg) => {
     setPendingCommand({

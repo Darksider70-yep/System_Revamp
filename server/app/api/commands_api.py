@@ -115,7 +115,7 @@ def approve_command(
         cmd.approved_by = user.email
     else:
         cmd.status = "rejected"
-        cmd.completed_at = datetime.datetime.utcnow()
+        cmd.completed_at = datetime.datetime.now(datetime.timezone.utc)
 
     db.add(
         AuditLog(

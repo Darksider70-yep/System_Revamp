@@ -234,7 +234,7 @@ def sync_and_check_app_vulnerabilities(
     4. Returns matches for the application.
     """
     norm_name = app_name.strip().lower()
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     # Query existing entries in DB
     existing = (

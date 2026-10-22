@@ -254,7 +254,7 @@ class FleetOverview(BaseModel):
     top_missing_drivers: List[Dict[str, Any]]
     threats_flagged: int
     source: str = "fleet_telemetry"
-    fetched_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
+    fetched_at: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc))
     stale: bool = False
     status_message: Optional[str] = None
 

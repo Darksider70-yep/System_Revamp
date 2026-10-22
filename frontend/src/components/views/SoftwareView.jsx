@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { DataTable } from '../common/DataTable';
 import { FilterBar } from '../common/FilterBar';
 import { RiskBadge } from '../common/StatusBadge';
@@ -16,7 +16,7 @@ export const SoftwareView = ({ onRemediateApp }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchSoftware = async () => {
+  const fetchSoftware = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -28,11 +28,11 @@ export const SoftwareView = ({ onRemediateApp }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [riskFilter]);
 
   useEffect(() => {
     fetchSoftware();
-  }, [riskFilter]);
+  }, [fetchSoftware]);
 
   const filteredApps = useMemo(() => {
     const q = (search || globalSearch).toLowerCase().trim();

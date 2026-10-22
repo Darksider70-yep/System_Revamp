@@ -59,7 +59,7 @@ def get_threats_overview(
         "flagged_threats": flagged,
         "vt_api_configured": vt_configured,
         "source": "virustotal_api" if vt_configured else "local_catalog",
-        "fetched_at": datetime.datetime.utcnow(),
+        "fetched_at": datetime.datetime.now(datetime.timezone.utc),
         "status_message": status_msg,
     }
 

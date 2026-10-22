@@ -13,6 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from server.app.core.database import Base
+from server.app.core.time_utils import utc_now
 
 
 def generate_uuid() -> str:
@@ -24,7 +25,7 @@ class Organization(Base):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False, unique=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     sites = relationship("Site", back_populates="organization", cascade="all, delete-orphan")
     users = relationship("AdminUser", back_populates="organization", cascade="all, delete-orphan")
@@ -40,7 +41,7 @@ class Site(Base):
     org_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     location = Column(String(255), default="")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     organization = relationship("Organization", back_populates="sites")
     labs = relationship("Lab", back_populates="site", cascade="all, delete-orphan")
@@ -53,7 +54,7 @@ class Lab(Base):
     site_id = Column(String(36), ForeignKey("sites.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     network_subnet = Column(String(64), default="")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     site = relationship("Site", back_populates="labs")
     device_groups = relationship("DeviceGroup", back_populates="lab", cascade="all, delete-orphan")
@@ -68,7 +69,7 @@ class DeviceGroup(Base):
     lab_id = Column(String(36), ForeignKey("labs.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     policy_id = Column(String(64), default="default")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     lab = relationship("Lab", back_populates="device_groups")
     devices = relationship("Device", back_populates="device_group")
@@ -91,7 +92,7 @@ class Device(Base):
     device_token_hash = Column(String(255), nullable=False, index=True)
     is_enrolled = Column(Boolean, default=True)
     is_online = Column(Boolean, default=False)
-    last_heartbeat = Column(DateTime, default=datetime.datetime.utcnow)
+    last_heartbeat = Column(DateTime, default=utc_now)
     agent_version = Column(String(32), default="2.0.0")
     
     # System summary metrics
@@ -102,8 +103,8 @@ class Device(Base):
     disk_free_gb = Column(Float, default=0.0)
     uptime_seconds = Column(Integer, default=0)
 
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     lab = relationship("Lab", back_populates="devices")
     device_group = relationship("DeviceGroup", back_populates="devices")
@@ -126,7 +127,7 @@ class EnrollmentToken(Base):
     max_uses = Column(Integer, default=100)
     used_count = Column(Integer, default=0)
     is_revoked = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     organization = relationship("Organization", back_populates="enrollment_tokens")
     lab = relationship("Lab", back_populates="enrollment_tokens")
@@ -144,7 +145,7 @@ class AdminUser(Base):
     totp_secret = Column(String(64), nullable=True)
     totp_enabled = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     organization = relationship("Organization", back_populates="users")
 
@@ -159,7 +160,7 @@ class ScanSnapshot(Base):
     driver_issues_count = Column(Integer, default=0)
     critical_risks_count = Column(Integer, default=0)
     system_metrics_json = Column(Text, default="{}")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     device = relationship("Device", back_populates="scan_snapshots")
 
@@ -182,7 +183,7 @@ class DeviceSoftware(Base):
     version_source = Column(String(64), default="unknown")  # winget, pypi, endoflife, local_heuristic
     version_fetched_at = Column(DateTime, nullable=True)
     is_stale = Column(Boolean, default=False)
-    last_scanned_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_scanned_at = Column(DateTime, default=utc_now)
 
     device = relationship("Device", back_populates="software")
 
@@ -204,7 +205,7 @@ class DeviceDriver(Base):
     is_disabled = Column(Boolean, default=False)
     source = Column(String(64), default="pnp_entity")
     is_stale = Column(Boolean, default=False)
-    last_scanned_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_scanned_at = Column(DateTime, default=utc_now)
 
     device = relationship("Device", back_populates="drivers")
 
@@ -220,7 +221,7 @@ class ThreatReputation(Base):
     source = Column(String(64), default="virustotal")
     is_stale = Column(Boolean, default=False)
     raw_vt_json = Column(Text, default="{}")
-    last_checked_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_checked_at = Column(DateTime, default=utc_now)
 
 
 class VulnerabilityCatalog(Base):
@@ -235,8 +236,8 @@ class VulnerabilityCatalog(Base):
     fixed_in_version = Column(String(128), default="")
     summary = Column(Text, default="")
     cve_source = Column(String(64), default="osv")  # osv, nvd, manual
-    cve_fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
-    published_date = Column(DateTime, default=datetime.datetime.utcnow)
+    cve_fetched_at = Column(DateTime, default=utc_now)
+    published_date = Column(DateTime, default=utc_now)
 
 
 class LatestVersionCache(Base):
@@ -245,7 +246,7 @@ class LatestVersionCache(Base):
     app_name = Column(String(255), primary_key=True, index=True)
     latest_version = Column(String(128), nullable=False)
     source = Column(String(64), default="winget")  # winget, pypi, endoflife, manual
-    fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
+    fetched_at = Column(DateTime, default=utc_now)
     ttl_seconds = Column(Integer, default=86400)
     is_stale = Column(Boolean, default=False)
 
@@ -258,7 +259,7 @@ class AppWingetMapping(Base):
     winget_id = Column(String(255), nullable=False)
     confidence = Column(Float, default=1.0)
     is_verified = Column(Boolean, default=True)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=utc_now)
 
 
 class InstallerCache(Base):
@@ -272,7 +273,7 @@ class InstallerCache(Base):
     file_size_bytes = Column(Integer, default=0)
     storage_path = Column(Text, nullable=False)
     approved_by = Column(String(128), default="admin")
-    uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
+    uploaded_at = Column(DateTime, default=utc_now)
 
 
 class Command(Base):
@@ -293,7 +294,7 @@ class Command(Base):
     approved_by = Column(String(128), nullable=True)
     result_json = Column(Text, default="{}")
     
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     dispatched_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
 
@@ -311,6 +312,6 @@ class AuditLog(Base):
     target_id = Column(String(128), default="")
     details_json = Column(Text, default="{}")
     ip_address = Column(String(64), default="")
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=utc_now)
 
     organization = relationship("Organization", back_populates="audit_logs")

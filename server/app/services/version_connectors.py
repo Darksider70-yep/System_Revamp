@@ -119,7 +119,7 @@ def resolve_latest_version(
     Returns: (latest_version, source, fetched_at, is_stale)
     """
     norm_name = app_name.strip().lower()
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     cached = (
         db.query(LatestVersionCache)
@@ -129,7 +129,12 @@ def resolve_latest_version(
 
     # If cached and not expired and not forcing refresh
     if cached and not force_refresh:
-        age_seconds = (now - cached.fetched_at).total_seconds() if cached.fetched_at else 999999
+        fetched_at_utc = (
+            cached.fetched_at.replace(tzinfo=datetime.timezone.utc)
+            if cached.fetched_at and cached.fetched_at.tzinfo is None
+            else cached.fetched_at
+        )
+        age_seconds = (now - fetched_at_utc).total_seconds() if fetched_at_utc else 999999
         if age_seconds < cached.ttl_seconds:
             return cached.latest_version, cached.source, cached.fetched_at, False
 

@@ -62,7 +62,7 @@ def export_intelligence_bundle(
 
     bundle_data = {
         "bundle_version": "2.0.0",
-        "created_at": datetime.datetime.utcnow().isoformat(),
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "vulnerabilities": vulnerabilities,
         "threats": threats,
     }
@@ -77,7 +77,7 @@ def export_intelligence_bundle(
         zf.writestr("signature.sig", signature)
     zip_buffer.seek(0)
 
-    filename = f"system_revamp_intel_bundle_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.zip"
+    filename = f"system_revamp_intel_bundle_{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d_%H%M%S')}.zip"
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",

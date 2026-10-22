@@ -83,7 +83,7 @@ def process_pending_vt_hashes(db: Session, max_items: int = 4) -> int:
             record.positives_count = result["positives"]
             record.total_engines = result["total"]
             record.raw_vt_json = json.dumps(result["raw"])
-            record.last_checked_at = datetime.datetime.utcnow()
+            record.last_checked_at = datetime.datetime.now(datetime.timezone.utc)
             processed_count += 1
 
     db.commit()

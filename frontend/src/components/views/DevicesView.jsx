@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { DataTable } from '../common/DataTable';
 import { FilterBar } from '../common/FilterBar';
 import { StatusBadge, RiskBadge } from '../common/StatusBadge';
@@ -32,7 +32,7 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
 
-  const fetchDevices = async () => {
+  const fetchDevices = useCallback(async () => {
     setLoading(true);
     try {
       const [devs, labsData] = await Promise.all([
@@ -46,11 +46,11 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [scope.labId, scope.siteId]);
 
   useEffect(() => {
     fetchDevices();
-  }, [scope.labId, scope.siteId]);
+  }, [fetchDevices]);
 
   // Combined Filtering
   const filteredDevices = useMemo(() => {

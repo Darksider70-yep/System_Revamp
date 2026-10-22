@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopBar } from './components/layout/TopBar';
 import { SimulatedBanner } from './components/common/SimulatedBanner';

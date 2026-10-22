@@ -140,7 +140,7 @@ def create_enrollment_token(
     db: Session = Depends(get_db),
 ):
     raw_token, token_hash = generate_enrollment_token()
-    expires_at = datetime.datetime.utcnow() + datetime.timedelta(days=req.expires_days)
+    expires_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=req.expires_days)
 
     tok = EnrollmentToken(
         org_id=user.org_id if user.role != "SuperAdmin" else req.org_id,
@@ -254,12 +254,14 @@ def get_fleet_overview(
 
     threats_flagged = db.query(ThreatReputation).filter(ThreatReputation.vt_status.in_(["Malicious", "Suspicious"])).count()
     
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     is_stale = False
     if total_devices > 0:
         latest_heartbeat = db.query(func.max(Device.last_heartbeat)).scalar()
-        if latest_heartbeat and (now - latest_heartbeat).total_seconds() > 3600:
-            is_stale = True
+        if latest_heartbeat:
+            hb_utc = latest_heartbeat.replace(tzinfo=datetime.timezone.utc) if latest_heartbeat.tzinfo is None else latest_heartbeat
+            if (now - hb_utc).total_seconds() > 3600:
+                is_stale = True
 
     compliance = (
         round(((total_devices - crit_devices) / total_devices * 100), 1)
@@ -669,7 +671,7 @@ def get_compliance_report(
     compliance_percent = round((clean_count / total_devices * 100), 1) if total_devices > 0 else None
 
     return {
-        "generated_at": datetime.datetime.utcnow().isoformat(),
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "total_devices": total_devices,
         "compliance_percent": compliance_percent,
         "breakdown": {

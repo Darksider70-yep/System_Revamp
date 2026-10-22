@@ -104,7 +104,7 @@ def test_evaluate_software_risk_provenance():
                 app_name="customapp",
                 latest_version="3.5.0",
                 source="winget",
-                fetched_at=datetime.datetime.utcnow(),
+                fetched_at=datetime.datetime.now(datetime.timezone.utc),
                 ttl_seconds=86400,
                 is_stale=False,
             )

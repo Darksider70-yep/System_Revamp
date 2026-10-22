@@ -71,7 +71,7 @@ async def stream_exposure_assessment(
             "total_packages_audited": len(software_list),
             "vulnerabilities_found": total_cves,
             "sources": ["osv.dev", "nvd.nist.gov"],
-            "fetched_at": datetime.datetime.utcnow().isoformat(),
+            "fetched_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "status": "Assessment Complete",
         }
 

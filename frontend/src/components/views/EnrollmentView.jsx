@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DataTable } from '../common/DataTable';
 import { CodeBlock } from '../common/CodeBlock';
 import { StatusBadge } from '../common/StatusBadge';
@@ -16,7 +16,7 @@ export const EnrollmentView = () => {
   const [createdToken, setCreatedToken] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchTokensAndLabs = async () => {
+  const fetchTokensAndLabs = useCallback(async () => {
     try {
       const [toks, labsData] = await Promise.all([
         api.getEnrollmentTokens().catch(() => []),
@@ -30,11 +30,11 @@ export const EnrollmentView = () => {
     } catch (err) {
       console.error('Failed to load enrollment tokens:', err);
     }
-  };
+  }, [selectedLabId]);
 
   useEffect(() => {
     fetchTokensAndLabs();
-  }, []);
+  }, [fetchTokensAndLabs]);
 
   const handleCreateToken = async (e) => {
     e.preventDefault();

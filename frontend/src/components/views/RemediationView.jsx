@@ -36,8 +36,8 @@ export const RemediationView = ({ initialApp = null }) => {
       .then((apps) => {
         const list = Array.isArray(apps) ? apps : [];
         setAvailableApps(list);
-        if (!selectedApp && list.length > 0) {
-          setSelectedApp(initialApp || list[0].name);
+        if (list.length > 0) {
+          setSelectedApp((prev) => prev || initialApp || list[0].name);
         }
       })
       .catch(() => setAvailableApps([]));
