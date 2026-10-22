@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 import re
 import time
 import urllib.request
@@ -9,6 +10,8 @@ from typing import List, Dict, Any, Optional, Tuple
 from packaging import version as pkg_version
 from sqlalchemy.orm import Session
 from server.app.models.models import VulnerabilityCatalog
+
+logger = logging.getLogger(__name__)
 
 _LAST_NVD_REQUEST_TIME = 0.0
 

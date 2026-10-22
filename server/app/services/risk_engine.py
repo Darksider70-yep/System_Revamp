@@ -86,6 +86,7 @@ def evaluate_software_risk(
     source = "unknown"
     fetched_at = None
     is_stale = False
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     # 1. Primary: query version connectors and DB cache
     if db:
