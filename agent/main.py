@@ -99,6 +99,7 @@ def poll_and_execute_commands():
         if not commands:
             return
 
+        needs_rescan = False
         for cmd in commands:
             cmd_id = cmd["id"]
             cmd_type = cmd["command_type"]
@@ -111,10 +112,8 @@ def poll_and_execute_commands():
             success, result_data, log_output = dispatch_command(cmd_type, params, dry_run=dry_run)
             status_label = "success" if success else "failed"
 
-            # If remediation action succeeded, trigger immediate post-remediation scan for verification
             if success and not dry_run and cmd_type in ("rescan", "enable-device", "scan-drivers", "upgrade-package"):
-                print(f"[AGENT] [REMEDIATION] Triggering post-remediation verification telemetry scan for '{cmd_type}'...")
-                scan_and_report()
+                needs_rescan = True
 
             print(f"[AGENT] [EXEC] Command executed: {status_label.upper()} -> {log_output.strip()[:100]}")
 
@@ -134,6 +133,10 @@ def poll_and_execute_commands():
             )
             if res_resp.status_code == 200:
                 print(f"[AGENT] [OK] Result for command '{cmd_type}' submitted to server.")
+
+        if needs_rescan:
+            print("[AGENT] [REMEDIATION] Triggering post-remediation verification telemetry scan...")
+            scan_and_report()
 
     except Exception as e:
         # Silent ignore on network transient errors

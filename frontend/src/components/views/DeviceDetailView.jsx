@@ -288,7 +288,12 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
                 target: device?.hostname || deviceId,
                 title: `${isCode22 ? 'Enable' : 'Scan'} Driver: ${row.device_name || row.name}`,
                 description: `Dispatches signed ${isCode22 ? 'enable-device' : 'scan-drivers'} remote command to restore component.`,
-                rawPayload: { device_name: row.device_name || row.name, error_code: code || 22 },
+                rawPayload: {
+                  device_name: row.device_name || row.name,
+                  device_id: row.device_id_pnp || row.device_id,
+                  instance_id: row.device_id_pnp,
+                  error_code: code || 22,
+                },
                 dryRun: false,
               });
               setConfirmOpen(true);

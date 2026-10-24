@@ -37,27 +37,71 @@ def execute_scan_drivers(params: dict, dry_run: bool) -> Tuple[bool, Dict[str, A
 
 
 def execute_enable_device(params: dict, dry_run: bool) -> Tuple[bool, Dict[str, Any], str]:
-    device_id = params.get("device_id") or params.get("deviceId")
-    if not device_id:
-        return False, {}, "Missing required device_id parameter."
-
-    if dry_run:
-        return True, {"action": "enable-device", "target": device_id}, f"Dry run: Enable-PnpDevice -InstanceId '{device_id}' simulated."
+    device_id = (
+        params.get("device_id")
+        or params.get("deviceId")
+        or params.get("instance_id")
+        or params.get("device_id_pnp")
+    )
+    device_name = params.get("device_name") or params.get("name")
 
     if platform.system() != "Windows":
-        return False, {}, "PnP device enable only supported on Windows."
+        return False, {}, "PnP device enable only supported on Windows endpoints."
+
+    # If instance ID not explicitly passed, dynamically resolve from device_name via CIM
+    if not device_id and device_name:
+        try:
+            clean_name = device_name.replace("'", "''")
+            ps_lookup = (
+                f"Get-CimInstance Win32_PnPEntity | "
+                f"Where-Object {{ $_.Name -like '*{clean_name}*' }} | "
+                f"Select-Object -ExpandProperty DeviceID -First 1"
+            )
+            lookup_res = subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_lookup],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            if lookup_res.returncode == 0 and lookup_res.stdout.strip():
+                device_id = lookup_res.stdout.strip()
+        except Exception:
+            pass
+
+    if not device_id:
+        return False, {}, f"Unable to identify PnP device. Parameter 'device_id' or valid 'device_name' required. Received: {params}"
+
+    if dry_run:
+        return True, {"action": "enable-device", "target": device_id}, f"Dry run: Enable device '{device_id}' simulated."
 
     try:
-        ps_cmd = f"Enable-PnpDevice -InstanceId '{device_id}' -Confirm:$false"
+        # 1. Primary method: Native Windows pnputil (authoritative, silent, non-interactive)
         res = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
+            ["pnputil", "/enable-device", device_id],
+            capture_output=True,
+            text=True,
+            timeout=25,
+            check=False,
+        )
+        log = res.stdout + ("\n" + res.stderr if res.stderr else "")
+        if res.returncode == 0 or "enabled successfully" in log.lower():
+            # Refresh device tree
+            subprocess.run(["pnputil", "/scan-devices"], capture_output=True, timeout=15, check=False)
+            return True, {"returncode": 0, "device_id": device_id, "method": "pnputil"}, log
+
+        # 2. Fallback method: PowerShell Enable-PnpDevice with bypass
+        ps_cmd = f"Enable-PnpDevice -InstanceId '{device_id}' -Confirm:$false -ErrorAction SilentlyContinue"
+        res_ps = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_cmd],
             capture_output=True,
             text=True,
             timeout=20,
             check=False,
         )
-        log = res.stdout + ("\n" + res.stderr if res.stderr else "")
-        return res.returncode == 0, {"returncode": res.returncode}, log
+        ps_log = res_ps.stdout + ("\n" + res_ps.stderr if res_ps.stderr else "")
+        success = (res_ps.returncode == 0)
+        return success, {"returncode": res_ps.returncode, "device_id": device_id, "method": "powershell"}, f"{log}\n{ps_log}"
     except Exception as e:
         return False, {"error": str(e)}, str(e)
 

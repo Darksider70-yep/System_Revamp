@@ -53,6 +53,8 @@ export const DriversView = () => {
       for (const devId of selectedDriver.device_ids || []) {
         await api.queueCommand('device', devId, cmdType, {
           device_name: selectedDriver.device_name,
+          device_id: selectedDriver.device_id_pnp || selectedDriver.device_id || selectedDriver.instance_id,
+          instance_id: selectedDriver.device_id_pnp || selectedDriver.instance_id,
           error_code: selectedDriver.error_code,
         });
       }
