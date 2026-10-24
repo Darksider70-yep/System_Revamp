@@ -8,7 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../api/client';
 
 export const SoftwareView = ({ onRemediateApp }) => {
-  const { scope, globalSearch } = useTheme();
+  const { scope, globalSearch, refreshKey } = useTheme();
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
   const [selectedApp, setSelectedApp] = useState(null);
@@ -16,8 +16,8 @@ export const SoftwareView = ({ onRemediateApp }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchSoftware = useCallback(async () => {
-    setLoading(true);
+  const fetchSoftware = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const data = await api.getFleetSoftware(riskFilter);
@@ -26,13 +26,19 @@ export const SoftwareView = ({ onRemediateApp }) => {
       setError(err.message || 'Failed to fetch software inventory');
       setFleetApps([]);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [riskFilter]);
 
   useEffect(() => {
-    fetchSoftware();
+    fetchSoftware(false);
   }, [fetchSoftware]);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchSoftware(true);
+    }
+  }, [refreshKey, fetchSoftware]);
 
   const filteredApps = useMemo(() => {
     const q = (search || globalSearch).toLowerCase().trim();

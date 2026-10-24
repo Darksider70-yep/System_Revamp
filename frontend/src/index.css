@@ -313,3 +313,13 @@
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.status-spin {
+  animation: spin 0.75s linear infinite;
+  display: inline-block;
+}

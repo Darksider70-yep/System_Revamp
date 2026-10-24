@@ -7,7 +7,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../api/client';
 
 export const DriversView = () => {
-  const { scope } = useTheme();
+  const { scope, refreshKey } = useTheme();
   const [search, setSearch] = useState('');
   const [driverIssues, setDriverIssues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,8 +16,8 @@ export const DriversView = () => {
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
 
-  const fetchDrivers = async () => {
-    setLoading(true);
+  const fetchDrivers = React.useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const data = await api.getFleetDrivers(true);
@@ -26,13 +26,19 @@ export const DriversView = () => {
       setError(err.message || 'Failed to fetch driver diagnostics');
       setDriverIssues([]);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchDrivers();
-  }, []);
+    fetchDrivers(false);
+  }, [fetchDrivers]);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchDrivers(true);
+    }
+  }, [refreshKey, fetchDrivers]);
 
   const filteredDrivers = useMemo(() => {
     const q = search.toLowerCase().trim();

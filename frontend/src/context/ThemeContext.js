@@ -82,6 +82,48 @@ export const ThemeProvider = ({ children }) => {
     setPresentationMode((prev) => !prev);
   };
 
+  // Auto-Refresh: interval in seconds (default: 5). 0 means paused/off.
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(() => {
+    const saved = localStorage.getItem('sr_auto_refresh_interval');
+    return saved !== null ? Number(saved) : 5;
+  });
+
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Persist auto-refresh interval preference
+  useEffect(() => {
+    localStorage.setItem('sr_auto_refresh_interval', String(autoRefreshInterval));
+  }, [autoRefreshInterval]);
+
+  const triggerRefresh = React.useCallback(() => {
+    setIsRefreshing(true);
+    setRefreshKey((prev) => prev + 1);
+    setLastRefreshedAt(new Date());
+    setTimeout(() => setIsRefreshing(false), 600);
+  }, []);
+
+  // Interval timer for auto-refresh
+  useEffect(() => {
+    if (!autoRefreshInterval || autoRefreshInterval <= 0) return;
+
+    const timer = setInterval(() => {
+      triggerRefresh();
+    }, autoRefreshInterval * 1000);
+
+    return () => clearInterval(timer);
+  }, [autoRefreshInterval, triggerRefresh]);
+
+  // Window focus listener for instant refresh when returning to tab
+  useEffect(() => {
+    const handleFocus = () => {
+      triggerRefresh();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [triggerRefresh]);
+
   return (
     <ThemeContext.Provider
       value={{
@@ -100,6 +142,12 @@ export const ThemeProvider = ({ children }) => {
         setScope,
         globalSearch,
         setGlobalSearch,
+        autoRefreshInterval,
+        setAutoRefreshInterval,
+        refreshKey,
+        lastRefreshedAt,
+        isRefreshing,
+        triggerRefresh,
       }}
     >
       {children}

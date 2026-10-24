@@ -3,16 +3,18 @@ import { DataTable } from '../common/DataTable';
 import { FilterBar } from '../common/FilterBar';
 import { ShieldAlert, Info } from 'lucide-react';
 import { api } from '../../api/client';
+import { useTheme } from '../../context/ThemeContext';
 
 export const ThreatsView = () => {
+  const { refreshKey } = useTheme();
   const [search, setSearch] = useState('');
   const [overview, setOverview] = useState(null);
   const [threats, setThreats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchThreats = async () => {
-    setLoading(true);
+  const fetchThreats = React.useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const data = await api.getThreatsOverview();
@@ -22,13 +24,19 @@ export const ThreatsView = () => {
       setError(err.message || 'Failed to fetch threat intelligence');
       setThreats([]);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchThreats();
-  }, []);
+    fetchThreats(false);
+  }, [fetchThreats]);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchThreats(true);
+    }
+  }, [refreshKey, fetchThreats]);
 
   const filteredThreats = useMemo(() => {
     const q = search.toLowerCase().trim();

@@ -16,7 +16,7 @@ import { api } from '../../api/client';
 import { useTheme } from '../../context/ThemeContext';
 
 export const RemediationView = ({ initialApp = null }) => {
-  const { scope } = useTheme();
+  const { scope, refreshKey } = useTheme();
   const [currentStep, setCurrentStep] = useState(0);
   const [availableApps, setAvailableApps] = useState([]);
   const [selectedApp, setSelectedApp] = useState(initialApp || '');
@@ -31,13 +31,15 @@ export const RemediationView = ({ initialApp = null }) => {
   const [stagedDevices, setStagedDevices] = useState([]);
 
   // Fetch candidate software packages and devices from real API
-  useEffect(() => {
+  const fetchRemediationCandidates = React.useCallback(() => {
+    if (rolloutActive || rolloutStage === 'executing') return;
+
     api.getFleetSoftware()
       .then((apps) => {
         const list = Array.isArray(apps) ? apps : [];
         setAvailableApps(list);
-        if (list.length > 0) {
-          setSelectedApp((prev) => prev || initialApp || list[0].name);
+        if (list.length > 0 && !selectedApp) {
+          setSelectedApp(initialApp || list[0].name);
         }
       })
       .catch(() => setAvailableApps([]));
@@ -48,7 +50,17 @@ export const RemediationView = ({ initialApp = null }) => {
         setTargetDevices(list);
       })
       .catch(() => setTargetDevices([]));
-  }, [initialApp]);
+  }, [initialApp, selectedApp, rolloutActive, rolloutStage]);
+
+  useEffect(() => {
+    fetchRemediationCandidates();
+  }, [fetchRemediationCandidates]);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchRemediationCandidates();
+    }
+  }, [refreshKey, fetchRemediationCandidates]);
 
   // Update staged devices when selectedApp or targetDevices change
   useEffect(() => {

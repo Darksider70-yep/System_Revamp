@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Search,
   Sun,
@@ -9,6 +9,8 @@ import {
   LogOut,
   Shield,
   Cast,
+  RefreshCw,
+  Check,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { ScopeSwitcher } from '../common/ScopeSwitcher';
@@ -24,9 +26,29 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
     togglePresentationMode,
     globalSearch,
     setGlobalSearch,
+    autoRefreshInterval,
+    setAutoRefreshInterval,
+    triggerRefresh,
+    isRefreshing,
+    lastRefreshedAt,
   } = useTheme();
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [refreshMenuOpen, setRefreshMenuOpen] = useState(false);
+  const refreshMenuRef = useRef(null);
+
+  // Close refresh dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (refreshMenuRef.current && !refreshMenuRef.current.contains(e.target)) {
+        setRefreshMenuOpen(false);
+      }
+    };
+    if (refreshMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [refreshMenuOpen]);
 
   return (
     <header
@@ -150,6 +172,139 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
 
       {/* Right: Controls & User Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        {/* Auto-Refresh Control */}
+        <div ref={refreshMenuRef} style={{ position: 'relative' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-button)',
+              padding: '2px',
+              gap: '2px',
+              height: '32px',
+              boxSizing: 'border-box',
+            }}
+          >
+            {/* Live Indicator Pill / Dropdown Trigger */}
+            <button
+              type="button"
+              onClick={() => setRefreshMenuOpen(!refreshMenuOpen)}
+              title={`Auto-refresh is ${autoRefreshInterval > 0 ? `every ${autoRefreshInterval}s` : 'paused'}. Click to configure rate.`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'transparent',
+                border: 'none',
+                padding: '0 8px',
+                height: '100%',
+                borderRadius: 'var(--radius-button)',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                fontSize: '11px',
+                fontWeight: 600,
+              }}
+            >
+              <span
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  backgroundColor: autoRefreshInterval > 0 ? 'var(--status-ok-solid)' : 'var(--text-muted)',
+                  boxShadow: autoRefreshInterval > 0 ? '0 0 6px var(--status-ok-solid)' : 'none',
+                  display: 'inline-block',
+                }}
+              />
+              <span>{autoRefreshInterval > 0 ? `${autoRefreshInterval}s` : 'Off'}</span>
+            </button>
+
+            {/* Manual Sync / Trigger Button */}
+            <button
+              type="button"
+              onClick={triggerRefresh}
+              title={`Last synced: ${lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString() : 'now'}. Click to sync now.`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '26px',
+                height: '26px',
+                borderRadius: '50%',
+                background: isRefreshing ? 'var(--bg-surface-hover)' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              <RefreshCw size={12} className={isRefreshing ? 'status-spin' : ''} />
+            </button>
+          </div>
+
+          {/* Refresh Interval Dropdown Menu */}
+          {refreshMenuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                backgroundColor: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-container)',
+                boxShadow: 'var(--shadow-lg)',
+                padding: '6px',
+                zIndex: 'var(--z-popover)',
+                minWidth: '170px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+                animation: 'modalPop 0.15s ease-out',
+              }}
+            >
+              <div style={{ padding: '6px 8px 4px 8px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                Auto-Refresh Rate
+              </div>
+              {[
+                { label: 'Real-Time (3s)', val: 3 },
+                { label: 'Fast (5s) (Default)', val: 5 },
+                { label: 'Standard (10s)', val: 10 },
+                { label: 'Relaxed (30s)', val: 30 },
+                { label: 'Paused (Manual only)', val: 0 },
+              ].map((opt) => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => {
+                    setAutoRefreshInterval(opt.val);
+                    setRefreshMenuOpen(false);
+                    if (opt.val > 0) triggerRefresh();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 8px',
+                    borderRadius: 'var(--radius-xs)',
+                    border: 'none',
+                    background: autoRefreshInterval === opt.val ? 'var(--bg-surface-active)' : 'transparent',
+                    color: autoRefreshInterval === opt.val ? 'var(--accent-text)' : 'var(--text-primary)',
+                    fontWeight: autoRefreshInterval === opt.val ? 600 : 400,
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    width: '100%',
+                  }}
+                >
+                  <span>{opt.label}</span>
+                  {autoRefreshInterval === opt.val && <Check size={12} style={{ color: 'var(--accent-primary)' }} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Presentation mode toggle */}
         <button
           type="button"

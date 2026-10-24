@@ -18,8 +18,10 @@ import {
   Play,
 } from 'lucide-react';
 import { api } from '../../api/client';
+import { useTheme } from '../../context/ThemeContext';
 
 export const DeviceDetailView = ({ deviceId, onBack }) => {
+  const { refreshKey } = useTheme();
   const [device, setDevice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('software'); // 'software' | 'drivers' | 'threats' | 'history' | 'commands'
@@ -29,21 +31,27 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
   const [pendingCommand, setPendingCommand] = useState(null);
   const [executing, setExecuting] = useState(false);
 
-  const fetchDetail = useCallback(async () => {
-    setLoading(true);
+  const fetchDetail = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const data = await api.getDeviceDetail(deviceId);
       setDevice(data);
     } catch (err) {
       console.error('Failed to load device details:', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [deviceId]);
 
   useEffect(() => {
-    if (deviceId) fetchDetail();
+    if (deviceId) fetchDetail(false);
   }, [deviceId, fetchDetail]);
+
+  useEffect(() => {
+    if (refreshKey > 0 && deviceId) {
+      fetchDetail(true);
+    }
+  }, [refreshKey, deviceId, fetchDetail]);
 
   const handleQueueSingleRemediation = (pkg) => {
     setPendingCommand({

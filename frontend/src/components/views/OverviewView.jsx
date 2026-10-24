@@ -22,7 +22,7 @@ import { api } from '../../api/client';
 import { useTheme } from '../../context/ThemeContext';
 
 export const OverviewView = ({ onNavigate }) => {
-  const { scope } = useTheme();
+  const { scope, refreshKey } = useTheme();
   const [loading, setLoading] = useState(true);
   const [overviewData, setOverviewData] = useState(null);
   const [devices, setDevices] = useState([]);
@@ -30,7 +30,8 @@ export const OverviewView = ({ onNavigate }) => {
   const [activityLogs, setActivityLogs] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchOverview = useCallback(async () => {
+  const fetchOverview = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const [ov, devs, labsData, logs] = await Promise.all([
         api.getFleetOverview().catch(() => null),
@@ -46,17 +47,20 @@ export const OverviewView = ({ onNavigate }) => {
     } catch (err) {
       console.error('Overview fetch error:', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
       setRefreshing(false);
     }
   }, [scope.labId, scope.siteId]);
 
   useEffect(() => {
-    setLoading(true);
-    fetchOverview();
-    const interval = setInterval(fetchOverview, 15000);
-    return () => clearInterval(interval);
+    fetchOverview(false);
   }, [fetchOverview]);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchOverview(true);
+    }
+  }, [refreshKey, fetchOverview]);
 
   const handleRefresh = () => {
     setRefreshing(true);

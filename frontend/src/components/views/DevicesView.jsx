@@ -15,7 +15,7 @@ import { api } from '../../api/client';
 import { useTheme } from '../../context/ThemeContext';
 
 export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
-  const { scope, globalSearch } = useTheme();
+  const { scope, globalSearch, refreshKey } = useTheme();
   const [devices, setDevices] = useState([]);
   const [labs, setLabs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,8 +32,8 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
 
-  const fetchDevices = useCallback(async () => {
-    setLoading(true);
+  const fetchDevices = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const [devs, labsData] = await Promise.all([
         api.getDevices(scope.labId).catch(() => []),
@@ -44,13 +44,19 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
     } catch (err) {
       console.error('Failed to load devices:', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [scope.labId, scope.siteId]);
 
   useEffect(() => {
-    fetchDevices();
+    fetchDevices(false);
   }, [fetchDevices]);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      fetchDevices(true);
+    }
+  }, [refreshKey, fetchDevices]);
 
   // Combined Filtering
   const filteredDevices = useMemo(() => {
