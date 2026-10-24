@@ -3,7 +3,7 @@ import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from server.app.core.database import get_db
 from server.app.models.models import (
     Organization,
@@ -245,7 +245,13 @@ def get_fleet_overview(
             DeviceDriver.impact,
             func.count(DeviceDriver.id).label("affected_devices"),
         )
-        .filter(DeviceDriver.error_code > 0)
+        .filter(
+            or_(
+                DeviceDriver.error_code > 0,
+                DeviceDriver.status.in_(["Missing", "Disabled", "Error"]),
+                DeviceDriver.is_disabled == True,
+            )
+        )
         .group_by(DeviceDriver.device_name, DeviceDriver.impact)
         .order_by(func.count(DeviceDriver.id).desc())
         .limit(5)
@@ -314,7 +320,14 @@ def list_devices(
         crit_count = db.query(DeviceSoftware).filter(DeviceSoftware.device_id == d.id, DeviceSoftware.risk_level == "Critical").count()
         high_count = db.query(DeviceSoftware).filter(DeviceSoftware.device_id == d.id, DeviceSoftware.risk_level == "High").count()
         med_count = db.query(DeviceSoftware).filter(DeviceSoftware.device_id == d.id, DeviceSoftware.risk_level == "Medium").count()
-        driver_issue_count = db.query(DeviceDriver).filter(DeviceDriver.device_id == d.id, DeviceDriver.error_code > 0).count()
+        driver_issue_count = db.query(DeviceDriver).filter(
+            DeviceDriver.device_id == d.id,
+            or_(
+                DeviceDriver.error_code > 0,
+                DeviceDriver.status.in_(["Missing", "Disabled", "Error"]),
+                DeviceDriver.is_disabled == True,
+            )
+        ).count()
         outdated_count = crit_count + high_count + med_count
         overall_risk = "CRITICAL" if crit_count > 0 else ("HIGH" if high_count > 0 else ("MEDIUM" if med_count > 0 else "LOW"))
 
@@ -393,13 +406,16 @@ def get_device_detail(
         drivers=[{
             "id": drv.id,
             "name": drv.device_name,
+            "device_name": drv.device_name,
             "status": drv.status,
             "impact": drv.impact,
             "risk_score": drv.risk_score,
             "error_code": drv.error_code,
+            "status_code": drv.error_code,
             "reason": drv.reason,
             "manufacturer": drv.manufacturer,
             "is_disabled": drv.is_disabled,
+            "device_id_pnp": getattr(drv, "device_id_pnp", "") or "",
             "device_class_guid": getattr(drv, "device_class_guid", "") or "",
             "source": getattr(drv, "source", "pnp_entity") or "pnp_entity",
             "is_stale": getattr(drv, "is_stale", False),
@@ -524,7 +540,13 @@ def get_fleet_drivers(
         query = query.filter(Site.org_id == user.org_id)
 
     if errors_only:
-        query = query.filter(DeviceDriver.error_code > 0)
+        query = query.filter(
+            or_(
+                DeviceDriver.error_code > 0,
+                DeviceDriver.status.in_(["Missing", "Disabled", "Error"]),
+                DeviceDriver.is_disabled == True,
+            )
+        )
 
     records = query.all()
 

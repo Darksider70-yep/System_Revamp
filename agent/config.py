@@ -21,6 +21,9 @@ def _get_agent_data_dir() -> Path:
             test_file = target / ".write_test"
             test_file.write_text("ok", encoding="utf-8")
             test_file.unlink()
+            if (target / "agent_queue.db").exists():
+                with open(target / "agent_queue.db", "a") as f:
+                    pass
             return target
         except (PermissionError, OSError):
             pass
@@ -28,6 +31,17 @@ def _get_agent_data_dir() -> Path:
     # 3. Fallback to user home directory
     user_target = Path.home() / ".systemrevamp"
     user_target.mkdir(parents=True, exist_ok=True)
+
+    # If falling back from ProgramData, migrate existing enrolled config so device enrollment is preserved
+    if prog_data:
+        old_config = Path(prog_data) / "SystemRevampAgent" / "agent_config.json"
+        new_config = user_target / "agent_config.json"
+        if old_config.exists() and not new_config.exists():
+            try:
+                new_config.write_text(old_config.read_text(encoding="utf-8"), encoding="utf-8")
+            except Exception:
+                pass
+
     return user_target
 
 

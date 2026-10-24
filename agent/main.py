@@ -19,8 +19,20 @@ from agent.collectors.protection import audit_software_binary
 from agent.commands.executor import dispatch_command
 
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+
 def run_full_scan() -> Dict[str, Any]:
-    print("[AGENT] 🔍 Starting full system telemetry collection...")
+    print("[AGENT] [SCAN] Starting full system telemetry collection...")
 
     # 1. System metrics
     sys_metrics = collect_system_metrics()
@@ -51,19 +63,19 @@ def run_full_scan() -> Dict[str, Any]:
         "system_metrics": sys_metrics,
     }
 
-    print(f"[AGENT] 📊 Collected {len(processed_software)} software items, {len(drivers)} drivers.")
+    print(f"[AGENT] [METRICS] Collected {len(processed_software)} software items, {len(drivers)} drivers.")
     return report
 
 
 def scan_and_report() -> bool:
     if not agent_config.is_enrolled():
-        print("[AGENT] ❌ Device not enrolled. Cannot report telemetry.")
+        print("[AGENT] [ERROR] Device not enrolled. Cannot report telemetry.")
         return False
 
     report = run_full_scan()
     enqueue_report("telemetry", report)
     flushed = flush_queue()
-    print(f"[AGENT] 📤 Telemetry report sent to server ({len(report['software'])} apps, {len(report['drivers'])} drivers).")
+    print(f"[AGENT] [REPORT] Telemetry report sent to server ({len(report['software'])} apps, {len(report['drivers'])} drivers).")
     return True
 
 
@@ -93,7 +105,7 @@ def poll_and_execute_commands():
             params = cmd.get("params", {})
             dry_run = cmd.get("dry_run", False)
 
-            print(f"[AGENT] 📥 Command received: '{cmd_type}' (ID: {cmd_id}) [Dry-Run: {dry_run}]")
+            print(f"[AGENT] [CMD] Command received: '{cmd_type}' (ID: {cmd_id}) [Dry-Run: {dry_run}]")
 
             # Execute via allowlist dispatcher
             success, result_data, log_output = dispatch_command(cmd_type, params, dry_run=dry_run)
@@ -101,10 +113,10 @@ def poll_and_execute_commands():
 
             # If remediation action succeeded, trigger immediate post-remediation scan for verification
             if success and not dry_run and cmd_type in ("rescan", "enable-device", "scan-drivers", "upgrade-package"):
-                print(f"[AGENT] 🔄 Triggering post-remediation verification telemetry scan for '{cmd_type}'...")
+                print(f"[AGENT] [REMEDIATION] Triggering post-remediation verification telemetry scan for '{cmd_type}'...")
                 scan_and_report()
 
-            print(f"[AGENT] ⚙️ Command executed: {status_label.upper()} -> {log_output.strip()[:100]}")
+            print(f"[AGENT] [EXEC] Command executed: {status_label.upper()} -> {log_output.strip()[:100]}")
 
             # Submit result back
             result_payload = {
@@ -121,7 +133,7 @@ def poll_and_execute_commands():
                 timeout=10,
             )
             if res_resp.status_code == 200:
-                print(f"[AGENT] ✅ Result for command '{cmd_type}' submitted to server.")
+                print(f"[AGENT] [OK] Result for command '{cmd_type}' submitted to server.")
 
     except Exception as e:
         # Silent ignore on network transient errors
@@ -149,17 +161,17 @@ def send_heartbeat():
 
 def run_daemon(demo_fast: bool = False):
     if not agent_config.is_enrolled():
-        print("[AGENT] ❌ Error: Agent is not enrolled. Run 'python -m agent.main enroll --token <token>' first.")
+        print("[AGENT] [ERROR] Error: Agent is not enrolled. Run 'python -m agent.main enroll --token <token>' first.")
         sys.exit(1)
 
     if demo_fast or agent_config.is_demo_fast:
         agent_config.set_demo_fast_mode(True)
-        print("[AGENT] ⚡ Demo-Fast mode ACTIVE (Heartbeat: 10s, Command Poll: 5s, Scan: 30s)")
+        print("[AGENT] [CONFIG] Demo-Fast mode ACTIVE (Heartbeat: 10s, Command Poll: 5s, Scan: 30s)")
 
     hostname = socket.gethostname()
-    print(f"[AGENT] 🚀 Starting System Revamp Agent Daemon")
-    print(f"[AGENT] 🖥️  Hostname: {hostname} | Device GUID: {agent_config.device_id}")
-    print(f"[AGENT] 🌐 Central Server URL: {agent_config.server_url}")
+    print(f"[AGENT] [START] Starting System Revamp Agent Daemon")
+    print(f"[AGENT] [HOST] Hostname: {hostname} | Device GUID: {agent_config.device_id}")
+    print(f"[AGENT] [SERVER] Central Server URL: {agent_config.server_url}")
 
     # Initial scan on startup
     scan_and_report()
@@ -217,7 +229,7 @@ def main():
         success = enroll(args.server, args.token)
         if success:
             hostname = socket.gethostname()
-            print(f"[AGENT] 🎉 Enrolled as {hostname} ({agent_config.device_id})")
+            print(f"[AGENT] [ENROLLED] Enrolled as {hostname} ({agent_config.device_id})")
             print("[AGENT] Performing initial baseline scan...")
             scan_and_report()
             print(f"[AGENT] Enrolled as {hostname}, first report sent.")

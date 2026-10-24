@@ -214,52 +214,90 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val || row.name || 'PnP Entity'}</span>
           </div>
           <span className="font-mono" style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '23px' }}>
-            {row.hardware_id || row.device_id || 'PCI\\VEN_...'}
+            {row.device_id_pnp || row.manufacturer || 'PnP Device'} {row.device_class_guid ? `• ${row.device_class_guid.slice(0, 13)}...` : ''}
           </span>
         </div>
       ),
     },
     {
-      id: 'status_code',
+      id: 'error_code',
       header: 'CIM Problem Code',
-      accessor: 'status_code',
+      accessor: 'error_code',
       sortable: true,
-      render: (val) => {
-        const code = Number(val);
-        let label = `Code ${val}`;
+      render: (val, row) => {
+        const code = Number(val ?? row.status_code ?? 0);
+        let label = `Code ${code}`;
         if (code === 28) label = 'Code 28 (Missing Driver)';
         else if (code === 10) label = 'Code 10 (Failed to Start)';
-        else if (code === 22) label = 'Code 22 (Disabled)';
+        else if (code === 22 || row.is_disabled || row.status === 'Disabled') label = 'Code 22 (Disabled)';
 
+        const isError = code > 0 || row.is_disabled || row.status === 'Disabled';
         return (
           <span
             className="tag-mono"
             style={{
-              color: code > 0 ? 'var(--status-critical-text)' : 'var(--status-ok-text)',
-              borderColor: code > 0 ? 'var(--status-critical-border)' : 'var(--border-subtle)',
+              color: isError ? 'var(--status-critical-text)' : 'var(--status-ok-text)',
+              borderColor: isError ? 'var(--status-critical-border)' : 'var(--border-subtle)',
             }}
           >
-            {code > 0 ? label : 'Normal Operation (Code 0)'}
+            {isError ? label : 'Normal Operation (Code 0)'}
           </span>
         );
       },
     },
     {
-      id: 'driver_version',
-      header: 'Driver Version',
-      accessor: 'driver_version',
-      sortable: true,
-      render: (val) => <span className="font-mono tabular-nums">{val || 'Generic OS Provider'}</span>,
+      id: 'reason',
+      header: 'Status & Diagnostic Reason',
+      accessor: 'reason',
+      render: (val, row) => (
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+          {val || row.status || 'Functioning Normally'}
+        </span>
+      ),
     },
     {
       id: 'impact',
       header: 'Operational Impact',
-      render: (_, row) => {
-        const isError = Number(row.status_code) > 0;
+      accessor: 'impact',
+      render: (val, row) => {
+        const isError = Number(row.error_code ?? row.status_code ?? 0) > 0 || row.is_disabled || row.status === 'Disabled';
         return (
-          <span style={{ fontSize: 'var(--text-xs)', color: isError ? 'var(--status-critical-text)' : 'var(--text-muted)' }}>
-            {isError ? 'Device inoperable / degraded' : 'Healthy'}
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: isError ? 'var(--status-critical-text)' : 'var(--text-muted)' }}>
+            {val ? `${val} Impact` : (isError ? 'Device Inoperable / Disabled' : 'Healthy')}
           </span>
+        );
+      },
+    },
+    {
+      id: 'action',
+      header: 'Remediation',
+      align: 'right',
+      render: (_, row) => {
+        const code = Number(row.error_code ?? row.status_code ?? 0);
+        const isProblem = code > 0 || row.is_disabled || row.status === 'Disabled';
+        if (!isProblem) return <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Operational</span>;
+
+        const isCode22 = code === 22 || row.is_disabled || row.status === 'Disabled';
+        return (
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            onClick={() => {
+              setPendingCommand({
+                type: isCode22 ? 'enable-device' : 'scan-drivers',
+                target: device?.hostname || deviceId,
+                title: `${isCode22 ? 'Enable' : 'Scan'} Driver: ${row.device_name || row.name}`,
+                description: `Dispatches signed ${isCode22 ? 'enable-device' : 'scan-drivers'} remote command to restore component.`,
+                rawPayload: { device_name: row.device_name || row.name, error_code: code || 22 },
+                dryRun: false,
+              });
+              setConfirmOpen(true);
+            }}
+            style={{ height: '26px', padding: '0 8px', fontSize: '11px', gap: '4px' }}
+          >
+            <Play size={10} />
+            <span>{isCode22 ? 'Enable' : 'Scan'}</span>
+          </button>
         );
       },
     },
