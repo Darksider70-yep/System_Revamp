@@ -18,6 +18,20 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+def set_database_url(url: str):
+    """Reconfigure database engine and SessionLocal binding (e.g. for isolated test suites)."""
+    global engine, SessionLocal
+    connect_args = {}
+    if url.startswith("sqlite"):
+        connect_args["check_same_thread"] = False
+    engine = create_engine(
+        url,
+        connect_args=connect_args,
+        pool_pre_ping=True if not url.startswith("sqlite") else False,
+    )
+    SessionLocal.configure(bind=engine)
+
+
 def get_db():
     db = SessionLocal()
     try:

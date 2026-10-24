@@ -9,13 +9,15 @@ os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
 from server.app.core.config import settings
 settings.DATABASE_URL = f"sqlite:///{TEST_DB_PATH}"
 
-from server.app.core.database import init_db, engine, Base
+from server.app.core.database import set_database_url, init_db, engine, Base
+set_database_url(f"sqlite:///{TEST_DB_PATH}")
 from server.main import seed_initial_admin
 
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_database():
     """Create isolated test database and tear down after tests finish."""
+    set_database_url(f"sqlite:///{TEST_DB_PATH}")
     if TEST_DB_PATH.exists():
         try:
             TEST_DB_PATH.unlink()

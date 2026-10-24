@@ -66,26 +66,42 @@ def enroll_agent(request: AgentEnrollRequest, db: Session = Depends(get_db)):
         if default_lab:
             target_lab_id = default_lab.id
 
-    # Create new Device
-    new_device = Device(
-        lab_id=target_lab_id,
-        hostname=request.hostname,
-        os_name=request.os_name,
-        os_version=request.os_version,
-        os_build=request.os_build or "",
-        ip_address=request.ip_address or "",
-        mac_address=request.mac_address or "",
-        agent_version=request.agent_version,
-        is_enrolled=True,
-        is_online=True,
-        device_token_hash="temporary",
-    )
-    db.add(new_device)
-    db.flush()  # Generate device.id
+    # Check for existing device with same hostname to prevent duplicates on re-enrollment
+    existing_device = db.query(Device).filter(
+        Device.hostname == request.hostname,
+        Device.lab_id == target_lab_id,
+    ).first()
+
+    if existing_device:
+        device = existing_device
+        device.os_name = request.os_name
+        device.os_version = request.os_version
+        device.os_build = request.os_build or ""
+        device.ip_address = request.ip_address or device.ip_address
+        device.mac_address = request.mac_address or device.mac_address
+        device.agent_version = request.agent_version
+        device.is_enrolled = True
+        device.is_online = True
+    else:
+        device = Device(
+            lab_id=target_lab_id,
+            hostname=request.hostname,
+            os_name=request.os_name,
+            os_version=request.os_version,
+            os_build=request.os_build or "",
+            ip_address=request.ip_address or "",
+            mac_address=request.mac_address or "",
+            agent_version=request.agent_version,
+            is_enrolled=True,
+            is_online=True,
+            device_token_hash="temporary",
+        )
+        db.add(device)
+        db.flush()  # Generate device.id
 
     # Generate device token
-    raw_token, dev_token_hash = generate_device_token(new_device.id)
-    new_device.device_token_hash = dev_token_hash
+    raw_token, dev_token_hash = generate_device_token(device.id)
+    device.device_token_hash = dev_token_hash
 
     # Increment token usage
     enroll_token.used_count += 1
@@ -97,14 +113,14 @@ def enroll_agent(request: AgentEnrollRequest, db: Session = Depends(get_db)):
             user_id="agent_installer",
             action="agent_enrolled",
             target_type="device",
-            target_id=new_device.id,
+            target_id=device.id,
             details_json=json.dumps({"hostname": request.hostname, "os": request.os_name, "token_id": enroll_token.id}),
         )
     )
     db.commit()
 
     return AgentEnrollResponse(
-        device_id=new_device.id,
+        device_id=device.id,
         device_token=raw_token,
         org_id=enroll_token.org_id,
         lab_id=target_lab_id,
