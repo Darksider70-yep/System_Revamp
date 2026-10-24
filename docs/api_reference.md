@@ -80,6 +80,84 @@ def verify_command_signature(command_id: str, command_type: str, params: dict, r
     payload = f"{command_id}:{command_type}:{params_sorted_json}".encode("utf-8")
     expected_sig = hmac.new(signing_key.encode("utf-8"), payload, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected_sig, received_sig)
+### 1.6 End-to-End Visual Sequence Diagrams
+
+#### 1.6.1 Administrator Authentication & 2FA Workflow
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as Administrator
+    participant UI as React Admin Console
+    participant Server as FastAPI Server (/api/v2/auth)
+    participant DB as Relational Database
+
+    Admin->>UI: Enter email + password
+    UI->>Server: POST /api/v2/auth/login {email, password}
+    Server->>DB: Query AdminUser (Argon2id verify)
+    alt 2FA Configured & Active
+        Server-->>UI: 200 OK {requires_2fa: true, temp_token: "..."}
+        Admin->>UI: Enter 6-digit TOTP code
+        UI->>Server: POST /api/v2/auth/2fa/verify {temp_token, totp_code}
+        Server-->>UI: 200 OK {access_token: "JWT...", refresh_token: "..."}
+    else 2FA Disabled
+        Server-->>UI: 200 OK {access_token: "JWT...", refresh_token: "..."}
+    end
+```
+
+#### 1.6.2 Endpoint Enrollment & Provisioning Workflow
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as Fleet Administrator
+    participant Console as Admin Console
+    participant Server as Fleet Server
+    participant Agent as Endpoint Agent
+    participant Storage as Endpoint Local Storage
+
+    Admin->>Console: Create Lab Enrollment Token
+    Console->>Server: POST /api/v2/admin/enrollment-tokens {lab_id, max_uses, expires_in_hours}
+    Server-->>Console: 201 Created {token: "sr_enroll_..."}
+    Note over Admin,Agent: Deployed via GPO, Intune, or PowerShell
+    Agent->>Server: POST /api/v2/agent/enroll {enrollment_token, hostname, os_name, os_version, mac_address}
+    Server->>Server: Validate token, decrement uses, create Device record
+    Server-->>Agent: 200 OK {device_id, device_token: "sr_dev_...", server_time, poll_interval_seconds}
+    Agent->>Storage: Persist {device_id, device_token, server_url} to agent_config.json
+    Agent->>Server: POST /api/v2/agent/heartbeat (Header: X-Device-Token: sr_dev_...)
+    Server-->>Agent: 200 OK {status: "healthy", commands_pending: 0}
+```
+
+#### 1.6.3 Remote Command Dispatch, HMAC Signing & Remediation Pipeline
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as Administrator
+    participant Console as Admin Console
+    participant Server as Central Server
+    participant DB as Fleet Database
+    participant Agent as Endpoint Agent
+    participant Subprocess as Host OS (winget / pnputil)
+
+    Admin->>Console: Select Workstation -> Queue Remediation
+    Console->>Server: POST /api/v2/commands/queue {device_id, command_type, params}
+    Server->>DB: Store Command (status: "queued")
+    Server-->>Console: 201 Created {command_id}
+    Admin->>Console: Approve Queued Command
+    Console->>Server: POST /api/v2/commands/{id}/approve
+    Server->>Server: Compute HMAC-SHA256 signature using DEVICE_SIGNING_KEY
+    Server->>DB: Update Command (status: "approved", signature: "...")
+    
+    Agent->>Server: GET /api/v2/agent/commands/pending (Header: X-Device-Token)
+    Server-->>Agent: 200 OK [{command_id, command_type, params, signature}]
+    Agent->>Agent: Verify HMAC-SHA256 signature against local DEVICE_SIGNING_KEY
+    alt Valid Signature & Allowlisted Command
+        Agent->>Subprocess: Execute allowlisted CLI (e.g. winget upgrade --id Git.Git)
+        Subprocess-->>Agent: Return stdout, stderr, exit_code
+        Agent->>Server: POST /api/v2/agent/commands/{id}/result {status: "completed", exit_code: 0, output}
+        Server->>DB: Update Command (status: "completed")
+    else Invalid Signature / Shell Injection
+        Agent->>Server: POST /api/v2/agent/commands/{id}/result {status: "failed", error: "HMAC signature mismatch"}
+        Server->>DB: Update Command (status: "failed")
+    end
 ```
 
 ---
@@ -87,6 +165,7 @@ def verify_command_signature(command_id: str, command_type: str, params: dict, r
 ## 2. Table of Contents
 
 - [1. Global Architecture & Protocol Standards](#1-global-architecture--protocol-standards)
+  - [1.6 End-to-End Visual Sequence Diagrams](#16-end-to-end-visual-sequence-diagrams)
 - [3. Administrator Authentication API (`/api/v2/auth`)](#3-administrator-authentication-api-apiv2auth)
   - [3.1 Check Initial Setup Status](#31-check-initial-setup-status)
   - [3.2 Initial Setup & SuperAdmin Bootstrapping](#32-initial-setup--superadmin-bootstrapping)
@@ -130,6 +209,12 @@ def verify_command_signature(command_id: str, command_type: str, params: dict, r
 - [9. Threat Intelligence API (`/api/v2/threats`)](#9-threat-intelligence-api-apiv2threats)
   - [9.1 Threat Intelligence Overview](#91-threat-intelligence-overview)
   - [9.2 Process Pending VirusTotal Queue](#92-process-pending-virustotal-queue)
+- [10. API Stability, Rate Limits & Integration Guarantees](#10-api-stability-rate-limits--integration-guarantees)
+  - [10.1 API Versioning Strategy](#101-api-versioning-strategy)
+  - [10.2 Breaking Change Notification Policy](#102-breaking-change-notification-policy)
+  - [10.3 Authoritative Rate Limits per Endpoint](#103-authoritative-rate-limits-per-endpoint)
+  - [10.4 OpenAPI Schema & Interactive Documentation](#104-openapi-schema--interactive-documentation)
+  - [10.5 Webhook & Third-Party Integration Framework](#105-webhook--third-party-integration-framework)
 
 ---
 
@@ -1062,3 +1147,123 @@ Content-Disposition: attachment; filename="system_revamp_intel_bundle_20261022_0
   "message": "Processed 4 hashes against VirusTotal queue"
 }
 ```
+
+---
+
+## 10. API Stability, Rate Limits & Integration Guarantees
+
+### 10.1 API Versioning Strategy
+
+The System Revamp platform provides clear demarcations between production-stable interfaces and rapidly evolving experimental preview features:
+
+| URI Namespace | Stability Classification | Support & Deprecation SLA | Intended Callers |
+|---|---|---|---|
+| `/api/v2/*` | **Production Stable** | Strict SLA: $\ge \mathbf{12\text{ months}}$ advance deprecation notice before breaking changes. Guaranteed backward compatibility. | Production Endpoint Agents, React Admin Console, Enterprise Automation Pipelines, SIEM Integrations. |
+| `/api/v2-beta/*` | **Experimental / Preview** | No SLA: Schemas and endpoints subject to modification without notice. Features may be promoted or retired. | Developer early-access testing, laboratory evaluation environments. |
+
+### 10.2 Breaking Change Notification Policy
+System Revamp follows the principle of **Additive Evolution**:
+1. **Non-Breaking Changes**: Adding new response fields, adding optional query parameters, or introducing new command handlers are considered non-breaking and are released in MINOR/PATCH versions.
+2. **Breaking Changes**: Altering field data types, removing endpoints, or modifying authentication header structures are strictly confined to MAJOR version boundaries (e.g. `v3.0.0`).
+3. **Sunset Notification**: Any deprecated endpoint returns the standard RFC-8594 headers:
+   - `Sunset: <HTTP-date>`: Exact date of endpoint decommissioning.
+   - `Deprecation: @<timestamp>`: Timestamp when deprecation was formalized.
+   - `Link: <uri>; rel="sunset"`: Link to migration guidance in authoritative documentation.
+
+### 10.3 Authoritative Rate Limits per Endpoint
+
+To ensure high availability, prevent denial-of-service, and protect upstream threat intelligence feeds, the Central Server enforces token-bucket rate limiting:
+
+| Endpoint Group | Target URIs | Rate Limit Threshold | Window / Scope | Response on Exceeded |
+|---|---|---|---|---|
+| **Admin Authentication** | `/api/v2/auth/login`, `/api/v2/auth/setup` | **15 requests / min** | Per IP Address | `429 Too Many Requests` |
+| **Admin Management API** | `/api/v2/admin/*`, `/api/v2/commands/*` | **100 requests / min** | Per Admin JWT Token | `429 Too Many Requests` |
+| **Agent Heartbeat** | `/api/v2/agent/heartbeat` | **1 request / min** (burst to 5) | Per Device Token (`X-Device-Token`) | `429 Too Many Requests` |
+| **Agent Telemetry Ingestion**| `/api/v2/agent/telemetry` | **1 request / 5 min** | Per Device Token (`X-Device-Token`) | `429 Too Many Requests` |
+| **Device Enrollment** | `/api/v2/agent/enroll` | **10 requests / min** | Per Origin IP Address | `429 Too Many Requests` |
+| **Exposure SSE Tickets** | `/api/v2/exposure/ticket` | **10 requests / min** | Per Admin Token | `429 Too Many Requests` |
+| **VirusTotal Threat Queue** | `/api/v2/threats/process-queue` | **4 requests / min** | Fleet-wide Global Queue | `429 Throttled (Internal Queue)` |
+
+#### Rate Limit Response Headers
+All HTTP responses include standard rate limit telemetry headers:
+```http
+HTTP/1.1 200 OK
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 94
+X-RateLimit-Reset: 1731283260
+```
+When a client exceeds its threshold:
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 42
+Content-Type: application/json
+
+{
+  "detail": "Rate limit exceeded. Try again in 42 seconds."
+}
+```
+
+### 10.4 OpenAPI Schema & Interactive Documentation
+
+The Central Fleet Server exposes a dynamic OpenAPI 3.1.0 specification generated directly from Pydantic schemas:
+
+- **JSON Schema Endpoint**: `GET /api/v2/openapi.json`
+- **Interactive Swagger UI**: `http://<SERVER_IP>:8000/api/v2/docs`
+- **Interactive ReDoc**: `http://<SERVER_IP>:8000/api/v2/redoc`
+
+#### Offline OpenAPI Generation CLI
+To generate the schema file without running the network daemon (for CI/CD validation or SDK generation):
+```bash
+# Generate authoritative openapi.json
+python -m server.generate_openapi
+```
+*Outputs to:* `server_data/openapi.json` and `docs/openapi.json`.
+
+### 10.5 Webhook & Third-Party Integration Framework
+
+Enterprise installations can configure outbound Webhook event subscriptions to stream high-priority security events to SIEM platforms (Splunk, Elastic, Microsoft Sentinel), ticketing platforms (ServiceNow, Jira), or alert channels (Slack, Microsoft Teams, PagerDuty).
+
+#### 10.5.1 Subscribable Event Topics
+- `threat.detected`: An unsigned or malicious SHA-256 hash was discovered on an endpoint.
+- `driver.error`: A critical hardware device entered a PnP problem state (Code 10, Code 28, Code 22).
+- `command.completed`: A remote remediation command finished execution on an endpoint.
+- `fleet.availability_dropped`: More than 10% of a computer lab's workstations dropped offline.
+
+#### 10.5.2 Webhook Payload Schema
+Webhooks deliver JSON payloads via HTTP POST with an HMAC-SHA256 signature in the header:
+
+```http
+POST /webhook-receiver HTTP/1.1
+Host: siem.university.edu
+Content-Type: application/json
+X-SystemRevamp-Event: threat.detected
+X-SystemRevamp-Timestamp: 1731283200
+X-SystemRevamp-Signature: 6d5e7f8a9b0c...
+
+{
+  "event_id": "evt-9042",
+  "event_type": "threat.detected",
+  "timestamp": "2026-10-24T16:30:00Z",
+  "org_id": "org_univ_01",
+  "site_id": "site_main_campus",
+  "lab_id": "lab_eng_cad_01",
+  "device_id": "wks-eng-104",
+  "data": {
+    "file_path": "C:\\Program Files\\OutdatedApp\\driver.sys",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "authenticode_status": "Unsigned",
+    "action_recommended": "Isolate workstation and dispatch protection scan"
+  }
+}
+```
+
+#### 10.5.3 Validating Webhook Signatures
+```python
+import hmac, hashlib
+
+def verify_webhook(raw_body: bytes, timestamp: str, signature: str, webhook_secret: str) -> bool:
+    payload = f"{timestamp}.".encode("utf-8") + raw_body
+    expected = hmac.new(webhook_secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
+```
+

@@ -117,14 +117,26 @@ The complete technical and architectural documentation library is organized unde
 |---|---|
 | [**Documentation Portal & Sitemap**](docs/README.md) | Complete documentation index, visual sitemap, and topic overview. |
 | [**Architecture Blueprint**](docs/architecture.md) | Enterprise topology, agent queue state machine, database ER diagram, and sizing metrics. |
-| [**API Reference**](docs/api_reference.md) | Authoritative REST & streaming SSE API documentation with full request/response schemas. |
+| [**Architecture Decision Records**](docs/ADR.md) | Formal ADRs (001–005) covering outbound-only, dual database, HMAC signing, and keyless connectors. |
+| [**API Reference Manual**](docs/api_reference.md) | Authoritative REST & streaming SSE API documentation with sequence diagrams and OpenAPI schemas. |
 | [**Production Setup & Installation**](docs/setup_and_installation.md) | Production server deployment (systemd / Nginx / TLS), database setup, and agent guides. |
 | [**Enterprise Bulk Deployment**](docs/ENTERPRISE_DEPLOYMENT_GPO.md) | Active Directory GPO startup scripts, Microsoft Intune Win32 apps, SCCM, and Ansible. |
+| [**High Availability & Failover**](docs/HIGH_AVAILABILITY.md) | Tier 4 scaling (>10k hosts), PostgreSQL Patroni replication, RTO < 30s failover, and jitter backoff. |
+| [**Monitoring & Observability**](docs/MONITORING_AND_OBSERVABILITY.md) | Prometheus metrics, Alertmanager rules, Grafana dashboard blueprints, SLOs, and log aggregation. |
 | [**Operations & Maintenance Runbook**](docs/OPERATIONS_AND_RUNBOOK.md) | Daily health checks, hot SQLite backups (`VACUUM INTO`), log rotation, and incident playbooks. |
-| [**PnP Driver & Protection Engine**](docs/driver_and_protection_engine.md) | Windows CIM diagnostics, Microsoft Setup Class GUIDs, problem error codes, and Authenticode. |
+| [**Incident Response & War Games**](docs/INCIDENT_RESPONSE_PLAYBOOK.md) | P1-P4 severity escalation matrix, fleet-wide malware playbooks, post-mortem templates, and drills. |
+| [**Production Deployment Checklist**](docs/DEPLOYMENT_CHECKLIST.md) | Security pre-flight validation (T-48h), capacity planning worksheet, and executive sign-off gates. |
+| [**Versioning & Upgrades**](docs/VERSIONING_AND_UPGRADES.md) | SemVer 2.0 semantics, client-server compatibility matrix, canary rollouts, and blue-green upgrades. |
+| [**Python SDK & Automation**](docs/PYTHON_SDK_EXAMPLES.md) | Production Python SDK client wrapper, automated offline fleet checking, and SSE consumers. |
+| [**Driver & Protection Engine**](docs/driver_and_protection_engine.md) | Windows CIM diagnostics, Microsoft Setup Class GUIDs, problem error codes, and Authenticode. |
 | [**Air-Gapped Sync & Staged Remediation**](docs/offline_and_remediation.md) | Signed intelligence bundles, LAN installer cache, dry-run previews, and HMAC signing. |
+| [**Legacy Migration & Cutover**](docs/LEGACY_MIGRATION_GUIDE.md) | Strategic replacement playbooks for Symantec Altiris, Microsoft Intune/SCCM, JumpCloud, and v1.0. |
+| [**Cryptographic Key Management**](docs/KEY_MANAGEMENT.md) | Key hierarchy, 256-bit CSPRNG storage, HSM integration, Shamir secret sharing, and rotation. |
+| [**Encryption & Data Protection**](docs/ENCRYPTION_AND_DATA_PROTECTION.md) | SQLCipher, PostgreSQL TDE, 7-year FERPA retention schedule, student data minimization, and GDPR. |
 | [**STRIDE Threat Model & Security**](docs/THREAT_MODEL.md) | STRIDE analysis, adversary personas, cryptographic key hierarchy, and mitigations. |
 | [**Compliance & Standards Mapping**](docs/COMPLIANCE_AND_AUDITING.md) | Mapping crosswalk to NIST SP 800-53 Rev. 5, CIS Controls v8, ISO/IEC 27001, and CSV auditing. |
+| [**Enterprise Standards & SLA**](docs/ENTERPRISE_STANDARDS.md) | SOC 2 Type II alignment, NIST CSF 2.0 mapping, SLA contracts, customer onboarding, and licensing. |
+| [**Testing Strategy & Validation**](docs/TESTING_AND_VALIDATION.md) | Testing pyramid, unit test matrix, chaos engineering scenarios, and security regression suites. |
 | [**Data Lineage & Provenance Specification**](docs/DATA_LINEAGE.md) | Field-by-field lineage mapping from agent collectors through DB tables to Admin Console widgets. |
 | [**Design System Specification**](docs/DESIGN.md) | Authoritative CSS token hierarchy (`tokens.css`), color palette, zero-hard-edge rules, and typography. |
 | [**Hardcoded Audit & Remediation Log**](docs/HARDCODED_AUDIT.md) | Comprehensive itemized log of all purged placeholder data and mock keywords. |
@@ -132,5 +144,46 @@ The complete technical and architectural documentation library is organized unde
 
 ---
 
+## Document Dependencies & Operational Cross-References
+
+- **Deploying to air-gapped labs?**
+  $\rightarrow$ See: [`offline_and_remediation.md`](docs/offline_and_remediation.md) + [`KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md) + [`ENCRYPTION_AND_DATA_PROTECTION.md`](docs/ENCRYPTION_AND_DATA_PROTECTION.md)
+
+- **Setting up monitoring & alerting?**
+  $\rightarrow$ See: [`MONITORING_AND_OBSERVABILITY.md`](docs/MONITORING_AND_OBSERVABILITY.md) + [`OPERATIONS_AND_RUNBOOK.md`](docs/OPERATIONS_AND_RUNBOOK.md)
+
+- **Planning for 10,000+ endpoints?**
+  $\rightarrow$ See: [`architecture.md`](docs/architecture.md) (Tier 4 sizing) + [`HIGH_AVAILABILITY.md`](docs/HIGH_AVAILABILITY.md) + [`MONITORING_AND_OBSERVABILITY.md`](docs/MONITORING_AND_OBSERVABILITY.md)
+
+- **Handling a security incident or malware detection?**
+  $\rightarrow$ See: [`INCIDENT_RESPONSE_PLAYBOOK.md`](docs/INCIDENT_RESPONSE_PLAYBOOK.md) + [`KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md) + [`THREAT_MODEL.md`](docs/THREAT_MODEL.md)
+
+- **Replacing legacy tools (Altiris, Intune, JumpCloud)?**
+  $\rightarrow$ See: [`LEGACY_MIGRATION_GUIDE.md`](docs/LEGACY_MIGRATION_GUIDE.md) + [`ENTERPRISE_DEPLOYMENT_GPO.md`](docs/ENTERPRISE_DEPLOYMENT_GPO.md)
+
+- **Automating fleet operations via Python?**
+  $\rightarrow$ See: [`PYTHON_SDK_EXAMPLES.md`](docs/PYTHON_SDK_EXAMPLES.md) + [`api_reference.md`](docs/api_reference.md)
+
+- **Conducting a pre-launch or compliance audit (SOC 2, FERPA, HIPAA)?**
+  $\rightarrow$ See: [`DEPLOYMENT_CHECKLIST.md`](docs/DEPLOYMENT_CHECKLIST.md) + [`ENTERPRISE_STANDARDS.md`](docs/ENTERPRISE_STANDARDS.md) + [`ENCRYPTION_AND_DATA_PROTECTION.md`](docs/ENCRYPTION_AND_DATA_PROTECTION.md)
+
+---
+
+## Platform Glossary & Domain Terms
+
+| Term | Definition in System Revamp Platform |
+|---|---|
+| **Authenticode** | Microsoft digital signature standard verifying binary publisher identity and tamper-free integrity. |
+| **CIM (Common Information Model)** | Modern DMTF object-oriented management interface in Windows (`Get-CimInstance`), superseding legacy WMI. |
+| **PnP Error Code** | Hardware problem status reported by CIM (e.g. Code 28: Missing Driver, Code 10: Failed to Start, Code 22: Disabled). |
+| **Outbound-Only** | Architecture where endpoints never open listening network sockets; all sessions originate outbound over TLS to the server. |
+| **WAL Mode** | SQLite Write-Ahead Logging concurrency mode supporting concurrent readers and writers without lock contention. |
+| **Air-Gap Bundle** | Cryptographically signed zip bundle carrying threat definitions and installer cache for offline network sync. |
+| **HMAC Command Signing** | Server-side cryptographic signature validating remote remediation commands before endpoint execution. |
+| **Ephemeral Ticket** | Single-use 30-second token generated for browser SSE streams and burned immediately upon connection. |
+
+---
+
 ## License
 Licensed under the [MIT License](LICENSE).
+
