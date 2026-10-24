@@ -31,24 +31,38 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
   return (
     <header
       style={{
-        height: '52px',
-        backgroundColor: 'var(--bg-surface)',
-        borderBottom: '1px solid var(--border-subtle)',
+        height: '54px',
+        backgroundColor: 'var(--glass-bg)',
+        backdropFilter: 'var(--glass-blur)',
+        WebkitBackdropFilter: 'var(--glass-blur)',
+        border: '1px solid var(--glass-border)',
+        borderRadius: 'var(--radius-container)', /* 16px */
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 16px',
-        gap: '12px',
+        gap: '14px',
         zIndex: 'var(--z-sticky)',
+        boxShadow: 'var(--glass-specular), var(--shadow-sm)',
+        marginBottom: '12px',
+        flexShrink: 0,
+        transition: 'all var(--transition-fast)',
       }}
     >
       {/* Left: Scope switcher & Breadcrumbs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
         <ScopeSwitcher />
 
         {breadcrumbs && breadcrumbs.length > 0 && (
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--text-sm)' }}>
-            <span style={{ color: 'var(--text-muted)' }}>/</span>
+          <nav
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            <span style={{ color: 'var(--text-muted)', opacity: 0.6 }}>/</span>
             {breadcrumbs.map((crumb, idx) => (
               <React.Fragment key={idx}>
                 {crumb.onClick ? (
@@ -61,7 +75,9 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
                       color: 'var(--accent-text)',
                       fontWeight: 500,
                       cursor: 'pointer',
-                      padding: 0,
+                      padding: '2px 4px',
+                      borderRadius: 'var(--radius-xs)',
+                      transition: 'color var(--transition-fast)',
                     }}
                   >
                     {crumb.label}
@@ -69,30 +85,36 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
                 ) : (
                   <span
                     style={{
-                      color: idx === breadcrumbs.length - 1 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      color:
+                        idx === breadcrumbs.length - 1
+                          ? 'var(--text-primary)'
+                          : 'var(--text-secondary)',
                       fontWeight: idx === breadcrumbs.length - 1 ? 600 : 400,
                     }}
                   >
                     {crumb.label}
                   </span>
                 )}
-                {idx < breadcrumbs.length - 1 && <span style={{ color: 'var(--text-muted)' }}>/</span>}
+                {idx < breadcrumbs.length - 1 && (
+                  <span style={{ color: 'var(--text-muted)', opacity: 0.6 }}>/</span>
+                )}
               </React.Fragment>
             ))}
           </nav>
         )}
       </div>
 
-      {/* Middle: Global Search */}
-      <div style={{ flex: '1 1 320px', maxWidth: '480px', position: 'relative' }}>
+      {/* Middle: Cyber Command Search */}
+      <div style={{ flex: '1 1 320px', maxWidth: '460px', position: 'relative' }}>
         <Search
           size={14}
           style={{
             position: 'absolute',
-            left: '10px',
+            left: '12px',
             top: '50%',
             transform: 'translateY(-50%)',
             color: 'var(--text-muted)',
+            pointerEvents: 'none',
           }}
         />
         <input
@@ -100,28 +122,46 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
           className="input"
           value={globalSearch}
           onChange={(e) => setGlobalSearch(e.target.value)}
-          placeholder="Global search (device name, app, SHA-256, CVE ID)..."
+          placeholder="Search fleet (hostname, IP, SHA-256, CVE ID)..."
           style={{
             width: '100%',
-            paddingLeft: '32px',
-            height: '32px',
+            paddingLeft: '34px',
+            paddingRight: '62px',
+            height: '34px',
             fontSize: 'var(--text-base)',
+            borderRadius: 'var(--radius-button)', /* 14px */
           }}
         />
+        <div
+          style={{
+            position: 'absolute',
+            right: '8px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '2px',
+            pointerEvents: 'none',
+          }}
+        >
+          <span className="kbd-shortcut">Ctrl+K</span>
+        </div>
       </div>
 
       {/* Right: Controls & User Profile */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
         {/* Presentation mode toggle */}
         <button
           type="button"
           className={`btn btn-sm ${presentationMode ? 'btn-primary' : ''}`}
           onClick={togglePresentationMode}
           title="Toggle Presentation / Demo Mode (+10% font scaling)"
-          style={{ height: '30px', padding: '0 8px', gap: '4px' }}
+          style={{ height: '32px', padding: '0 10px', gap: '6px' }}
         >
           <Cast size={13} />
-          <span className="sidebar-subtext" style={{ fontSize: '11px' }}>Demo Mode</span>
+          <span className="sidebar-subtext" style={{ fontSize: '11px', fontWeight: 500 }}>
+            Demo
+          </span>
         </button>
 
         {/* Density toggle */}
@@ -130,7 +170,7 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
           className="btn btn-icon btn-sm"
           onClick={toggleDensity}
           title={`Switch density (currently ${density})`}
-          style={{ height: '30px', width: '30px' }}
+          style={{ height: '32px', width: '32px' }}
         >
           {density === 'comfortable' ? <FoldVertical size={14} /> : <UnfoldVertical size={14} />}
         </button>
@@ -140,8 +180,8 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
           type="button"
           className="btn btn-icon btn-sm"
           onClick={toggleTheme}
-          title={`Current theme: ${theme} (resolved: ${effectiveTheme})`}
-          style={{ height: '30px', width: '30px' }}
+          title={`Theme: ${theme} (resolved: ${effectiveTheme})`}
+          style={{ height: '32px', width: '32px' }}
         >
           {theme === 'system' ? (
             <Laptop size={14} />
@@ -159,29 +199,40 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
             className="btn btn-sm"
             onClick={() => setUserMenuOpen(!userMenuOpen)}
             style={{
-              height: '30px',
-              padding: '0 8px',
-              gap: '6px',
+              height: '32px',
+              padding: '0 10px',
+              gap: '8px',
               backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--glass-border)',
             }}
           >
             <div
               style={{
-                width: '18px',
-                height: '18px',
+                width: '20px',
+                height: '20px',
                 borderRadius: 'var(--radius-full)',
-                backgroundColor: 'var(--accent-subtle)',
-                color: 'var(--accent-text)',
+                background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-active) 100%)',
+                color: 'var(--text-inverse)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '10px',
+                fontSize: '11px',
                 fontWeight: 700,
+                boxShadow: '0 2px 6px var(--accent-glow)',
               }}
             >
               {(user?.name || user?.email || 'A')[0].toUpperCase()}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 600, maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                maxWidth: '120px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {user?.name || user?.email?.split('@')[0] || 'Administrator'}
             </span>
           </button>
@@ -196,30 +247,59 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
                 className="panel"
                 style={{
                   position: 'absolute',
-                  top: 'calc(100% + 4px)',
+                  top: 'calc(100% + 6px)',
                   right: 0,
-                  width: '220px',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-default)',
-                  boxShadow: 'var(--shadow-md)',
+                  width: '230px',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  backdropFilter: 'var(--glass-blur)',
+                  WebkitBackdropFilter: 'var(--glass-blur)',
+                  border: '1px solid var(--glass-border)',
+                  boxShadow: 'var(--shadow-modal)',
                   zIndex: 'calc(var(--z-dropdown) + 1)',
-                  padding: '6px',
+                  padding: '8px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '4px',
+                  gap: '6px',
+                  borderRadius: 'var(--radius-container)',
+                  animation: 'modalPop 160ms cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
               >
-                <div style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <div
+                  style={{
+                    padding: '8px 10px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                    }}
+                  >
                     {user?.name || 'Administrator'}
                   </div>
                   {user?.email && (
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--text-muted)',
+                        marginTop: '2px',
+                      }}
+                    >
                       {user.email}
                     </div>
                   )}
-                  <div style={{ marginTop: '4px' }}>
-                    <span className="tag-mono" style={{ fontSize: '10px', color: 'var(--accent-text)' }}>
+                  <div style={{ marginTop: '6px' }}>
+                    <span
+                      className="tag-mono"
+                      style={{
+                        fontSize: '10px',
+                        color: 'var(--accent-text)',
+                        backgroundColor: 'var(--accent-subtle)',
+                        borderColor: 'var(--accent-border)',
+                      }}
+                    >
                       <Shield size={10} /> {user?.role || 'Admin'}
                     </span>
                   </div>
@@ -235,14 +315,16 @@ export const TopBar = ({ breadcrumbs = [], onLogout, user = null }) => {
                   style={{
                     width: '100%',
                     justifyContent: 'flex-start',
-                    border: 'none',
+                    border: '1px solid transparent',
                     color: 'var(--status-critical-text)',
+                    backgroundColor: 'transparent',
                     gap: '8px',
-                    padding: '6px 8px',
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-input)',
                   }}
                 >
-                  <LogOut size={13} />
-                  <span>Sign Out</span>
+                  <LogOut size={14} />
+                  <span style={{ fontWeight: 500 }}>Sign Out</span>
                 </button>
               </div>
             </>

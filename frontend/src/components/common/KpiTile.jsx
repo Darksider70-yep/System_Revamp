@@ -15,7 +15,7 @@ export const KpiTile = ({
   active = false,
 }) => {
   let sparkColor = 'var(--accent-primary)';
-  let borderColor = 'var(--border-subtle)';
+  let borderColor = 'var(--glass-border)';
 
   if (status === 'critical') {
     sparkColor = 'var(--status-critical-solid)';
@@ -25,6 +25,7 @@ export const KpiTile = ({
     borderColor = 'var(--status-high-border)';
   } else if (status === 'ok') {
     sparkColor = 'var(--status-ok-solid)';
+    borderColor = 'var(--glass-border)';
   }
 
   return (
@@ -32,9 +33,11 @@ export const KpiTile = ({
       className={`kpi-tile panel ${active ? 'kpi-tile-active' : ''}`}
       onClick={onClick}
       style={{
-        padding: 'var(--space-4) var(--space-5)',
+        padding: '16px 20px',
         cursor: onClick ? 'pointer' : 'default',
-        backgroundColor: 'var(--bg-surface)',
+        backgroundColor: 'var(--glass-bg)',
+        backdropFilter: 'var(--glass-blur)',
+        WebkitBackdropFilter: 'var(--glass-blur)',
         border: `1px solid ${active ? 'var(--accent-primary)' : borderColor}`,
         borderRadius: 'var(--radius-card)', // 20px card radius
         display: 'flex',
@@ -43,19 +46,25 @@ export const KpiTile = ({
         gap: 'var(--space-2)',
         minWidth: '180px',
         flex: 1,
-        boxShadow: 'var(--shadow-sm)',
+        boxShadow: active
+          ? 'var(--glass-specular), 0 0 24px var(--accent-subtle)'
+          : 'var(--glass-specular), var(--shadow-sm)',
         transition: 'all var(--transition-fast)',
         userSelect: 'none',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {status === 'critical' && <span className="living-node living-node-critical" />}
+          {status === 'warning' && <span className="living-node living-node-warning" />}
+          {status === 'ok' && <span className="living-node living-node-ok" />}
+
           <span
             style={{
               fontSize: 'var(--text-xs)',
               fontWeight: 600,
               textTransform: 'uppercase',
-              letterSpacing: '0.05em',
+              letterSpacing: '0.06em',
               color: 'var(--text-secondary)',
             }}
           >
@@ -75,7 +84,7 @@ export const KpiTile = ({
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)', marginTop: '2px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)', marginTop: '4px' }}>
         <span
           className="kpi-value tabular-nums"
           style={{
@@ -97,7 +106,7 @@ export const KpiTile = ({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '3px',
-              padding: '1px 6px',
+              padding: '2px 8px',
               borderRadius: 'var(--radius-pill)',
               backgroundColor:
                 deltaType === 'positive'
@@ -111,6 +120,13 @@ export const KpiTile = ({
                   : deltaType === 'negative'
                   ? 'var(--status-critical-text)'
                   : 'var(--text-muted)',
+              border: `1px solid ${
+                deltaType === 'positive'
+                  ? 'var(--status-ok-border)'
+                  : deltaType === 'negative'
+                  ? 'var(--status-critical-border)'
+                  : 'var(--status-offline-border)'
+              }`,
             }}
           >
             {deltaType === 'positive' && <TrendingUp size={11} strokeWidth={2.5} />}
@@ -128,6 +144,7 @@ export const KpiTile = ({
             fontSize: 'var(--text-xs)',
             color: 'var(--text-muted)',
             lineHeight: 1.3,
+            marginTop: '2px',
           }}
         >
           {subtitle}

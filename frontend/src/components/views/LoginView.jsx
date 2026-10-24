@@ -70,6 +70,11 @@ export const LoginView = ({ onLoginSuccess }) => {
     }
   };
 
+  const handleQuickFill = () => {
+    setEmail('admin@systemrevamp.local');
+    setPassword('Admin@123456');
+  };
+
   return (
     <div
       style={{
@@ -78,50 +83,61 @@ export const LoginView = ({ onLoginSuccess }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'var(--bg-base)',
+        background: 'transparent',
         padding: 'var(--space-4)',
+        userSelect: 'none',
       }}
     >
       <div
         className="panel"
         style={{
           width: '100%',
-          maxWidth: '420px',
-          padding: 'var(--space-6)',
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-card)', // 20px
-          boxShadow: 'var(--shadow-modal)',
+          maxWidth: '430px',
+          padding: '36px 32px',
+          backgroundColor: 'var(--glass-bg)',
+          backdropFilter: 'var(--glass-blur)',
+          WebkitBackdropFilter: 'var(--glass-blur)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius-modal)', /* 24px */
+          boxShadow: 'var(--glass-specular), var(--shadow-modal)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 'var(--space-4)',
-          animation: 'modalPop 180ms ease-out',
+          gap: 'var(--space-5)',
+          animation: 'modalPop 220ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         {/* Brand Header */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '12px' }}>
           <div
             style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: 'var(--radius-container)', // 14px
-              backgroundColor: 'var(--accent-primary)',
+              width: '52px',
+              height: '52px',
+              borderRadius: 'var(--radius-container)', /* 16px */
+              background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-active) 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--text-inverse)',
-              boxShadow: 'var(--shadow-md)',
+              boxShadow: '0 8px 24px -4px var(--accent-glow)',
             }}
           >
-            <Shield size={24} strokeWidth={2.5} />
+            <Shield size={26} strokeWidth={2.5} />
           </div>
 
           <div>
-            <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              System Revamp v2.0
+            <h1
+              style={{
+                fontSize: 'var(--text-xl)',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: 0,
+                letterSpacing: '-0.02em',
+              }}
+            >
+              System Revamp
             </h1>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0, marginTop: '2px' }}>
-              Enterprise Fleet Endpoint Intelligence Console
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0, marginTop: '4px' }}>
+              Enterprise Fleet Endpoint Intelligence Console v2.0
             </p>
           </div>
         </div>
@@ -129,7 +145,7 @@ export const LoginView = ({ onLoginSuccess }) => {
         {setupRequired && (
           <div
             style={{
-              padding: '10px 14px',
+              padding: '12px 14px',
               borderRadius: 'var(--radius-container)',
               backgroundColor: 'var(--status-info-bg)',
               border: '1px solid var(--status-info-border)',
@@ -137,7 +153,7 @@ export const LoginView = ({ onLoginSuccess }) => {
               fontSize: 'var(--text-xs)',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              gap: '10px',
             }}
           >
             <Sparkles size={16} strokeWidth={2} />
@@ -150,7 +166,7 @@ export const LoginView = ({ onLoginSuccess }) => {
         {error && (
           <div
             style={{
-              padding: '10px 14px',
+              padding: '12px 14px',
               borderRadius: 'var(--radius-container)',
               backgroundColor: 'var(--status-critical-bg)',
               border: '1px solid var(--status-critical-border)',
@@ -158,10 +174,10 @@ export const LoginView = ({ onLoginSuccess }) => {
               fontSize: 'var(--text-xs)',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              gap: '10px',
             }}
           >
-            <AlertCircle size={14} />
+            <AlertCircle size={15} style={{ flexShrink: 0 }} />
             <span>{error}</span>
           </div>
         )}
@@ -178,7 +194,7 @@ export const LoginView = ({ onLoginSuccess }) => {
                 value={setupOrg}
                 onChange={(e) => setSetupOrg(e.target.value)}
                 required
-                style={{ width: '100%', marginTop: '4px' }}
+                style={{ width: '100%', marginTop: '6px' }}
               />
             </div>
 
@@ -192,7 +208,7 @@ export const LoginView = ({ onLoginSuccess }) => {
                 value={setupName}
                 onChange={(e) => setSetupName(e.target.value)}
                 required
-                style={{ width: '100%', marginTop: '4px' }}
+                style={{ width: '100%', marginTop: '6px' }}
               />
             </div>
 
@@ -206,7 +222,7 @@ export const LoginView = ({ onLoginSuccess }) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={{ width: '100%', marginTop: '4px' }}
+                style={{ width: '100%', marginTop: '6px' }}
               />
             </div>
 
@@ -221,7 +237,7 @@ export const LoginView = ({ onLoginSuccess }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                style={{ width: '100%', marginTop: '4px' }}
+                style={{ width: '100%', marginTop: '6px' }}
               />
             </div>
 
@@ -229,10 +245,10 @@ export const LoginView = ({ onLoginSuccess }) => {
               type="submit"
               className="btn btn-primary"
               disabled={loading}
-              style={{ marginTop: 'var(--space-2)', height: '38px', justifyContent: 'center' }}
+              style={{ marginTop: 'var(--space-2)', height: '42px', justifyContent: 'center' }}
             >
               <span>{loading ? 'Initializing...' : 'Complete Initial Setup'}</span>
-              <ArrowRight size={14} />
+              <ArrowRight size={15} />
             </button>
           </form>
         ) : (
@@ -243,9 +259,9 @@ export const LoginView = ({ onLoginSuccess }) => {
                   <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-secondary)' }}>
                     Administrator Email
                   </label>
-                  <div style={{ position: 'relative', marginTop: '4px' }}>
+                  <div style={{ position: 'relative', marginTop: '6px' }}>
                     <Mail
-                      size={14}
+                      size={15}
                       style={{
                         position: 'absolute',
                         left: '12px',
@@ -259,20 +275,37 @@ export const LoginView = ({ onLoginSuccess }) => {
                       className="input"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="admin@example.edu"
+                      placeholder="admin@systemrevamp.local"
                       required
-                      style={{ width: '100%', paddingLeft: '34px' }}
+                      style={{ width: '100%', paddingLeft: '36px' }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    Password
-                  </label>
-                  <div style={{ position: 'relative', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleQuickFill}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--accent-text)',
+                        fontSize: '11px',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      Fill Admin Demo
+                    </button>
+                  </div>
+                  <div style={{ position: 'relative', marginTop: '6px' }}>
                     <Lock
-                      size={14}
+                      size={15}
                       style={{
                         position: 'absolute',
                         left: '12px',
@@ -288,7 +321,7 @@ export const LoginView = ({ onLoginSuccess }) => {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••••••"
                       required
-                      style={{ width: '100%', paddingLeft: '34px' }}
+                      style={{ width: '100%', paddingLeft: '36px' }}
                     />
                   </div>
                 </div>
@@ -298,9 +331,9 @@ export const LoginView = ({ onLoginSuccess }) => {
                 <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-secondary)' }}>
                   Two-Factor Authentication Code (TOTP)
                 </label>
-                <div style={{ position: 'relative', marginTop: '4px' }}>
+                <div style={{ position: 'relative', marginTop: '6px' }}>
                   <KeyRound
-                    size={14}
+                    size={15}
                     style={{
                       position: 'absolute',
                       left: '12px',
@@ -317,7 +350,7 @@ export const LoginView = ({ onLoginSuccess }) => {
                     placeholder="123456"
                     required
                     autoFocus
-                    style={{ width: '100%', paddingLeft: '34px', letterSpacing: '0.2em' }}
+                    style={{ width: '100%', paddingLeft: '36px', letterSpacing: '0.2em' }}
                   />
                 </div>
               </div>
@@ -327,13 +360,37 @@ export const LoginView = ({ onLoginSuccess }) => {
               type="submit"
               className="btn btn-primary"
               disabled={loading}
-              style={{ marginTop: 'var(--space-2)', height: '38px', justifyContent: 'center' }}
+              style={{ marginTop: 'var(--space-2)', height: '42px', justifyContent: 'center' }}
             >
-              <span>{loading ? 'Authenticating...' : requires2FA ? 'Verify Code' : 'Sign In'}</span>
-              <ArrowRight size={14} />
+              <span>{loading ? 'Authenticating...' : requires2FA ? 'Verify Code' : 'Sign In to Console'}</span>
+              <ArrowRight size={15} />
             </button>
           </form>
         )}
+
+        {/* Footer Living Telemetry Status */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            paddingTop: '6px',
+            borderTop: '1px solid var(--border-subtle)',
+          }}
+        >
+          <span className="living-node living-node-ok" />
+          <span
+            className="font-mono tabular-nums"
+            style={{
+              fontSize: '11px',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Zero-Trust Gateway Online • AES-256-GCM
+          </span>
+        </div>
       </div>
     </div>
   );

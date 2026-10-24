@@ -105,7 +105,17 @@ function MainConsole() {
       />
 
       {/* Main Workspace Column */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          overflow: 'hidden',
+          padding: '12px 14px 12px 12px',
+          boxSizing: 'border-box',
+        }}
+      >
         {/* Persistent Simulated Data Banner */}
         <SimulatedBanner />
 
@@ -121,8 +131,8 @@ function MainConsole() {
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: 'var(--space-4) var(--space-5)',
-            backgroundColor: 'var(--bg-base)',
+            padding: '2px 4px 16px 4px',
+            backgroundColor: 'transparent',
           }}
         >
           {selectedDeviceId ? (
