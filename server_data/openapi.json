@@ -1781,6 +1781,36 @@
         ]
       }
     },
+    "/api/v2/metrics": {
+      "get": {
+        "tags": [
+          "Metrics & Observability"
+        ],
+        "summary": "Get Prometheus Metrics",
+        "description": "Exposes standardized Prometheus metrics for the Central Fleet Server.\nConforms to text/plain; version=0.0.4 exposition format.",
+        "operationId": "get_prometheus_metrics_api_v2_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "Metrics & Observability"
+        ],
+        "summary": "Get Prometheus Metrics",
+        "description": "Exposes standardized Prometheus metrics for the Central Fleet Server.\nConforms to text/plain; version=0.0.4 exposition format.",
+        "operationId": "get_prometheus_metrics_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",

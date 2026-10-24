@@ -13,6 +13,7 @@ from server.app.api.commands_api import router as commands_router
 from server.app.api.threats_api import router as threats_router
 from server.app.api.exposure_api import router as exposure_router
 from server.app.api.offline_api import router as offline_router
+from server.app.api.metrics_api import router as metrics_router
 
 from contextlib import asynccontextmanager
 
@@ -46,6 +47,7 @@ app.include_router(commands_router)
 app.include_router(threats_router)
 app.include_router(exposure_router)
 app.include_router(offline_router)
+app.include_router(metrics_router)
 
 
 def seed_initial_admin(admin_email=None, admin_password=None):
