@@ -484,6 +484,7 @@ def get_fleet_software(
                 "publisher": sw.publisher or "Unknown",
                 "latest_version": sw.latest_version or "Unknown",
                 "risk_level": sw.risk_level,
+                "winget_id": getattr(sw, "winget_id", None),
                 "version_source": getattr(sw, "version_source", "unknown") or "unknown",
                 "version_fetched_at": getattr(sw, "version_fetched_at", None),
                 "is_stale": getattr(sw, "is_stale", False),
@@ -491,6 +492,8 @@ def get_fleet_software(
                 "affected_devices": set(),
                 "device_ids": set(),
             }
+        if getattr(sw, "winget_id", None) and not grouped[key].get("winget_id"):
+            grouped[key]["winget_id"] = sw.winget_id
         grouped[key]["installed_versions"].add(sw.version or "Unknown")
         grouped[key]["affected_devices"].add(dev.hostname)
         grouped[key]["device_ids"].add(dev.id)
@@ -510,6 +513,7 @@ def get_fleet_software(
             "id": f"fleet-sw-{abs(hash(key)) % 100000}",
             "name": data["name"],
             "publisher": data["publisher"],
+            "winget_id": data.get("winget_id"),
             "installed_version": sorted_versions[0] if sorted_versions else "Unknown",
             "installed_versions": sorted_versions,
             "latest_version": data["latest_version"],

@@ -108,10 +108,45 @@ def execute_enable_device(params: dict, dry_run: bool) -> Tuple[bool, Dict[str, 
 
 def execute_upgrade_package(params: dict, dry_run: bool) -> Tuple[bool, Dict[str, Any], str]:
     package_id = params.get("package_id") or params.get("winget_id")
+    app_name = params.get("package_name") or params.get("name") or params.get("app_name")
+
+    if not package_id and app_name:
+        from agent.collectors.software import _resolve_winget_id
+        package_id = _resolve_winget_id(app_name)
+
+    if not package_id and app_name and platform.system() == "Windows":
+        try:
+            search_res = subprocess.run(
+                ["winget", "search", "--name", app_name, "--accept-source-agreements"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            if search_res.returncode == 0 and search_res.stdout:
+                lines = [line.strip() for line in search_res.stdout.splitlines() if line.strip()]
+                dash_idx = -1
+                for idx, line in enumerate(lines):
+                    if set(line.replace(" ", "")) <= {"-"}:
+                        dash_idx = idx
+                        break
+                if dash_idx != -1 and dash_idx + 1 < len(lines):
+                    candidate = lines[dash_idx + 1]
+                    import re
+                    parts = re.split(r'\s{2,}', candidate)
+                    if len(parts) >= 2:
+                        package_id = parts[1].strip()
+        except Exception:
+            pass
+
+    if not package_id and app_name:
+        package_id = app_name
+
     if not package_id:
         return False, {}, "Missing required package_id parameter."
 
-    cmd_str = f"winget upgrade --id {package_id} --exact --accept-package-agreements --accept-source-agreements --disable-interactivity"
+    id_flag = "--id" if "." in package_id else "--name"
+    cmd_str = f"winget upgrade {id_flag} {package_id} --exact --accept-package-agreements --accept-source-agreements --disable-interactivity"
     if dry_run:
         return True, {"action": "upgrade-package", "command": cmd_str}, f"Dry run preview: {cmd_str}"
 
@@ -123,7 +158,7 @@ def execute_upgrade_package(params: dict, dry_run: bool) -> Tuple[bool, Dict[str
             [
                 "winget",
                 "upgrade",
-                "--id",
+                id_flag,
                 package_id,
                 "--exact",
                 "--accept-package-agreements",
@@ -136,7 +171,7 @@ def execute_upgrade_package(params: dict, dry_run: bool) -> Tuple[bool, Dict[str
             check=False,
         )
         log = res.stdout + ("\n" + res.stderr if res.stderr else "")
-        success = (res.returncode == 0 or "Successfully installed" in res.stdout)
+        success = (res.returncode == 0 or "Successfully installed" in res.stdout or "No applicable update found" in res.stdout)
         return success, {"returncode": res.returncode, "package_id": package_id}, log
     except Exception as e:
         return False, {"error": str(e)}, str(e)

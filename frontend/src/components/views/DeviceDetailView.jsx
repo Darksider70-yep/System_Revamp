@@ -55,11 +55,11 @@ export const DeviceDetailView = ({ deviceId, onBack }) => {
 
   const handleQueueSingleRemediation = (pkg) => {
     setPendingCommand({
-      type: 'WINGET_UPGRADE',
+      type: 'upgrade-package',
       target: device?.hostname || deviceId,
       title: `Queue Upgrade for ${pkg.name}`,
       description: `Dispatches unattended upgrade command for ${pkg.name} (v${pkg.version} → v${pkg.latest_version || 'latest'}) to this machine.`,
-      rawPayload: { package_id: pkg.id, name: pkg.name, target_version: pkg.latest_version },
+      rawPayload: { package_id: pkg.winget_id || pkg.name, package_name: pkg.name, target_version: pkg.latest_version },
       dryRun: false,
     });
     setConfirmOpen(true);

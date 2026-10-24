@@ -85,6 +85,14 @@ export const RemediationView = ({ initialApp = null }) => {
     setStagedDevices(matched);
   }, [selectedApp, availableApps, targetDevices]);
 
+  const pollTimerRef = React.useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, []);
+
   // Handle Real Dry Run Execution
   const handleStartDryRun = async () => {
     if (!selectedApp || stagedDevices.length === 0) return;
@@ -92,11 +100,12 @@ export const RemediationView = ({ initialApp = null }) => {
     const appObj = availableApps.find((a) => a.name === selectedApp);
     const targetVer = appObj?.latest_version || 'Latest';
     const curVer = appObj?.installed_version || 'Current';
+    const pkgId = appObj?.winget_id || selectedApp;
 
     try {
       // Dispatch dry-run command to first candidate device
       const firstDev = stagedDevices[0];
-      const res = await api.queueCommand('device', firstDev.id, 'upgrade-package', { package_name: selectedApp }, true);
+      const res = await api.queueCommand('device', firstDev.id, 'upgrade-package', { package_id: pkgId, package_name: selectedApp }, true);
 
       setDryRunResults({
         totalPlanned: stagedDevices.length,
@@ -107,6 +116,7 @@ export const RemediationView = ({ initialApp = null }) => {
           `- Current:   ${selectedApp} (v${curVer})`,
           `+ Target:    ${selectedApp} (v${targetVer})`,
           `~ Dispatch:  Cryptographically signed winget upgrade to target ID: ${firstDev.id}`,
+          `~ Package:   ${pkgId}`,
           `~ Signature: ${res?.signature ? res.signature.slice(0, 32) + '...' : 'HMAC-SHA256 verified'}`,
         ],
       });
@@ -121,56 +131,84 @@ export const RemediationView = ({ initialApp = null }) => {
   // Handle Genuine Rollout
   const handleStartRollout = async () => {
     if (stagedDevices.length === 0) return;
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+
     setRolloutActive(true);
     setRolloutStage('executing');
     setRolloutProgress(10);
 
-    const queuedCmds = [];
+    const appObj = availableApps.find((a) => a.name === selectedApp);
+    const pkgId = appObj?.winget_id || selectedApp;
     const updatedDevices = [...stagedDevices];
 
     try {
       for (let i = 0; i < updatedDevices.length; i++) {
         const d = updatedDevices[i];
         try {
-          const res = await api.queueCommand('device', d.id, 'upgrade-package', { package_name: selectedApp }, false);
+          const res = await api.queueCommand('device', d.id, 'upgrade-package', { package_id: pkgId, package_name: selectedApp }, false);
           d.commandId = res?.command_id;
           d.status = res?.status === 'approved' ? 'Dispatched' : 'Queued';
           d.log = `HMAC command queued: ${res?.command_id || 'ID pending'}`;
-          queuedCmds.push(res?.command_id);
         } catch (e) {
           d.status = 'Failed';
           d.log = `Dispatch failed: ${e.message}`;
         }
       }
 
-      setStagedDevices(updatedDevices);
-      setRolloutProgress(50);
+      setStagedDevices([...updatedDevices]);
+      setRolloutProgress(25);
 
-      // Poll command queue status for completion
-      setTimeout(async () => {
+      // Poll real command queue status from server/agent
+      pollTimerRef.current = setInterval(async () => {
         try {
           const cmdList = await api.getCommands();
           if (Array.isArray(cmdList)) {
-            setStagedDevices((prev) =>
-              prev.map((dev) => {
+            let finishedCount = 0;
+            setStagedDevices((prev) => {
+              const next = prev.map((dev) => {
+                if (!dev.commandId) {
+                  if (dev.status === 'Failed' || dev.status === 'Aborted') finishedCount++;
+                  return dev;
+                }
                 const found = cmdList.find((c) => c.id === dev.commandId);
                 if (found) {
+                  const isDone = found.status === 'success' || found.status === 'completed';
+                  const isFail = found.status === 'failed';
+                  if (isDone || isFail) finishedCount++;
+
+                  const resultLog =
+                    found.result?.execution_log ||
+                    found.result?.output ||
+                    found.result?.error ||
+                    (found.completed_at ? `Execution finished (${found.status})` : `Status: ${found.status}`);
+
                   return {
                     ...dev,
-                    status: found.status === 'completed' ? 'Success' : found.status,
-                    log: found.result?.output || `Status: ${found.status}`,
+                    status: isDone ? 'Success' : isFail ? 'Failed' : found.status === 'approved' ? 'Dispatched' : found.status,
+                    log: resultLog,
                   };
                 }
                 return dev;
-              })
-            );
+              });
+
+              const total = next.length;
+              const progressPct = total > 0 ? Math.min(100, Math.round(25 + (finishedCount / total) * 75)) : 100;
+              setRolloutProgress(progressPct);
+
+              if (finishedCount >= total && total > 0) {
+                if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+                setRolloutStage('completed');
+                setRolloutActive(false);
+                setCurrentStep(4);
+              }
+
+              return next;
+            });
           }
-        } catch (err) {}
-        setRolloutProgress(100);
-        setRolloutStage('completed');
-        setRolloutActive(false);
-        setCurrentStep(4);
-      }, 3000);
+        } catch (err) {
+          // Keep polling on transient network error
+        }
+      }, 2500);
     } catch (err) {
       alert(`Rollout error: ${err.message}`);
       setRolloutActive(false);
@@ -178,10 +216,15 @@ export const RemediationView = ({ initialApp = null }) => {
   };
 
   const handleAbortRollout = () => {
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     setRolloutActive(false);
     setRolloutStage('aborted');
     setStagedDevices((prev) =>
-      prev.map((d) => (d.status === 'Pending' || d.status === 'Queued' ? { ...d, status: 'Aborted', log: 'Cancelled by administrator' } : d))
+      prev.map((d) =>
+        d.status === 'Pending' || d.status === 'Queued' || d.status === 'Dispatched'
+          ? { ...d, status: 'Aborted', log: 'Cancelled by administrator' }
+          : d
+      )
     );
   };
 

@@ -89,7 +89,7 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
   // Bulk Actions
   const handleBulkRescan = () => {
     setConfirmAction({
-      type: 'RESCAN_BASELINE',
+      type: 'rescan',
       title: `Trigger Telemetry Rescan on ${selectedDeviceIds.length} Endpoints`,
       description: 'Dispatches an immediate outbound hardware/software inventory scan command to the selected agents.',
       target: `${selectedDeviceIds.length} endpoints`,
@@ -101,11 +101,11 @@ export const DevicesView = ({ onSelectDevice, initialFilters = {} }) => {
 
   const handleBulkRemediate = () => {
     setConfirmAction({
-      type: 'WINGET_UPGRADE_ALL',
+      type: 'upgrade-package',
       title: `Queue Remediation on ${selectedDeviceIds.length} Endpoints`,
       description: 'Will execute unattended winget/driver upgrades on selected machines with dry-run safety validation.',
       target: `${selectedDeviceIds.length} endpoints`,
-      rawPayload: { command: 'winget-upgrade', devices: selectedDeviceIds },
+      rawPayload: { package_name: 'all', devices: selectedDeviceIds },
       dryRun: true,
     });
     setConfirmOpen(true);
