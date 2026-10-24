@@ -111,3 +111,20 @@ def dispatch_command(command_type: str, params: dict, dry_run: bool = False) -> 
     if not handler:
         return False, {"error": f"Unknown command type: {command_type}"}, f"Command {command_type} not supported."
     return handler(params, dry_run)
+
+
+def verify_command_signature(command_id: str, command_type: str, params: dict, received_sig: str, signing_key: str) -> bool:
+    """
+    Verifies HMAC-SHA256 signature for remediation command execution.
+    Matches specification in docs/api_reference.md section 1.5.
+    """
+    import hmac
+    import hashlib
+    params_sorted_json = json.dumps(params, sort_keys=True)
+    payload = f"{command_id}:{command_type}:{params_sorted_json}".encode("utf-8")
+    expected_sig = hmac.new(signing_key.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected_sig, received_sig)
+
+
+# Functional alias
+verify_signature = verify_command_signature

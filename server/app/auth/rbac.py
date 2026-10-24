@@ -16,7 +16,7 @@ _SINGLE_USE_TICKETS = {}
 
 def issue_ticket_token(device_id: str, ttl_seconds: int = 30) -> str:
     import secrets
-    token = secrets.token_urlsafe(32)
+    token = f"sr_tkt_{secrets.token_urlsafe(32)}"
     _SINGLE_USE_TICKETS[token] = {
         "device_id": device_id,
         "expires_at": time.time() + ttl_seconds,

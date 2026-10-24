@@ -46,6 +46,8 @@ def test_lineage_contract_endpoints_registered():
         "/api/v2/threats/overview",
         "/api/v2/auth/login",
         "/api/v2/auth/setup-status",
+        "/metrics",
+        "/api/v2/metrics",
     ]
 
     for endpoint in expected_endpoints:

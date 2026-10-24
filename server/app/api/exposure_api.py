@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/v2/exposure", tags=["Exposure Assessment"])
 
 
 @router.post("/token")
+@router.post("/ticket")
 def generate_exposure_ticket(
     device_id: str = Query(...),
     user: AdminUser = Depends(get_current_admin),
